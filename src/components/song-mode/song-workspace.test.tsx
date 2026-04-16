@@ -44,12 +44,31 @@ vi.mock("./waveform-card", () => ({
 	WaveformCard: ({
 		audioFile,
 		isSelected,
+		onStepVolume,
 	}: {
 		audioFile: AudioFileRecord;
 		isSelected: boolean;
+		onStepVolume: (deltaDb: number) => Promise<void>;
 	}) => (
 		<div data-testid="waveform-card">
-			{audioFile.title}:{String(isSelected)}
+			<span>
+				{audioFile.title}:{String(isSelected)}
+			</span>
+			<span>{audioFile.volumeDb} dB</span>
+			<button
+				type="button"
+				onClick={() => void onStepVolume(-1)}
+				disabled={audioFile.volumeDb <= -12}
+			>
+				-
+			</button>
+			<button
+				type="button"
+				onClick={() => void onStepVolume(1)}
+				disabled={audioFile.volumeDb >= 12}
+			>
+				+
+			</button>
 		</div>
 	),
 }));
@@ -101,6 +120,29 @@ const updateAnnotation = vi.fn();
 const updateAudioFile = vi.fn();
 const updateSong = vi.fn();
 
+function createAudioFile(
+	overrides: Partial<AudioFileRecord> = {},
+): AudioFileRecord {
+	return {
+		id: "file-1",
+		songId: baseSong.id,
+		title: "Mix v1",
+		notes: EMPTY_RICH_TEXT,
+		masteringNote: EMPTY_RICH_TEXT,
+		volumeDb: 0,
+		durationMs: 180000,
+		waveform: {
+			peaks: [0.2, 0.6, 0.4],
+			peakCount: 3,
+			durationMs: 180000,
+			sampleRate: 44100,
+		},
+		createdAt: "2026-04-16T00:00:00.000Z",
+		updatedAt: "2026-04-16T00:00:00.000Z",
+		...overrides,
+	};
+}
+
 vi.mock("#/providers/song-mode-provider", () => ({
 	useSongMode: () => ({
 		ready: true,
@@ -148,6 +190,7 @@ describe("SongWorkspace", () => {
 		getAnnotationsForFile.mockClear();
 		getWorkspaceState.mockClear();
 		rememberSongOpened.mockClear();
+		updateAudioFile.mockReset();
 		Element.prototype.scrollIntoView = vi.fn();
 	});
 
@@ -169,24 +212,7 @@ describe("SongWorkspace", () => {
 			screen.getByText(/Add audio to start the stacked waveform review/i),
 		).toBeTruthy();
 
-		currentAudioFiles = [
-			{
-				id: "file-1",
-				songId: baseSong.id,
-				title: "Mix v1",
-				notes: EMPTY_RICH_TEXT,
-				masteringNote: EMPTY_RICH_TEXT,
-				durationMs: 180000,
-				waveform: {
-					peaks: [0.2, 0.6, 0.4],
-					peakCount: 3,
-					durationMs: 180000,
-					sampleRate: 44100,
-				},
-				createdAt: "2026-04-16T00:00:00.000Z",
-				updatedAt: "2026-04-16T00:00:00.000Z",
-			},
-		];
+		currentAudioFiles = [createAudioFile()];
 		currentBlobsByAudioId = {
 			"file-1": new Blob(["tone"], { type: "audio/wav" }),
 		};
@@ -207,25 +233,23 @@ describe("SongWorkspace", () => {
 		});
 	});
 
+	it("steps file volume by 1 dB through the persisted audio update path", async () => {
+		currentAudioFiles = [createAudioFile()];
+		updateAudioFile.mockResolvedValue(undefined);
+
+		render(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+
+		fireEvent.click(screen.getByRole("button", { name: "+" }));
+
+		await waitFor(() => {
+			expect(updateAudioFile).toHaveBeenCalledWith("file-1", {
+				volumeDb: 1,
+			});
+		});
+	});
+
 	it("opens the upload form inside a modal when add audio is clicked", () => {
-		currentAudioFiles = [
-			{
-				id: "file-1",
-				songId: baseSong.id,
-				title: "Mix v1",
-				notes: EMPTY_RICH_TEXT,
-				masteringNote: EMPTY_RICH_TEXT,
-				durationMs: 180000,
-				waveform: {
-					peaks: [0.2, 0.6, 0.4],
-					peakCount: 3,
-					durationMs: 180000,
-					sampleRate: 44100,
-				},
-				createdAt: "2026-04-16T00:00:00.000Z",
-				updatedAt: "2026-04-16T00:00:00.000Z",
-			},
-		];
+		currentAudioFiles = [createAudioFile()];
 
 		render(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
 
@@ -243,24 +267,7 @@ describe("SongWorkspace", () => {
 	});
 
 	it("renders the song controls into the header slot when one is available", () => {
-		currentAudioFiles = [
-			{
-				id: "file-1",
-				songId: baseSong.id,
-				title: "Mix v1",
-				notes: EMPTY_RICH_TEXT,
-				masteringNote: EMPTY_RICH_TEXT,
-				durationMs: 180000,
-				waveform: {
-					peaks: [0.2, 0.6, 0.4],
-					peakCount: 3,
-					durationMs: 180000,
-					sampleRate: 44100,
-				},
-				createdAt: "2026-04-16T00:00:00.000Z",
-				updatedAt: "2026-04-16T00:00:00.000Z",
-			},
-		];
+		currentAudioFiles = [createAudioFile()];
 
 		const headerSlot = document.createElement("div");
 		document.body.appendChild(headerSlot);

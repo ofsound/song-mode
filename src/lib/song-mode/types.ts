@@ -42,6 +42,7 @@ export interface AudioFileRecord {
 	title: string;
 	notes: RichTextDoc;
 	masteringNote: RichTextDoc;
+	volumeDb: number;
 	durationMs: number;
 	waveform: WaveformData;
 	createdAt: string;

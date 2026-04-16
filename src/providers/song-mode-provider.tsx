@@ -37,6 +37,7 @@ import {
 	clampTime,
 	generateWaveformFromFile,
 	hasRenderableWaveform,
+	normalizeVolumeDb,
 	normalizeWaveformData,
 } from "#/lib/song-mode/waveform";
 
@@ -155,6 +156,7 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 							...audioFile,
 							notes: normalizeRichText(audioFile.notes),
 							masteringNote: normalizeRichText(audioFile.masteringNote),
+							volumeDb: normalizeVolumeDb(audioFile.volumeDb),
 							waveform: normalizeWaveformData(
 								audioFile.waveform,
 								audioFile.durationMs,
@@ -401,6 +403,7 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 				title: input.title.trim() || input.file.name.replace(/\.[^.]+$/, ""),
 				notes: normalizeRichText(input.notes),
 				masteringNote: normalizeRichText(input.masteringNote),
+				volumeDb: 0,
 				durationMs: waveform.durationMs,
 				waveform,
 				createdAt: now,
@@ -456,6 +459,9 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 									notes: normalizeRichText(patch.notes ?? audioFile.notes),
 									masteringNote: normalizeRichText(
 										patch.masteringNote ?? audioFile.masteringNote,
+									),
+									volumeDb: normalizeVolumeDb(
+										patch.volumeDb ?? audioFile.volumeDb,
 									),
 									updatedAt: new Date().toISOString(),
 								}

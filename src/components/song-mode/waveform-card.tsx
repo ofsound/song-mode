@@ -1,12 +1,14 @@
 import {
 	Flag,
 	GripVertical,
+	Minus,
 	Pause,
 	Play,
+	Plus,
 	SquareStack,
 	TimerReset,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EMPTY_RICH_TEXT } from "#/lib/song-mode/rich-text";
 import type {
 	Annotation,
@@ -15,7 +17,10 @@ import type {
 } from "#/lib/song-mode/types";
 import {
 	formatDuration,
+	MAX_VOLUME_DB,
+	MIN_VOLUME_DB,
 	normalizeWaveformData,
+	volumeDbToGain,
 } from "#/lib/song-mode/waveform";
 import { useTheme } from "#/providers/theme-provider";
 
@@ -41,6 +46,7 @@ interface WaveformCardProps {
 		isPlaying?: boolean;
 		currentTimeMs?: number;
 	}) => void;
+	onStepVolume: (deltaDb: number) => Promise<void>;
 	onDragStart: () => void;
 	onDragEnd: () => void;
 	onDrop: () => void;
@@ -61,6 +67,7 @@ export function WaveformCard({
 	onTogglePlayback,
 	onRegisterAudioElement,
 	onReportPlayback,
+	onStepVolume,
 	onDragStart,
 	onDragEnd,
 	onDrop,
@@ -72,6 +79,9 @@ export function WaveformCard({
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const surfaceRef = useRef<HTMLDivElement | null>(null);
 	const audioRef = useRef<HTMLAudioElement | null>(null);
+	const audioContextRef = useRef<AudioContext | null>(null);
+	const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
+	const gainNodeRef = useRef<GainNode | null>(null);
 
 	const sortedAnnotations = useMemo(
 		() => [...annotations].sort((left, right) => left.startMs - right.startMs),
@@ -108,6 +118,91 @@ export function WaveformCard({
 			audioRef.current.currentTime = nextTime;
 		}
 	}, [currentTimeMs]);
+
+	const ensureAudioGraph = useCallback(() => {
+		if (typeof window === "undefined") {
+			return null;
+		}
+
+		if (
+			audioContextRef.current &&
+			sourceNodeRef.current &&
+			gainNodeRef.current
+		) {
+			return audioContextRef.current;
+		}
+
+		const element = audioRef.current;
+		if (!element) {
+			return null;
+		}
+
+		const AudioContextCtor =
+			window.AudioContext ||
+			(window as Window & { webkitAudioContext?: typeof AudioContext })
+				.webkitAudioContext;
+
+		if (!AudioContextCtor) {
+			return null;
+		}
+
+		const context = new AudioContextCtor();
+		const source = context.createMediaElementSource(element);
+		const gainNode = context.createGain();
+
+		source.connect(gainNode);
+		gainNode.connect(context.destination);
+
+		audioContextRef.current = context;
+		sourceNodeRef.current = source;
+		gainNodeRef.current = gainNode;
+		element.volume = 1;
+
+		return context;
+	}, []);
+
+	useEffect(() => {
+		const context = ensureAudioGraph();
+		const gainNode = gainNodeRef.current;
+		const nextGain = volumeDbToGain(audioFile.volumeDb);
+
+		if (context && gainNode) {
+			gainNode.gain.value = nextGain;
+			return;
+		}
+
+		if (audioRef.current) {
+			audioRef.current.volume = Math.min(1, nextGain);
+		}
+	}, [audioFile.volumeDb, ensureAudioGraph]);
+
+	useEffect(() => {
+		if (!isPlaying) {
+			return;
+		}
+
+		const context = ensureAudioGraph();
+		if (!context || context.state !== "suspended") {
+			return;
+		}
+
+		void context.resume().catch(() => undefined);
+	}, [ensureAudioGraph, isPlaying]);
+
+	useEffect(() => {
+		return () => {
+			sourceNodeRef.current?.disconnect();
+			gainNodeRef.current?.disconnect();
+			sourceNodeRef.current = null;
+			gainNodeRef.current = null;
+
+			const context = audioContextRef.current;
+			audioContextRef.current = null;
+			if (context) {
+				void context.close().catch(() => undefined);
+			}
+		};
+	}, []);
 
 	useEffect(() => {
 		const canvas = canvasRef.current;
@@ -360,43 +455,74 @@ export function WaveformCard({
 				</div>
 			</div>
 
-			{/* biome-ignore lint/a11y/useSemanticElements: the waveform surface contains nested marker buttons, so a semantic button wrapper is not valid */}
-			<div
-				ref={surfaceRef}
-				className="waveform-surface relative overflow-hidden border border-[var(--color-border-subtle)]"
-				role="button"
-				tabIndex={0}
-				aria-label={`Waveform for ${audioFile.title}`}
-				onClick={(event) => {
-					if ((event.target as HTMLElement).closest("[data-annotation-hit]")) {
-						return;
-					}
-					void handleWaveformAction(event.clientX);
-				}}
-				onKeyDown={(event) => {
-					if (event.key !== "Enter" && event.key !== " ") {
-						return;
-					}
+			<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+				{/* biome-ignore lint/a11y/useSemanticElements: the waveform surface contains nested marker buttons, so a semantic button wrapper is not valid */}
+				<div
+					ref={surfaceRef}
+					className="waveform-surface relative overflow-hidden border border-[var(--color-border-subtle)]"
+					role="button"
+					tabIndex={0}
+					aria-label={`Waveform for ${audioFile.title}`}
+					onClick={(event) => {
+						if (
+							(event.target as HTMLElement).closest("[data-annotation-hit]")
+						) {
+							return;
+						}
+						void handleWaveformAction(event.clientX);
+					}}
+					onKeyDown={(event) => {
+						if (event.key !== "Enter" && event.key !== " ") {
+							return;
+						}
 
-					event.preventDefault();
-					const bounds = surfaceRef.current?.getBoundingClientRect();
-					if (!bounds) {
-						return;
-					}
+						event.preventDefault();
+						const bounds = surfaceRef.current?.getBoundingClientRect();
+						if (!bounds) {
+							return;
+						}
 
-					void handleWaveformAction(bounds.left + bounds.width / 2);
-				}}
-			>
-				<canvas ref={canvasRef} className="block w-full" />
+						void handleWaveformAction(bounds.left + bounds.width / 2);
+					}}
+				>
+					<canvas ref={canvasRef} className="block w-full" />
 
-				{sortedAnnotations.map((annotation) => {
-					const left = `${(annotation.startMs / Math.max(audioFile.durationMs, 1)) * 100}%`;
-					const right =
-						annotation.type === "range" && annotation.endMs
-							? `${((annotation.endMs - annotation.startMs) / Math.max(audioFile.durationMs, 1)) * 100}%`
-							: undefined;
+					{sortedAnnotations.map((annotation) => {
+						const left = `${(annotation.startMs / Math.max(audioFile.durationMs, 1)) * 100}%`;
+						const right =
+							annotation.type === "range" && annotation.endMs
+								? `${((annotation.endMs - annotation.startMs) / Math.max(audioFile.durationMs, 1)) * 100}%`
+								: undefined;
 
-					if (annotation.type === "range" && annotation.endMs) {
+						if (annotation.type === "range" && annotation.endMs) {
+							return (
+								<button
+									key={annotation.id}
+									type="button"
+									data-annotation-hit
+									onClick={(event) => {
+										event.stopPropagation();
+										onSelectFile(audioFile.id);
+										onSelectAnnotation(annotation.id);
+										void onSeek(annotation.startMs, true);
+									}}
+									className={`absolute bottom-4 top-4 border ${
+										activeAnnotationId === annotation.id
+											? "border-[var(--color-waveform-annotation-active)] shadow-[0_0_0_1px_var(--color-waveform-annotation-active)]"
+											: "border-[var(--color-waveform-annotation-inactive)]"
+									}`}
+									style={{
+										left,
+										width: right,
+										backgroundColor:
+											annotation.color ?? "var(--color-annotation-2)",
+										opacity: activeAnnotationId === annotation.id ? 0.34 : 0.2,
+									}}
+									title={annotation.title || "Range"}
+								/>
+							);
+						}
+
 						return (
 							<button
 								key={annotation.id}
@@ -408,61 +534,64 @@ export function WaveformCard({
 									onSelectAnnotation(annotation.id);
 									void onSeek(annotation.startMs, true);
 								}}
-								className={`absolute bottom-4 top-4 border ${
-									activeAnnotationId === annotation.id
-										? "border-[var(--color-waveform-annotation-active)] shadow-[0_0_0_1px_var(--color-waveform-annotation-active)]"
-										: "border-[var(--color-waveform-annotation-inactive)]"
-								}`}
-								style={{
-									left,
-									width: right,
-									backgroundColor:
-										annotation.color ?? "var(--color-annotation-2)",
-									opacity: activeAnnotationId === annotation.id ? 0.34 : 0.2,
-								}}
-								title={annotation.title || "Range"}
-							/>
+								className="absolute bottom-0 top-0 w-3 -translate-x-1/2"
+								style={{ left }}
+								title={annotation.title || "Marker"}
+							>
+								<span
+									className={`absolute bottom-0 top-0 left-1/2 w-0.5 -translate-x-1/2 ${
+										activeAnnotationId === annotation.id
+											? "bg-[var(--color-waveform-marker-active)]"
+											: "bg-[var(--color-waveform-marker-track)]"
+									}`}
+								/>
+								<span
+									className="absolute left-1/2 top-4 h-3 w-3 -translate-x-1/2 border border-[var(--color-waveform-marker-dot-border)]"
+									style={{
+										backgroundColor:
+											annotation.color ?? "var(--color-annotation-4)",
+									}}
+								/>
+							</button>
 						);
-					}
+					})}
 
-					return (
+					{mode === "range" && rangeAnchorMs !== null && (
+						<div className="range-hint-pill pointer-events-none absolute bottom-3 left-3 px-3 py-1 text-xs font-medium">
+							Pick the range end point
+						</div>
+					)}
+				</div>
+
+				<div className="flex min-w-[5.75rem] flex-col items-stretch justify-center border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] px-2 py-3">
+					<span className="field-label text-center text-[0.56rem]">Volume</span>
+					<div className="mt-2 flex items-center justify-between gap-2">
 						<button
-							key={annotation.id}
 							type="button"
-							data-annotation-hit
-							onClick={(event) => {
-								event.stopPropagation();
-								onSelectFile(audioFile.id);
-								onSelectAnnotation(annotation.id);
-								void onSeek(annotation.startMs, true);
-							}}
-							className="absolute bottom-0 top-0 w-3 -translate-x-1/2"
-							style={{ left }}
-							title={annotation.title || "Marker"}
+							onClick={() => void onStepVolume(-1)}
+							disabled={audioFile.volumeDb <= MIN_VOLUME_DB}
+							aria-label={`Decrease volume for ${audioFile.title}`}
+							className="icon-button h-8 w-8 disabled:cursor-not-allowed disabled:opacity-45"
 						>
-							<span
-								className={`absolute bottom-0 top-0 left-1/2 w-0.5 -translate-x-1/2 ${
-									activeAnnotationId === annotation.id
-										? "bg-[var(--color-waveform-marker-active)]"
-										: "bg-[var(--color-waveform-marker-track)]"
-								}`}
-							/>
-							<span
-								className="absolute left-1/2 top-4 h-3 w-3 -translate-x-1/2 border border-[var(--color-waveform-marker-dot-border)]"
-								style={{
-									backgroundColor:
-										annotation.color ?? "var(--color-annotation-4)",
-								}}
-							/>
+							<Minus size={14} />
 						</button>
-					);
-				})}
-
-				{mode === "range" && rangeAnchorMs !== null && (
-					<div className="range-hint-pill pointer-events-none absolute bottom-3 left-3 px-3 py-1 text-xs font-medium">
-						Pick the range end point
+						<button
+							type="button"
+							onClick={() => void onStepVolume(1)}
+							disabled={audioFile.volumeDb >= MAX_VOLUME_DB}
+							aria-label={`Increase volume for ${audioFile.title}`}
+							className="icon-button h-8 w-8 disabled:cursor-not-allowed disabled:opacity-45"
+						>
+							<Plus size={14} />
+						</button>
 					</div>
-				)}
+					<output
+						aria-live="polite"
+						className="mt-3 text-center text-sm font-semibold text-[var(--color-text)]"
+					>
+						{formatVolumeDb(audioFile.volumeDb)}
+					</output>
+				</div>
 			</div>
 
 			<div className="mt-3 flex items-center justify-between gap-3 text-xs text-[var(--color-text-subtle)]">
@@ -524,6 +653,14 @@ export function WaveformCard({
 			/>
 		</article>
 	);
+}
+
+function formatVolumeDb(volumeDb: number): string {
+	if (volumeDb > 0) {
+		return `+${volumeDb} dB`;
+	}
+
+	return `${volumeDb} dB`;
 }
 
 function ModeButton({

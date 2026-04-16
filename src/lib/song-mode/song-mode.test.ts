@@ -7,7 +7,12 @@ import {
 } from "./rich-text";
 import { searchSongMode } from "./search";
 import type { Annotation, AudioFileRecord, Song } from "./types";
-import { hasRenderableWaveform, normalizeWaveformData } from "./waveform";
+import {
+	hasRenderableWaveform,
+	normalizeVolumeDb,
+	normalizeWaveformData,
+	volumeDbToGain,
+} from "./waveform";
 
 describe("song mode rich text", () => {
 	it("converts paragraphs into searchable plain text", () => {
@@ -63,6 +68,7 @@ describe("song mode search", () => {
 				title: "Mix v4",
 				notes: plainTextToRichText("Snare still feels dark"),
 				masteringNote: EMPTY_RICH_TEXT,
+				volumeDb: 0,
 				durationMs: 180000,
 				waveform: {
 					peaks: [0.2, 0.8, 0.4],
@@ -153,5 +159,25 @@ describe("song mode waveform normalization", () => {
 		expect(hasRenderableWaveform({ peaks: [0, 0.4] })).toBe(true);
 		expect(hasRenderableWaveform({ peaks: [Number.NaN] })).toBe(false);
 		expect(hasRenderableWaveform({ peaks: [] })).toBe(false);
+	});
+});
+
+describe("song mode volume normalization", () => {
+	it("defaults invalid values to 0 dB", () => {
+		expect(normalizeVolumeDb(undefined)).toBe(0);
+		expect(normalizeVolumeDb(Number.NaN)).toBe(0);
+	});
+
+	it("rounds to the nearest whole decibel and clamps to the supported range", () => {
+		expect(normalizeVolumeDb(2.6)).toBe(3);
+		expect(normalizeVolumeDb(-1.6)).toBe(-2);
+		expect(normalizeVolumeDb(99)).toBe(12);
+		expect(normalizeVolumeDb(-99)).toBe(-12);
+	});
+
+	it("converts decibels into linear gain", () => {
+		expect(volumeDbToGain(0)).toBe(1);
+		expect(volumeDbToGain(6)).toBeCloseTo(1.995, 3);
+		expect(volumeDbToGain(-6)).toBeCloseTo(0.501, 3);
 	});
 });

@@ -2,6 +2,8 @@ import type { WaveformData } from "./types";
 
 const DEFAULT_PEAK_COUNT = 960;
 const FALLBACK_PEAK_COUNT = 120;
+export const MIN_VOLUME_DB = -12;
+export const MAX_VOLUME_DB = 12;
 
 export function normalizeWaveformData(
 	waveform: Partial<WaveformData> | null | undefined,
@@ -53,6 +55,18 @@ export function hasRenderableWaveform(
 	return Array.isArray(waveform?.peaks)
 		? waveform.peaks.some((value) => Number.isFinite(value))
 		: false;
+}
+
+export function normalizeVolumeDb(value: unknown): number {
+	if (typeof value !== "number" || !Number.isFinite(value)) {
+		return 0;
+	}
+
+	return Math.max(MIN_VOLUME_DB, Math.min(MAX_VOLUME_DB, Math.round(value)));
+}
+
+export function volumeDbToGain(volumeDb: number): number {
+	return 10 ** (normalizeVolumeDb(volumeDb) / 20);
 }
 
 export async function generateWaveformFromFile(

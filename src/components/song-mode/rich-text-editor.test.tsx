@@ -1,9 +1,18 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { useMemo, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { plainTextToRichText, richTextToMultiline } from "#/lib/song-mode/rich-text";
+import {
+	plainTextToRichText,
+	richTextToMultiline,
+} from "#/lib/song-mode/rich-text";
 import type { RichTextDoc } from "#/lib/song-mode/types";
 import { RichTextEditor, type RichTextToolbarAction } from "./rich-text-editor";
 
@@ -65,7 +74,7 @@ describe("RichTextEditor", () => {
 		const RealDate = Date;
 		const now = new RealDate("2026-04-16T09:41:00");
 		class MockDate extends RealDate {
-			constructor(...args: any[]) {
+			constructor(...args: ConstructorParameters<DateConstructor>) {
 				super(args.length > 0 ? args[0] : now);
 			}
 

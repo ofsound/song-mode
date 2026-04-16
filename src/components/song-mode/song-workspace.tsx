@@ -6,6 +6,7 @@ import { isEditableElement } from "#/lib/song-mode/dom";
 import { targetToRouteSearch } from "#/lib/song-mode/links";
 import { plainTextToRichText } from "#/lib/song-mode/rich-text";
 import type { SongLinkTarget, SongRouteSearch } from "#/lib/song-mode/types";
+import { normalizeVolumeDb } from "#/lib/song-mode/waveform";
 import { useSongMode } from "#/providers/song-mode-provider";
 import { useSongRouteHeaderSlot } from "./app-chrome";
 import { InspectorPane } from "./inspector-pane";
@@ -564,6 +565,13 @@ export function SongWorkspace({
 											}
 											onReportPlayback={(patch) =>
 												reportPlaybackState(audioFile.id, patch)
+											}
+											onStepVolume={(deltaDb) =>
+												updateAudioFile(audioFile.id, {
+													volumeDb: normalizeVolumeDb(
+														audioFile.volumeDb + deltaDb,
+													),
+												})
 											}
 											onDragStart={() => setDraggingFileId(audioFile.id)}
 											onDragEnd={() => setDraggingFileId(null)}
