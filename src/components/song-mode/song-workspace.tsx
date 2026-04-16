@@ -482,8 +482,7 @@ export function SongWorkspace({
 
 	const songHeaderControls = (
 		<div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-end xl:justify-start">
-			<label className="grid w-full min-w-0 max-w-[450px] gap-2 xl:min-w-[18rem] xl:flex-[1.35]">
-				<span className="field-label">Song title</span>
+			<div className="grid w-full min-w-0 max-w-[450px] gap-2 xl:min-w-[18rem] xl:flex-[1.35]">
 				<input
 					value={song.title}
 					onChange={(event) =>
@@ -492,11 +491,12 @@ export function SongWorkspace({
 						})
 					}
 					className="field-input px-3 py-2 text-lg leading-tight text-[var(--color-text)]"
+					placeholder="Song title"
+					aria-label="Song title"
 				/>
-			</label>
+			</div>
 
-			<label className="grid min-w-0 gap-2 xl:w-[10rem] xl:shrink-0">
-				<span className="field-label">Artist</span>
+			<div className="grid min-w-0 gap-2 xl:w-[10rem] xl:shrink-0">
 				<input
 					value={song.artist}
 					onChange={(event) =>
@@ -505,11 +505,12 @@ export function SongWorkspace({
 						})
 					}
 					className="field-input px-3 py-2"
+					placeholder="Artist"
+					aria-label="Artist"
 				/>
-			</label>
+			</div>
 
-			<label className="grid min-w-0 gap-2 xl:w-[10rem] xl:shrink-0">
-				<span className="field-label">Project</span>
+			<div className="grid min-w-0 gap-2 xl:w-[10rem] xl:shrink-0">
 				<input
 					value={song.project}
 					onChange={(event) =>
@@ -518,8 +519,10 @@ export function SongWorkspace({
 						})
 					}
 					className="field-input px-3 py-2"
+					placeholder="Project"
+					aria-label="Project"
 				/>
-			</label>
+			</div>
 
 			<div className="flex shrink-0 flex-wrap items-center gap-3 xl:pb-[1px]">
 				<button
@@ -608,6 +611,7 @@ export function SongWorkspace({
 												audioFileId: audioFile.id,
 											})
 										}
+										onUpdateAnnotation={updateAnnotation}
 										onSeek={(timeMs, autoplay) =>
 											seekFile(audioFile.id, timeMs, autoplay)
 										}

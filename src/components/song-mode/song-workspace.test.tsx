@@ -427,7 +427,15 @@ describe("SongWorkspace", () => {
 			</SongRouteHeaderSlotContext.Provider>,
 		);
 
-		expect(within(headerSlot).getByText(/^song title$/i)).toBeTruthy();
+		expect(
+			within(headerSlot).getByRole("textbox", { name: /song title/i }),
+		).toBeTruthy();
+		expect(
+			within(headerSlot).getByRole("textbox", { name: /^artist$/i }),
+		).toBeTruthy();
+		expect(
+			within(headerSlot).getByRole("textbox", { name: /^project$/i }),
+		).toBeTruthy();
 		expect(
 			within(headerSlot).getByRole("button", { name: /add audio/i }),
 		).toBeTruthy();

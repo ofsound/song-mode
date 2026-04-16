@@ -84,7 +84,9 @@ function renderWaveformCard({
 	annotations = [],
 	isPlaying = false,
 	onSeek = vi.fn().mockResolvedValue(undefined),
+	onUpdateAnnotation = vi.fn().mockResolvedValue(undefined),
 	onSelectFile = vi.fn(),
+	onSelectAnnotation = vi.fn(),
 	onDragStart = vi.fn(),
 	onStepVolume = vi.fn().mockResolvedValue(undefined),
 }: {
@@ -92,7 +94,12 @@ function renderWaveformCard({
 	annotations?: Annotation[];
 	isPlaying?: boolean;
 	onSeek?: (timeMs: number, autoplay?: boolean) => Promise<void>;
+	onUpdateAnnotation?: (
+		annotationId: string,
+		patch: Partial<Annotation>,
+	) => Promise<void>;
 	onSelectFile?: (fileId: string) => void;
+	onSelectAnnotation?: (annotationId: string) => void;
 	onDragStart?: () => void;
 	onStepVolume?: (deltaDb: number) => Promise<void>;
 } = {}) {
@@ -105,7 +112,7 @@ function renderWaveformCard({
 			isPlaying={isPlaying}
 			isSelected
 			onSelectFile={onSelectFile}
-			onSelectAnnotation={vi.fn()}
+			onSelectAnnotation={onSelectAnnotation}
 			onCreateAnnotation={vi.fn(
 				async (input: Omit<CreateAnnotationInput, "songId" | "audioFileId">) =>
 					({
@@ -117,6 +124,7 @@ function renderWaveformCard({
 						...input,
 					}) as Annotation,
 			)}
+			onUpdateAnnotation={onUpdateAnnotation}
 			onSeek={onSeek}
 			onTogglePlayback={vi.fn().mockResolvedValue(undefined)}
 			onRegisterAudioElement={vi.fn()}
@@ -225,6 +233,7 @@ describe("WaveformCard", () => {
 					createdAt: "2026-04-16T00:00:00.000Z",
 					updatedAt: "2026-04-16T00:00:00.000Z",
 				})}
+				onUpdateAnnotation={vi.fn().mockResolvedValue(undefined)}
 				onSeek={vi.fn().mockResolvedValue(undefined)}
 				onTogglePlayback={vi.fn().mockResolvedValue(undefined)}
 				onRegisterAudioElement={vi.fn()}
@@ -278,6 +287,7 @@ describe("WaveformCard", () => {
 					createdAt: "2026-04-16T00:00:00.000Z",
 					updatedAt: "2026-04-16T00:00:00.000Z",
 				})}
+				onUpdateAnnotation={vi.fn().mockResolvedValue(undefined)}
 				onSeek={vi.fn().mockResolvedValue(undefined)}
 				onTogglePlayback={vi.fn().mockResolvedValue(undefined)}
 				onRegisterAudioElement={vi.fn()}
@@ -465,6 +475,120 @@ describe("WaveformCard", () => {
 
 		await waitFor(() => {
 			expect(onSeek).not.toHaveBeenCalled();
+		});
+	});
+
+	it("drags point markers horizontally from the square handle", async () => {
+		const onUpdateAnnotation = vi.fn().mockResolvedValue(undefined);
+		const onSeek = vi.fn().mockResolvedValue(undefined);
+		const onSelectFile = vi.fn();
+		const onSelectAnnotation = vi.fn();
+
+		renderWaveformCard({
+			onUpdateAnnotation,
+			onSeek,
+			onSelectFile,
+			onSelectAnnotation,
+			annotations: [
+				{
+					id: "annotation-1",
+					songId: "song-1",
+					audioFileId: "file-1",
+					type: "point",
+					startMs: 30000,
+					title: "Verse",
+					body: EMPTY_RICH_TEXT,
+					color: "var(--color-annotation-4)",
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+		});
+
+		const waveformSurface = screen.getByRole("button", {
+			name: /waveform for mix v1/i,
+		});
+		mockWaveformBounds(waveformSurface, { left: 10, width: 180 });
+
+		const markerButton = screen.getByTitle(/verse/i);
+		const markerHandle = markerButton.querySelector("[data-marker-handle]");
+		expect(markerHandle).toBeTruthy();
+
+		fireEvent.pointerDown(markerHandle as Element, {
+			button: 0,
+			pointerId: 7,
+			clientX: 40,
+		});
+		fireEvent.pointerMove(markerButton, {
+			pointerId: 7,
+			clientX: 60,
+		});
+		fireEvent.pointerUp(markerButton, {
+			pointerId: 7,
+			clientX: 60,
+		});
+
+		await waitFor(() => {
+			expect(onUpdateAnnotation).toHaveBeenCalledWith("annotation-1", {
+				startMs: 50000,
+			});
+		});
+		expect(onSelectFile).toHaveBeenCalledWith("file-1");
+		expect(onSelectAnnotation).toHaveBeenCalledWith("annotation-1");
+
+		fireEvent.click(markerButton);
+		expect(onSeek).not.toHaveBeenCalled();
+	});
+
+	it("slows marker dragging while Shift is held", async () => {
+		const onUpdateAnnotation = vi.fn().mockResolvedValue(undefined);
+
+		renderWaveformCard({
+			onUpdateAnnotation,
+			annotations: [
+				{
+					id: "annotation-1",
+					songId: "song-1",
+					audioFileId: "file-1",
+					type: "point",
+					startMs: 30000,
+					title: "Verse",
+					body: EMPTY_RICH_TEXT,
+					color: "var(--color-annotation-4)",
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+		});
+
+		const waveformSurface = screen.getByRole("button", {
+			name: /waveform for mix v1/i,
+		});
+		mockWaveformBounds(waveformSurface, { left: 10, width: 180 });
+
+		const markerButton = screen.getByTitle(/verse/i);
+		const markerHandle = markerButton.querySelector("[data-marker-handle]");
+		expect(markerHandle).toBeTruthy();
+
+		fireEvent.pointerDown(markerHandle as Element, {
+			button: 0,
+			pointerId: 8,
+			clientX: 40,
+		});
+		fireEvent.pointerMove(markerButton, {
+			pointerId: 8,
+			clientX: 60,
+			shiftKey: true,
+		});
+		fireEvent.pointerUp(markerButton, {
+			pointerId: 8,
+			clientX: 60,
+		});
+
+		await waitFor(() => {
+			expect(onUpdateAnnotation).toHaveBeenCalledWith("annotation-1", {
+				startMs: 35000,
+			});
 		});
 	});
 });

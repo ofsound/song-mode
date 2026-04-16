@@ -48,6 +48,10 @@ interface WaveformCardProps {
 	onCreateAnnotation: (
 		input: Omit<CreateAnnotationInput, "songId" | "audioFileId">,
 	) => Promise<Annotation>;
+	onUpdateAnnotation: (
+		annotationId: string,
+		patch: Partial<Annotation>,
+	) => Promise<void>;
 	onSeek: (timeMs: number, autoplay?: boolean) => Promise<void>;
 	onTogglePlayback: () => Promise<void>;
 	onRegisterAudioElement: (element: HTMLAudioElement | null) => void;
@@ -72,6 +76,7 @@ export function WaveformCard({
 	onSelectFile,
 	onSelectAnnotation,
 	onCreateAnnotation,
+	onUpdateAnnotation,
 	onSeek,
 	onTogglePlayback,
 	onRegisterAudioElement,
@@ -93,6 +98,14 @@ export function WaveformCard({
 	const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
 	const gainNodeRef = useRef<GainNode | null>(null);
 	const isDragArmedRef = useRef(false);
+	const markerDragStateRef = useRef<{
+		annotationId: string;
+		pointerId: number;
+		lastX: number;
+		valueMs: number;
+		dragging: boolean;
+	} | null>(null);
+	const suppressAnnotationClickRef = useRef<string | null>(null);
 
 	const sortedAnnotations = useMemo(
 		() => [...annotations].sort((left, right) => left.startMs - right.startMs),
@@ -353,6 +366,43 @@ export function WaveformCard({
 		return Math.round(audioFile.durationMs * ratio);
 	}
 
+	function getTimePerPixel(): number {
+		if (!surfaceRef.current) {
+			return 0;
+		}
+
+		const rect = surfaceRef.current.getBoundingClientRect();
+		if (rect.width <= 0) {
+			return 0;
+		}
+
+		return audioFile.durationMs / rect.width;
+	}
+
+	function endMarkerDrag(
+		event: React.PointerEvent<HTMLButtonElement>,
+		preserveFocus = true,
+	) {
+		const dragState = markerDragStateRef.current;
+		if (!dragState || dragState.pointerId !== event.pointerId) {
+			return;
+		}
+
+		if (dragState.dragging) {
+			event.preventDefault();
+			suppressAnnotationClickRef.current = dragState.annotationId;
+		}
+
+		markerDragStateRef.current = null;
+		document.body.style.removeProperty("user-select");
+		if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+			event.currentTarget.releasePointerCapture(event.pointerId);
+		}
+		if (preserveFocus) {
+			event.currentTarget.focus();
+		}
+	}
+
 	async function handleWaveformAction(clientX: number, autoplay?: boolean) {
 		const timeMs = getWaveformTimeMs(clientX);
 		if (timeMs === null) {
@@ -462,11 +512,7 @@ export function WaveformCard({
 					const dragImageY = Number.isFinite(event.clientY)
 						? Math.max(0, event.clientY - bounds.top)
 						: 24;
-					event.dataTransfer.setDragImage(
-						article,
-						dragImageX,
-						dragImageY,
-					);
+					event.dataTransfer.setDragImage(article, dragImageX, dragImageY);
 				}
 
 				onDragStart();
@@ -649,11 +695,88 @@ export function WaveformCard({
 								type="button"
 								data-annotation-hit
 								onClick={(event) => {
+									if (suppressAnnotationClickRef.current === annotation.id) {
+										suppressAnnotationClickRef.current = null;
+										event.preventDefault();
+										event.stopPropagation();
+										return;
+									}
+
 									event.stopPropagation();
 									onSelectFile(audioFile.id);
 									onSelectAnnotation(annotation.id);
 									void onSeek(annotation.startMs, true);
 								}}
+								onPointerDown={(event) => {
+									if (
+										event.button !== 0 ||
+										!(event.target instanceof HTMLElement) ||
+										!event.target.closest("[data-marker-handle]")
+									) {
+										return;
+									}
+
+									event.stopPropagation();
+									markerDragStateRef.current = {
+										annotationId: annotation.id,
+										pointerId: event.pointerId,
+										lastX: event.clientX,
+										valueMs: annotation.startMs,
+										dragging: false,
+									};
+									event.currentTarget.setPointerCapture?.(event.pointerId);
+								}}
+								onPointerMove={(event) => {
+									const dragState = markerDragStateRef.current;
+									if (
+										!dragState ||
+										dragState.pointerId !== event.pointerId ||
+										dragState.annotationId !== annotation.id
+									) {
+										return;
+									}
+
+									const timePerPixel = getTimePerPixel();
+									if (timePerPixel <= 0) {
+										return;
+									}
+
+									const deltaX = event.clientX - dragState.lastX;
+									dragState.lastX = event.clientX;
+									if (deltaX === 0) {
+										return;
+									}
+
+									const sensitivity = event.shiftKey ? 0.25 : 1;
+									const nextValue = Math.max(
+										0,
+										Math.min(
+											audioFile.durationMs,
+											Math.round(
+												dragState.valueMs + deltaX * timePerPixel * sensitivity,
+											),
+										),
+									);
+									if (nextValue === dragState.valueMs) {
+										return;
+									}
+
+									if (!dragState.dragging) {
+										dragState.dragging = true;
+										document.body.style.userSelect = "none";
+										onSelectFile(audioFile.id);
+										onSelectAnnotation(annotation.id);
+									}
+
+									event.preventDefault();
+									event.stopPropagation();
+									dragState.valueMs = nextValue;
+									void onUpdateAnnotation(annotation.id, {
+										startMs: nextValue,
+									});
+								}}
+								onPointerUp={(event) => endMarkerDrag(event)}
+								onPointerCancel={(event) => endMarkerDrag(event, false)}
 								className="absolute bottom-0 top-0 w-3 -translate-x-1/2"
 								style={{ left }}
 								title={annotation.title || "Marker"}
@@ -666,7 +789,8 @@ export function WaveformCard({
 									}`}
 								/>
 								<span
-									className="absolute left-1/2 top-4 h-3 w-3 -translate-x-1/2 border border-[var(--color-waveform-marker-dot-border)]"
+									data-marker-handle
+									className="absolute left-1/2 top-4 h-3 w-3 -translate-x-1/2 cursor-ew-resize border border-[var(--color-waveform-marker-dot-border)]"
 									style={{
 										backgroundColor:
 											annotation.color ?? "var(--color-annotation-4)",
