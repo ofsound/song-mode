@@ -33,6 +33,15 @@ const baseAnnotation: Annotation = {
 	updatedAt: "2026-04-16T00:00:00.000Z",
 };
 
+const baseRangeAnnotation: Annotation = {
+	...baseAnnotation,
+	id: "annotation-2",
+	type: "range",
+	startMs: 60000,
+	endMs: 179000,
+	title: "Range 1:00",
+};
+
 const baseAudioFile: AudioFileRecord = {
 	id: "file-1",
 	songId: "song-1",
@@ -119,13 +128,88 @@ describe("InspectorPane", () => {
 		});
 	});
 
+	it("commits a typed start time when the user presses Enter", () => {
+		const { onUpdateAnnotation } = renderInspector();
+
+		const startInput = screen.getByLabelText("Start time") as HTMLInputElement;
+		fireEvent.focus(startInput);
+		fireEvent.change(startInput, { target: { value: "1:02.25" } });
+		fireEvent.keyDown(startInput, { key: "Enter" });
+
+		expect(onUpdateAnnotation).toHaveBeenCalledWith("annotation-1", {
+			startMs: 62250,
+		});
+	});
+
+	it("scrubs the start time upward in one-second steps", () => {
+		const { onUpdateAnnotation } = renderInspector();
+
+		const startInput = screen.getByLabelText("Start time") as HTMLInputElement;
+
+		fireEvent.pointerDown(startInput, {
+			button: 0,
+			pointerId: 1,
+			clientY: 100,
+		});
+		fireEvent.pointerMove(startInput, {
+			pointerId: 1,
+			clientY: 84,
+		});
+		fireEvent.pointerUp(startInput, {
+			pointerId: 1,
+			clientY: 84,
+		});
+
+		expect(onUpdateAnnotation).toHaveBeenCalledWith("annotation-1", {
+			startMs: 56000,
+		});
+		expect(startInput.value).toBe("0:56");
+	});
+
+	it("uses Shift for fine scrub adjustment and shows sub-second precision", () => {
+		const { onUpdateAnnotation } = renderInspector();
+
+		const startInput = screen.getByLabelText("Start time") as HTMLInputElement;
+
+		fireEvent.pointerDown(startInput, {
+			button: 0,
+			pointerId: 1,
+			clientY: 100,
+		});
+		fireEvent.pointerMove(startInput, {
+			pointerId: 1,
+			clientY: 92,
+			shiftKey: true,
+		});
+		fireEvent.pointerUp(startInput, {
+			pointerId: 1,
+			clientY: 92,
+		});
+
+		expect(onUpdateAnnotation).toHaveBeenCalledWith("annotation-1", {
+			startMs: 54250,
+		});
+		expect(startInput.value).toBe("0:54.25");
+	});
+
 	it("keeps form controls from seeking while the play button activates the marker", () => {
-		const { onOpenTarget, onSelectAnnotation } = renderInspector();
+		const { onOpenTarget, onSelectAnnotation, onUpdateAnnotation } =
+			renderInspector();
 
 		fireEvent.click(screen.getByDisplayValue("Marker 0:54"));
 		fireEvent.click(screen.getByLabelText("Start time"));
+		fireEvent.pointerDown(screen.getByLabelText("Start time"), {
+			button: 0,
+			pointerId: 2,
+			clientY: 100,
+		});
+		fireEvent.pointerUp(screen.getByLabelText("Start time"), {
+			pointerId: 2,
+			clientY: 100,
+		});
 		expect(onOpenTarget).not.toHaveBeenCalled();
 		expect(onSelectAnnotation).not.toHaveBeenCalled();
+		expect(onUpdateAnnotation).not.toHaveBeenCalled();
 
 		fireEvent.click(screen.getByRole("button", { name: /play marker/i }));
 
@@ -149,6 +233,52 @@ describe("InspectorPane", () => {
 		expect(confirmSpy).toHaveBeenCalledWith("Delete this marker?");
 		expect(onDeleteAnnotation).toHaveBeenCalledWith("annotation-1");
 		expect(onOpenTarget).not.toHaveBeenCalled();
+	});
+
+	it("clamps range scrubbing against the paired endpoint and file duration", () => {
+		const { onUpdateAnnotation } = renderInspector({
+			selectedFile: baseAudioFile,
+			annotations: [baseRangeAnnotation],
+			activeAnnotation: baseRangeAnnotation,
+		});
+
+		const startInput = screen.getByLabelText("Start time") as HTMLInputElement;
+		const endInput = screen.getByLabelText("End time") as HTMLInputElement;
+
+		fireEvent.pointerDown(startInput, {
+			button: 0,
+			pointerId: 3,
+			clientY: 200,
+		});
+		fireEvent.pointerMove(startInput, {
+			pointerId: 3,
+			clientY: -1000,
+		});
+		fireEvent.pointerUp(startInput, {
+			pointerId: 3,
+			clientY: -1000,
+		});
+
+		fireEvent.pointerDown(endInput, {
+			button: 0,
+			pointerId: 4,
+			clientY: 200,
+		});
+		fireEvent.pointerMove(endInput, {
+			pointerId: 4,
+			clientY: 0,
+		});
+		fireEvent.pointerUp(endInput, {
+			pointerId: 4,
+			clientY: 0,
+		});
+
+		expect(onUpdateAnnotation).toHaveBeenCalledWith("annotation-2", {
+			startMs: 179000,
+		});
+		expect(onUpdateAnnotation).toHaveBeenCalledWith("annotation-2", {
+			endMs: 180000,
+		});
 	});
 
 	it("shows a single per-file notes editor when an audio file is selected", () => {

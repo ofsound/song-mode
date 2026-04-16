@@ -867,6 +867,7 @@ pre code {
 [data-song-mode-editor="journal"] .song-editor {
   min-height: 100%;
   padding-right: 1.25rem;
+  font-size: 1rem;
 }
 
 input[type="file"]::file-selector-button {
