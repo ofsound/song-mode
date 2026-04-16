@@ -598,6 +598,7 @@ export function SongWorkspace({
 											reportPlaybackState(audioFile.id, patch)
 										}
 										onDragStart={() => setDraggingFileId(audioFile.id)}
+										onDragEnd={() => setDraggingFileId(null)}
 										onDrop={() => {
 											if (!draggingFileId || draggingFileId === audioFile.id) {
 												return;

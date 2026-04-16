@@ -42,6 +42,7 @@ interface WaveformCardProps {
 		currentTimeMs?: number;
 	}) => void;
 	onDragStart: () => void;
+	onDragEnd: () => void;
 	onDrop: () => void;
 }
 
@@ -61,6 +62,7 @@ export function WaveformCard({
 	onRegisterAudioElement,
 	onReportPlayback,
 	onDragStart,
+	onDragEnd,
 	onDrop,
 }: WaveformCardProps) {
 	const { theme } = useTheme();
@@ -279,8 +281,6 @@ export function WaveformCard({
 
 	return (
 		<article
-			draggable
-			onDragStart={onDragStart}
 			onDragOver={(event) => event.preventDefault()}
 			onDrop={(event) => {
 				event.preventDefault();
@@ -296,6 +296,9 @@ export function WaveformCard({
 				<div className="flex min-w-0 items-center gap-3">
 					<button
 						type="button"
+						draggable
+						onDragStart={onDragStart}
+						onDragEnd={onDragEnd}
 						className="inline-flex h-10 w-10 items-center justify-center border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]"
 						title="Drag to reorder"
 					>
