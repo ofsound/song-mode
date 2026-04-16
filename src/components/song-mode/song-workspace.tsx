@@ -9,10 +9,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { isEditableElement } from "#/lib/song-mode/dom";
 import { targetToRouteSearch } from "#/lib/song-mode/links";
-import {
-	plainTextToRichText,
-	richTextPreview,
-} from "#/lib/song-mode/rich-text";
+import { plainTextToRichText } from "#/lib/song-mode/rich-text";
 import type { SongLinkTarget, SongRouteSearch } from "#/lib/song-mode/types";
 import { useSongMode } from "#/providers/song-mode-provider";
 import { InspectorPane } from "./inspector-pane";
@@ -434,12 +431,6 @@ export function SongWorkspace({
 									/>
 								</label>
 							</div>
-							<p className="text-sm leading-7 text-[var(--text-dim)] sm:text-base">
-								{richTextPreview(
-									song.generalNotes,
-									"Song journal is ready for the first entry.",
-								)}
-							</p>
 						</div>
 					</div>
 
