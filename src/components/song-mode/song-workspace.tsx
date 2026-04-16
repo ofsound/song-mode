@@ -155,8 +155,12 @@ export function SongWorkspace({
 	}, [selectedFileId]);
 
 	const currentTimeMs =
-		(selectedFileId && playback.currentTimeByFileId[selectedFileId]) ||
-		(selectedFileId && workspace.playheadMsByFileId[selectedFileId]) ||
+		(selectedFileId
+			? playback.currentTimeByFileId[selectedFileId]
+			: undefined) ??
+		(selectedFileId
+			? workspace.playheadMsByFileId[selectedFileId]
+			: undefined) ??
 		0;
 	const persistedSecond = Math.round(currentTimeMs / 1000);
 	const journalTimestampFormatter = useMemo(

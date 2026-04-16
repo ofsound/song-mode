@@ -316,11 +316,60 @@ describe("WaveformCard", () => {
 			expect(onSeek).toHaveBeenCalledWith(45000);
 		});
 		expect(onSelectFile).toHaveBeenCalledWith("file-1");
+		expect(onSelectFile).toHaveBeenCalledTimes(1);
 
 		fireEvent.doubleClick(waveformSurface, { clientX: 160 });
 
 		await waitFor(() => {
 			expect(onSeek).toHaveBeenCalledWith(135000, true);
+		});
+	});
+
+	it("selects the file when clicking non-interactive row space", () => {
+		const onSelectFile = vi.fn();
+
+		renderWaveformCard({
+			onSelectFile,
+		});
+
+		fireEvent.pointerDown(screen.getByText(/0 markers/i));
+		expect(onSelectFile).toHaveBeenCalledTimes(1);
+		expect(onSelectFile).toHaveBeenCalledWith("file-1");
+
+		fireEvent.click(
+			screen.getByRole("button", {
+				name: /seek/i,
+			}),
+		);
+		expect(onSelectFile).toHaveBeenCalledTimes(1);
+
+		fireEvent.click(
+			screen.getByRole("button", {
+				name: /play/i,
+			}),
+		);
+		expect(onSelectFile).toHaveBeenCalledTimes(2);
+	});
+
+	it("seeks to center on Enter and ignores Space key presses", async () => {
+		const onSeek = vi.fn().mockResolvedValue(undefined);
+
+		renderWaveformCard({
+			onSeek,
+		});
+
+		const waveformSurface = screen.getByRole("button", {
+			name: /waveform for mix v1/i,
+		});
+		mockWaveformBounds(waveformSurface, { left: 10, width: 200 });
+
+		fireEvent.keyDown(waveformSurface, { key: " " });
+		expect(onSeek).not.toHaveBeenCalled();
+
+		fireEvent.keyDown(waveformSurface, { key: "Enter" });
+
+		await waitFor(() => {
+			expect(onSeek).toHaveBeenCalledWith(90000);
 		});
 	});
 

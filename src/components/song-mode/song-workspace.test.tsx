@@ -46,16 +46,19 @@ vi.mock("./waveform-card", () => ({
 	WaveformCard: ({
 		audioFile,
 		isSelected,
+		currentTimeMs,
 		onStepVolume,
 	}: {
 		audioFile: AudioFileRecord;
 		isSelected: boolean;
+		currentTimeMs: number;
 		onStepVolume: (deltaDb: number) => Promise<void>;
 	}) => (
 		<div data-testid="waveform-card">
 			<span>
 				{audioFile.title}:{String(isSelected)}
 			</span>
+			<span>{currentTimeMs} ms</span>
 			<span>{audioFile.volumeDb} dB</span>
 			<button
 				type="button"
@@ -93,6 +96,11 @@ let currentWorkspace: WorkspaceState = {
 	lastVisitedAt: null,
 };
 let currentBlobsByAudioId: Record<string, Blob> = {};
+let currentPlayback = {
+	activeFileId: undefined as string | undefined,
+	isPlaying: false,
+	currentTimeByFileId: {} as Record<string, number>,
+};
 
 const getSongById = vi.fn((songId: string) =>
 	songId === baseSong.id
@@ -153,11 +161,7 @@ vi.mock("#/providers/song-mode-provider", () => ({
 		getAnnotationsForFile,
 		getWorkspaceState,
 		blobsByAudioId: currentBlobsByAudioId,
-		playback: {
-			activeFileId: undefined,
-			isPlaying: false,
-			currentTimeByFileId: {},
-		},
+		playback: currentPlayback,
 		rememberSongOpened,
 		updateSong,
 		addAudioFile,
@@ -185,6 +189,11 @@ describe("SongWorkspace", () => {
 			lastVisitedAt: null,
 		};
 		currentBlobsByAudioId = {};
+		currentPlayback = {
+			activeFileId: undefined,
+			isPlaying: false,
+			currentTimeByFileId: {},
+		};
 		navigateMock.mockReset();
 		updateWorkspaceStateMock.mockClear();
 		getSongById.mockClear();
@@ -256,6 +265,28 @@ describe("SongWorkspace", () => {
 				volumeDb: 1,
 			});
 		});
+	});
+
+	it("keeps a zero live playhead instead of falling back to workspace playhead", () => {
+		currentAudioFiles = [createAudioFile()];
+		currentWorkspace = {
+			playheadMsByFileId: {
+				"file-1": 45000,
+			},
+			inspectorRatio: 0.56,
+			lastVisitedAt: null,
+		};
+		currentPlayback = {
+			activeFileId: "file-1",
+			isPlaying: false,
+			currentTimeByFileId: {
+				"file-1": 0,
+			},
+		};
+
+		render(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+
+		expect(screen.getByText("0 ms")).toBeTruthy();
 	});
 
 	it("opens the upload form inside a modal when add audio is clicked", () => {

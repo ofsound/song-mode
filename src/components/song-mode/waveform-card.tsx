@@ -401,8 +401,37 @@ export function WaveformCard({
 		setMode("seek");
 	}
 
+	const shouldIgnoreRowSelection = (target: EventTarget | null): boolean => {
+		if (!(target instanceof HTMLElement)) {
+			return true;
+		}
+
+		return Boolean(
+			target.closest(
+				[
+					"button",
+					"a",
+					"input",
+					"select",
+					"textarea",
+					"summary",
+					"[role='button']",
+					"[role='link']",
+					"[contenteditable='true']",
+				].join(","),
+			),
+		);
+	};
+
 	return (
 		<article
+			onPointerDown={(event) => {
+				if (shouldIgnoreRowSelection(event.target)) {
+					return;
+				}
+
+				onSelectFile(audioFile.id);
+			}}
 			onDragOver={(event) => event.preventDefault()}
 			onDrop={(event) => {
 				event.preventDefault();
@@ -508,7 +537,7 @@ export function WaveformCard({
 						void handleWaveformAction(event.clientX, true);
 					}}
 					onKeyDown={(event) => {
-						if (event.key !== "Enter" && event.key !== " ") {
+						if (event.key !== "Enter") {
 							return;
 						}
 
@@ -655,21 +684,21 @@ export function WaveformCard({
 				src={objectUrl ?? undefined}
 				preload="metadata"
 				className="hidden"
-				onPlay={() =>
+				onPlay={(event) =>
 					onReportPlayback({
 						isPlaying: true,
-						currentTimeMs: (audioRef.current?.currentTime ?? 0) * 1000,
+						currentTimeMs: event.currentTarget.currentTime * 1000,
 					})
 				}
-				onPause={() =>
+				onPause={(event) =>
 					onReportPlayback({
 						isPlaying: false,
-						currentTimeMs: (audioRef.current?.currentTime ?? 0) * 1000,
+						currentTimeMs: event.currentTarget.currentTime * 1000,
 					})
 				}
-				onTimeUpdate={() =>
+				onTimeUpdate={(event) =>
 					onReportPlayback({
-						currentTimeMs: (audioRef.current?.currentTime ?? 0) * 1000,
+						currentTimeMs: event.currentTarget.currentTime * 1000,
 					})
 				}
 				onLoadedMetadata={() => {
