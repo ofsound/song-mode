@@ -66,7 +66,7 @@ export function SongWorkspace({
 			(annotation) => annotation.id === workspace.activeAnnotationId,
 		) ?? selectedAnnotations[0];
 
-	const [isUploadOpen, setIsUploadOpen] = useState(audioFiles.length === 0);
+	const [isUploadOpen, setIsUploadOpen] = useState(false);
 	const [uploading, setUploading] = useState(false);
 	const [uploadError, setUploadError] = useState<string | null>(null);
 	const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -422,14 +422,6 @@ export function SongWorkspace({
 
 	const songHeaderControls = (
 		<div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-end xl:justify-end">
-			<Link
-				to="/"
-				className="inline-flex shrink-0 items-center gap-2 text-sm font-medium text-[var(--color-text-subtle)] no-underline xl:mb-3"
-			>
-				<ChevronLeft size={14} />
-				Song library
-			</Link>
-
 			<label className="grid min-w-0 gap-2 xl:min-w-[18rem] xl:flex-[1.35]">
 				<span className="field-label">Song title</span>
 				<input

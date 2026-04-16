@@ -308,13 +308,14 @@ describe("SongWorkspace", () => {
 			</SongRouteHeaderSlotContext.Provider>,
 		);
 
-		expect(within(headerSlot).getByText(/song library/i)).toBeTruthy();
+		expect(within(headerSlot).getByText(/^song title$/i)).toBeTruthy();
 		expect(
 			within(headerSlot).getByRole("button", { name: /add audio/i }),
 		).toBeTruthy();
 		expect(
-			within(container.querySelector("main") as HTMLElement).queryByText(
-				/song library/i,
+			within(container.querySelector("main") as HTMLElement).queryByRole(
+				"button",
+				{ name: /add audio/i },
 			),
 		).toBeNull();
 

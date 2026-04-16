@@ -6,7 +6,6 @@ import { GlobalSearch } from "./global-search";
 import { ThemeToggle } from "./theme-toggle";
 
 interface SongModeHeaderState {
-	title: string;
 	showLibraryLink: boolean;
 }
 
@@ -33,27 +32,23 @@ export function getSongModeHeaderState({
 }): SongModeHeaderState {
 	if (!songId) {
 		return {
-			title: "Library",
 			showLibraryLink: false,
 		};
 	}
 
 	if (!ready) {
 		return {
-			title: "Loading song...",
 			showLibraryLink: true,
 		};
 	}
 
 	if (songTitle !== undefined) {
 		return {
-			title: songTitle.trim() || "Untitled song",
 			showLibraryLink: true,
 		};
 	}
 
 	return {
-		title: "Missing song",
 		showLibraryLink: true,
 	};
 }
@@ -94,10 +89,6 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 										<AudioWaveform size={22} />
 									</span>
 								</Link>
-
-								<span className="min-w-0 truncate font-display text-2xl leading-none text-[var(--color-text)]">
-									{headerState.title}
-								</span>
 
 								{headerState.showLibraryLink && !isSongRoute ? (
 									<button
