@@ -85,6 +85,7 @@ function renderWaveformCard({
 	isPlaying = false,
 	onSeek = vi.fn().mockResolvedValue(undefined),
 	onSelectFile = vi.fn(),
+	onDragStart = vi.fn(),
 	onStepVolume = vi.fn().mockResolvedValue(undefined),
 }: {
 	audioFile?: AudioFileRecord;
@@ -92,6 +93,7 @@ function renderWaveformCard({
 	isPlaying?: boolean;
 	onSeek?: (timeMs: number, autoplay?: boolean) => Promise<void>;
 	onSelectFile?: (fileId: string) => void;
+	onDragStart?: () => void;
 	onStepVolume?: (deltaDb: number) => Promise<void>;
 } = {}) {
 	return render(
@@ -120,7 +122,7 @@ function renderWaveformCard({
 			onRegisterAudioElement={vi.fn()}
 			onReportPlayback={vi.fn()}
 			onStepVolume={onStepVolume}
-			onDragStart={vi.fn()}
+			onDragStart={onDragStart}
 			onDragEnd={vi.fn()}
 			onDrop={vi.fn()}
 		/>,
@@ -371,6 +373,47 @@ describe("WaveformCard", () => {
 			}),
 		);
 		expect(onSelectFile).toHaveBeenCalledTimes(2);
+	});
+
+	it("arms row dragging from the handle and uses the full row as the drag image", () => {
+		const onDragStart = vi.fn();
+
+		renderWaveformCard({
+			onDragStart,
+		});
+
+		const waveformCard = screen.getByRole("article");
+		const dragHandle = screen.getByRole("button", {
+			name: /reorder mix v1/i,
+		});
+		mockWaveformBounds(waveformCard, { left: 10, width: 240 });
+		const dataTransfer = {
+			effectAllowed: "none",
+			setData: vi.fn(),
+			setDragImage: vi.fn(),
+		};
+
+		fireEvent.pointerDown(dragHandle, { clientX: 46, clientY: 22 });
+
+		expect(waveformCard).toHaveProperty("draggable", true);
+
+		fireEvent.dragStart(waveformCard, {
+			dataTransfer,
+			clientX: 46,
+			clientY: 22,
+		});
+
+		expect(dataTransfer.effectAllowed).toBe("move");
+		expect(dataTransfer.setData).toHaveBeenCalledWith("text/plain", "file-1");
+		expect(dataTransfer.setDragImage).toHaveBeenCalledWith(
+			waveformCard,
+			24,
+			24,
+		);
+		expect(onDragStart).toHaveBeenCalledTimes(1);
+
+		fireEvent.dragEnd(waveformCard);
+		expect(waveformCard).toHaveProperty("draggable", false);
 	});
 
 	it("seeks to center on Enter and ignores Space key presses", async () => {

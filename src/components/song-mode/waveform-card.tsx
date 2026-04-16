@@ -85,12 +85,14 @@ export function WaveformCard({
 	const [objectUrl, setObjectUrl] = useState<string | null>(null);
 	const [mode, setMode] = useState<WaveformMode>("seek");
 	const [rangeAnchorMs, setRangeAnchorMs] = useState<number | null>(null);
+	const articleRef = useRef<HTMLElement | null>(null);
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const surfaceRef = useRef<HTMLDivElement | null>(null);
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 	const audioContextRef = useRef<AudioContext | null>(null);
 	const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
 	const gainNodeRef = useRef<GainNode | null>(null);
+	const isDragArmedRef = useRef(false);
 
 	const sortedAnnotations = useMemo(
 		() => [...annotations].sort((left, right) => left.startMs - right.startMs),
@@ -424,14 +426,54 @@ export function WaveformCard({
 		);
 	};
 
+	const setDragArmed = (isArmed: boolean) => {
+		isDragArmedRef.current = isArmed;
+		if (articleRef.current) {
+			articleRef.current.draggable = isArmed;
+		}
+	};
+
 	return (
 		<article
+			ref={articleRef}
+			draggable={false}
 			onPointerDown={(event) => {
 				if (shouldIgnoreRowSelection(event.target)) {
 					return;
 				}
 
 				onSelectFile(audioFile.id);
+			}}
+			onDragStart={(event) => {
+				if (!isDragArmedRef.current) {
+					event.preventDefault();
+					return;
+				}
+
+				event.dataTransfer.effectAllowed = "move";
+				event.dataTransfer.setData("text/plain", audioFile.id);
+
+				const article = articleRef.current;
+				if (article) {
+					const bounds = article.getBoundingClientRect();
+					const dragImageX = Number.isFinite(event.clientX)
+						? Math.max(0, event.clientX - bounds.left)
+						: 24;
+					const dragImageY = Number.isFinite(event.clientY)
+						? Math.max(0, event.clientY - bounds.top)
+						: 24;
+					event.dataTransfer.setDragImage(
+						article,
+						dragImageX,
+						dragImageY,
+					);
+				}
+
+				onDragStart();
+			}}
+			onDragEnd={() => {
+				setDragArmed(false);
+				onDragEnd();
 			}}
 			onDragOver={(event) => event.preventDefault()}
 			onDrop={(event) => {
@@ -445,9 +487,14 @@ export function WaveformCard({
 				<div className="flex min-w-0 items-center gap-3">
 					<button
 						type="button"
-						draggable
-						onDragStart={onDragStart}
-						onDragEnd={onDragEnd}
+						aria-label={`Reorder ${audioFile.title}`}
+						onPointerDown={() => {
+							setDragArmed(true);
+							onSelectFile(audioFile.id);
+						}}
+						onPointerUp={() => setDragArmed(false)}
+						onPointerCancel={() => setDragArmed(false)}
+						onBlur={() => setDragArmed(false)}
 						className="inline-flex h-10 w-10 items-center justify-center border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]"
 						title="Drag to reorder"
 					>
