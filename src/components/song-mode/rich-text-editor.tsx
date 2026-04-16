@@ -132,7 +132,7 @@ export function RichTextEditor({
 
 	if (!editor) {
 		return (
-			<div className="rounded-[1.15rem] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-4 text-sm text-[var(--color-text-muted)]">
+			<div className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-4 text-sm text-[var(--color-text-muted)]">
 				Loading editor...
 			</div>
 		);
@@ -141,7 +141,7 @@ export function RichTextEditor({
 	return (
 		<div
 			ref={wrapperRef}
-			className="rounded-[1.15rem] border border-[var(--color-border-strong)] bg-[var(--color-surface)] shadow-[var(--shadow-control)]"
+			className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] shadow-[var(--shadow-control)]"
 			data-song-mode-editor={focusId}
 		>
 			{showToolbar ? (
@@ -241,7 +241,7 @@ function ToolbarButton({
 		<button
 			type="button"
 			onClick={onClick}
-			className={`inline-flex h-8 items-center justify-center rounded-full border px-3 text-xs font-semibold ${
+			className={`inline-flex h-8 items-center justify-center border px-3 text-xs font-semibold ${
 				active
 					? "border-[var(--color-accent-strong)] bg-[var(--color-accent-surface)] text-[var(--color-text)]"
 					: "border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"

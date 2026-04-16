@@ -33,7 +33,12 @@ import {
 	type SongModeSnapshot,
 	type WorkspaceState,
 } from "#/lib/song-mode/types";
-import { clampTime, generateWaveformFromFile } from "#/lib/song-mode/waveform";
+import {
+	clampTime,
+	generateWaveformFromFile,
+	hasRenderableWaveform,
+	normalizeWaveformData,
+} from "#/lib/song-mode/waveform";
 
 interface PlaybackState {
 	activeFileId?: string;
@@ -138,7 +143,54 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 
 		let cancelled = false;
 		loadSnapshot()
-			.then((loadedSnapshot) => {
+			.then(async (loadedSnapshot) => {
+				if (cancelled) {
+					return;
+				}
+
+				const repairedAudioFiles: AudioFileRecord[] = [];
+				const audioFiles = await Promise.all(
+					loadedSnapshot.audioFiles.map(async (audioFile) => {
+						const normalizedAudioFile: AudioFileRecord = {
+							...audioFile,
+							notes: normalizeRichText(audioFile.notes),
+							masteringNote: normalizeRichText(audioFile.masteringNote),
+							waveform: normalizeWaveformData(
+								audioFile.waveform,
+								audioFile.durationMs,
+							),
+						};
+
+						if (hasRenderableWaveform(audioFile.waveform)) {
+							return normalizedAudioFile;
+						}
+
+						const blob = loadedSnapshot.blobsByAudioId[audioFile.id];
+						if (!(blob instanceof Blob)) {
+							return normalizedAudioFile;
+						}
+
+						try {
+							const repairedWaveform = await generateWaveformFromFile(blob);
+							const repairedAudioFile: AudioFileRecord = {
+								...normalizedAudioFile,
+								durationMs: repairedWaveform.durationMs,
+								waveform: repairedWaveform,
+							};
+							repairedAudioFiles.push(repairedAudioFile);
+							return repairedAudioFile;
+						} catch {
+							return normalizedAudioFile;
+						}
+					}),
+				);
+
+				if (repairedAudioFiles.length > 0) {
+					await Promise.all(
+						repairedAudioFiles.map((audioFile) => saveAudioFile(audioFile)),
+					);
+				}
+
 				if (cancelled) {
 					return;
 				}
@@ -155,11 +207,7 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 						createdAt: song.createdAt,
 						updatedAt: song.updatedAt,
 					})),
-					audioFiles: loadedSnapshot.audioFiles.map((audioFile) => ({
-						...audioFile,
-						notes: normalizeRichText(audioFile.notes),
-						masteringNote: normalizeRichText(audioFile.masteringNote),
-					})),
+					audioFiles,
 					annotations: loadedSnapshot.annotations.map((annotation) => ({
 						...annotation,
 						body: normalizeRichText(annotation.body),

@@ -1,9 +1,62 @@
 import type { WaveformData } from "./types";
 
 const DEFAULT_PEAK_COUNT = 960;
+const FALLBACK_PEAK_COUNT = 120;
+
+export function normalizeWaveformData(
+	waveform: Partial<WaveformData> | null | undefined,
+	fallbackDurationMs = 0,
+): WaveformData {
+	const normalizedPeaks = Array.isArray(waveform?.peaks)
+		? waveform.peaks
+				.filter((value): value is number => Number.isFinite(value))
+				.map((value) => Math.max(0, Math.min(1, value)))
+		: [];
+	const peakCount = Math.max(
+		1,
+		Math.min(
+			DEFAULT_PEAK_COUNT,
+			Math.round(
+				typeof waveform?.peakCount === "number" && waveform.peakCount > 0
+					? waveform.peakCount
+					: normalizedPeaks.length || FALLBACK_PEAK_COUNT,
+			),
+		),
+	);
+
+	return {
+		peaks:
+			normalizedPeaks.length > 0 ? normalizedPeaks : Array(peakCount).fill(0),
+		peakCount: normalizedPeaks.length > 0 ? normalizedPeaks.length : peakCount,
+		durationMs: Math.max(
+			0,
+			Math.round(
+				typeof waveform?.durationMs === "number" && waveform.durationMs > 0
+					? waveform.durationMs
+					: fallbackDurationMs,
+			),
+		),
+		sampleRate: Math.max(
+			1,
+			Math.round(
+				typeof waveform?.sampleRate === "number" && waveform.sampleRate > 0
+					? waveform.sampleRate
+					: 44100,
+			),
+		),
+	};
+}
+
+export function hasRenderableWaveform(
+	waveform: Partial<WaveformData> | null | undefined,
+): boolean {
+	return Array.isArray(waveform?.peaks)
+		? waveform.peaks.some((value) => Number.isFinite(value))
+		: false;
+}
 
 export async function generateWaveformFromFile(
-	file: File,
+	file: Blob,
 	peakCount = DEFAULT_PEAK_COUNT,
 ): Promise<WaveformData> {
 	if (typeof window === "undefined") {
@@ -23,13 +76,17 @@ export async function generateWaveformFromFile(
 	try {
 		const audioBuffer = await context.decodeAudioData(await file.arrayBuffer());
 		const peaks = extractPeaks(audioBuffer, peakCount);
+		const durationMs = Math.round(audioBuffer.duration * 1000);
 
-		return {
-			peaks,
-			peakCount: peaks.length,
-			durationMs: Math.round(audioBuffer.duration * 1000),
-			sampleRate: audioBuffer.sampleRate,
-		};
+		return normalizeWaveformData(
+			{
+				peaks,
+				peakCount: peaks.length,
+				durationMs,
+				sampleRate: audioBuffer.sampleRate,
+			},
+			durationMs,
+		);
 	} catch {
 		throw new Error(
 			"Song Mode could not decode that audio file. Try a shorter file or a browser-friendly format such as WAV, MP3, or AAC.",

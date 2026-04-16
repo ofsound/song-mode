@@ -58,7 +58,7 @@ export function InspectorPane({
 
 	return (
 		<div className="flex h-full flex-col gap-4 overflow-y-auto pr-1">
-			<section className="rounded-[1.5rem] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
+			<section className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
 				<div className="flex items-start justify-between gap-3">
 					<div>
 						<p className="eyebrow mb-2">Inspector</p>
@@ -67,7 +67,7 @@ export function InspectorPane({
 						</h2>
 					</div>
 					{copiedMessage && (
-						<span className="surface-chip rounded-full px-3 py-1 text-xs">
+						<span className="surface-chip px-3 py-1 text-xs">
 							{copiedMessage}
 						</span>
 					)}
@@ -126,7 +126,7 @@ export function InspectorPane({
 				)}
 			</section>
 
-			<section className="rounded-[1.5rem] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
+			<section className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
 				<div className="flex items-start justify-between gap-3">
 					<div>
 						<p className="eyebrow mb-2">Timestamped notes</p>
@@ -139,7 +139,7 @@ export function InspectorPane({
 
 				<div className="mt-4 space-y-3">
 					{annotations.length === 0 ? (
-						<p className="rounded-[1.2rem] border border-dashed border-[var(--color-border-subtle)] px-4 py-5 text-sm text-[var(--color-text-muted)]">
+						<p className="border border-dashed border-[var(--color-border-subtle)] px-4 py-5 text-sm text-[var(--color-text-muted)]">
 							Create point markers or regions from the waveform to build the
 							linked note list here.
 						</p>
@@ -147,7 +147,7 @@ export function InspectorPane({
 						annotations.map((annotation) => (
 							<div
 								key={annotation.id}
-								className={`rounded-[1.25rem] border p-3 ${
+								className={`border p-3 ${
 									activeAnnotation?.id === annotation.id
 										? "border-[var(--color-accent-strong)] bg-[var(--color-accent-surface)]"
 										: "border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)]"
@@ -211,7 +211,7 @@ export function InspectorPane({
 			</section>
 
 			{activeAnnotation && (
-				<section className="rounded-[1.5rem] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
+				<section className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
 					<div className="flex items-start justify-between gap-3">
 						<div>
 							<p className="eyebrow mb-2">Annotation details</p>
@@ -287,7 +287,7 @@ export function InspectorPane({
 													color,
 												})
 											}
-											className={`h-9 w-9 rounded-full border ${
+											className={`h-9 w-9 border ${
 												activeAnnotation.color === color
 													? "border-[var(--color-text)]"
 													: "border-[var(--color-border-subtle)]"

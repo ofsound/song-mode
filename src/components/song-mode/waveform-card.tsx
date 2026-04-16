@@ -13,7 +13,10 @@ import type {
 	AudioFileRecord,
 	CreateAnnotationInput,
 } from "#/lib/song-mode/types";
-import { formatDuration } from "#/lib/song-mode/waveform";
+import {
+	formatDuration,
+	normalizeWaveformData,
+} from "#/lib/song-mode/waveform";
 import { useTheme } from "#/providers/theme-provider";
 
 type WaveformMode = "seek" | "point" | "range";
@@ -72,6 +75,10 @@ export function WaveformCard({
 		() => [...annotations].sort((left, right) => left.startMs - right.startMs),
 		[annotations],
 	);
+	const waveform = useMemo(
+		() => normalizeWaveformData(audioFile.waveform, audioFile.durationMs),
+		[audioFile.durationMs, audioFile.waveform],
+	);
 
 	useEffect(() => {
 		if (!blob) {
@@ -114,8 +121,12 @@ export function WaveformCard({
 		}
 
 		const draw = () => {
-			const width = surface.clientWidth;
+			const width = Math.round(surface.clientWidth);
 			const height = 164;
+			if (width <= 0) {
+				return false;
+			}
+
 			const ratio = window.devicePixelRatio || 1;
 			const styles = window.getComputedStyle(surface);
 			const readColor = (name: string) =>
@@ -128,17 +139,17 @@ export function WaveformCard({
 			context.setTransform(ratio, 0, 0, ratio, 0, 0);
 			context.clearRect(0, 0, width, height);
 
-			context.fillStyle = readColor("--color-waveform-surface");
+			context.fillStyle = readColor("--canvas-waveform-surface");
 			context.fillRect(0, 0, width, height);
 
-			context.strokeStyle = readColor("--color-waveform-grid");
+			context.strokeStyle = readColor("--canvas-waveform-grid");
 			context.lineWidth = 1;
 			context.beginPath();
 			context.moveTo(0, height / 2);
 			context.lineTo(width, height / 2);
 			context.stroke();
 
-			const peaks = audioFile.waveform.peaks;
+			const peaks = waveform.peaks;
 			const step = width / Math.max(peaks.length, 1);
 			const middle = height / 2;
 
@@ -148,8 +159,8 @@ export function WaveformCard({
 				const y = Math.max(2, peak * (height * 0.42));
 
 				context.strokeStyle = isSelected
-					? readColor("--color-waveform-selected")
-					: readColor("--color-waveform-base");
+					? readColor("--canvas-waveform-selected")
+					: readColor("--canvas-waveform-base");
 				context.lineWidth = Math.max(1, step * 0.68);
 				context.beginPath();
 				context.moveTo(x, middle - y);
@@ -158,10 +169,10 @@ export function WaveformCard({
 			}
 
 			const progressX =
-				width * (currentTimeMs / Math.max(audioFile.durationMs, 1));
-			context.fillStyle = readColor("--color-waveform-progress");
+				width * (currentTimeMs / Math.max(waveform.durationMs, 1));
+			context.fillStyle = readColor("--canvas-waveform-progress");
 			context.fillRect(0, 0, progressX, height);
-			context.strokeStyle = readColor("--color-waveform-progress-line");
+			context.strokeStyle = readColor("--canvas-waveform-progress-line");
 			context.lineWidth = 2;
 			context.beginPath();
 			context.moveTo(progressX, 0);
@@ -170,8 +181,8 @@ export function WaveformCard({
 
 			if (mode === "range" && rangeAnchorMs !== null) {
 				const anchorX =
-					width * (rangeAnchorMs / Math.max(audioFile.durationMs, 1));
-				context.strokeStyle = readColor("--color-waveform-range");
+					width * (rangeAnchorMs / Math.max(waveform.durationMs, 1));
+				context.strokeStyle = readColor("--canvas-waveform-range");
 				context.setLineDash([7, 5]);
 				context.beginPath();
 				context.moveTo(anchorX, 0);
@@ -179,23 +190,42 @@ export function WaveformCard({
 				context.stroke();
 				context.setLineDash([]);
 			}
+			return true;
 		};
 
-		const observer = new ResizeObserver(draw);
+		let frameId = 0;
+		const scheduleDraw = () => {
+			if (frameId) {
+				window.cancelAnimationFrame(frameId);
+			}
+
+			frameId = window.requestAnimationFrame(() => {
+				if (!draw()) {
+					frameId = window.requestAnimationFrame(() => {
+						draw();
+					});
+				}
+			});
+		};
+
+		const observer = new ResizeObserver(scheduleDraw);
 		observer.observe(surface);
-		draw();
+		scheduleDraw();
 
 		return () => {
 			observer.disconnect();
+			if (frameId) {
+				window.cancelAnimationFrame(frameId);
+			}
 		};
 	}, [
-		audioFile.durationMs,
-		audioFile.waveform.peaks,
 		currentTimeMs,
 		isSelected,
 		mode,
 		rangeAnchorMs,
 		theme,
+		waveform.durationMs,
+		waveform.peaks,
 	]);
 
 	async function handleWaveformAction(clientX: number) {
@@ -256,7 +286,7 @@ export function WaveformCard({
 				event.preventDefault();
 				onDrop();
 			}}
-			className={`rounded-[1.7rem] border ${
+			className={`border ${
 				isSelected
 					? "border-[var(--color-accent-strong)] bg-[var(--color-surface-selected)]"
 					: "border-[var(--color-border-strong)] bg-[var(--color-surface)]"
@@ -266,7 +296,7 @@ export function WaveformCard({
 				<div className="flex min-w-0 items-center gap-3">
 					<button
 						type="button"
-						className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]"
+						className="inline-flex h-10 w-10 items-center justify-center border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]"
 						title="Drag to reorder"
 					>
 						<GripVertical size={16} />
@@ -319,7 +349,7 @@ export function WaveformCard({
 							onSelectFile(audioFile.id);
 							onTogglePlayback();
 						}}
-						className="action-primary inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold"
+						className="action-primary inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold"
 					>
 						{isPlaying ? <Pause size={16} /> : <Play size={16} />}
 						{isPlaying ? "Pause" : "Play"}
@@ -330,7 +360,7 @@ export function WaveformCard({
 			{/* biome-ignore lint/a11y/useSemanticElements: the waveform surface contains nested marker buttons, so a semantic button wrapper is not valid */}
 			<div
 				ref={surfaceRef}
-				className="waveform-surface relative overflow-hidden rounded-[1.5rem] border border-[var(--color-border-subtle)]"
+				className="waveform-surface relative overflow-hidden border border-[var(--color-border-subtle)]"
 				role="button"
 				tabIndex={0}
 				aria-label={`Waveform for ${audioFile.title}`}
@@ -375,7 +405,7 @@ export function WaveformCard({
 									onSelectAnnotation(annotation.id);
 									void onSeek(annotation.startMs, true);
 								}}
-								className={`absolute bottom-4 top-4 rounded-xl border ${
+								className={`absolute bottom-4 top-4 border ${
 									activeAnnotationId === annotation.id
 										? "border-[var(--color-waveform-annotation-active)] shadow-[0_0_0_1px_var(--color-waveform-annotation-active)]"
 										: "border-[var(--color-waveform-annotation-inactive)]"
@@ -415,7 +445,7 @@ export function WaveformCard({
 								}`}
 							/>
 							<span
-								className="absolute left-1/2 top-4 h-3 w-3 -translate-x-1/2 rounded-full border border-[var(--color-waveform-marker-dot-border)]"
+								className="absolute left-1/2 top-4 h-3 w-3 -translate-x-1/2 border border-[var(--color-waveform-marker-dot-border)]"
 								style={{
 									backgroundColor:
 										annotation.color ?? "var(--color-annotation-4)",
@@ -426,7 +456,7 @@ export function WaveformCard({
 				})}
 
 				{mode === "range" && rangeAnchorMs !== null && (
-					<div className="range-hint-pill pointer-events-none absolute bottom-3 left-3 rounded-full px-3 py-1 text-xs font-medium">
+					<div className="range-hint-pill pointer-events-none absolute bottom-3 left-3 px-3 py-1 text-xs font-medium">
 						Pick the range end point
 					</div>
 				)}
@@ -508,7 +538,7 @@ function ModeButton({
 		<button
 			type="button"
 			onClick={onClick}
-			className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium ${
+			className={`inline-flex items-center gap-2 border px-3 py-2 text-sm font-medium ${
 				active
 					? "border-[var(--color-accent-strong)] bg-[var(--color-accent-surface)] text-[var(--color-text)]"
 					: "border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]"

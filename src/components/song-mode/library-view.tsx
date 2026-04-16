@@ -72,7 +72,7 @@ export function LibraryView() {
 	}
 
 	const newSongForm = (
-		<aside className="panel-shell rounded-[2rem] p-6 sm:p-7 xl:sticky xl:top-8 xl:self-start">
+		<aside className="panel-shell p-6 sm:p-7 xl:sticky xl:top-8 xl:self-start">
 			<p className="eyebrow">New song</p>
 			<form className="mt-5 grid gap-4" onSubmit={handleSubmit}>
 				<Field label="Song title">
@@ -113,7 +113,7 @@ export function LibraryView() {
 				<button
 					type="submit"
 					disabled={submitting || !title.trim()}
-					className="action-primary inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-55"
+					className="action-primary inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-55"
 				>
 					<FolderOpenDot size={16} />
 					{submitting ? "Creating song..." : "Create song workspace"}
@@ -123,21 +123,19 @@ export function LibraryView() {
 	);
 
 	return (
-		<main className="mx-auto flex w-[min(1480px,calc(100%-1.5rem))] flex-col gap-8 py-8">
+		<main className="flex w-full flex-col gap-8 px-3 py-8">
 			<div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_min(22rem,34vw)] xl:items-start">
 				<div className="flex min-w-0 flex-col gap-8">
 					{error && (
-						<div className="callout-danger rounded-[1.4rem] px-5 py-4 text-sm">
-							{error}
-						</div>
+						<div className="callout-danger px-5 py-4 text-sm">{error}</div>
 					)}
 
 					{!ready ? (
-						<section className="panel-shell rounded-[2rem] px-6 py-8 text-sm text-[var(--color-text-muted)]">
+						<section className="panel-shell px-6 py-8 text-sm text-[var(--color-text-muted)]">
 							Loading your local Song Mode library...
 						</section>
 					) : songs.length === 0 ? (
-						<section className="panel-shell rounded-[2rem] px-7 py-10">
+						<section className="panel-shell px-7 py-10">
 							<div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
 								<div className="max-w-3xl">
 									<p className="eyebrow mb-3">Guided empty state</p>
@@ -150,7 +148,7 @@ export function LibraryView() {
 										maintain a persistent song journal on the right.
 									</p>
 								</div>
-								<div className="rounded-[1.4rem] border border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] px-5 py-5">
+								<div className="border border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] px-5 py-5">
 									<div className="flex items-start gap-3 text-sm leading-7 text-[var(--color-text-muted)]">
 										<Sparkles
 											size={16}
@@ -185,7 +183,7 @@ export function LibraryView() {
 												},
 											})
 										}
-										className="panel-shell group rounded-[1.75rem] p-6 text-left"
+										className="panel-shell group p-6 text-left"
 									>
 										<div className="flex items-start justify-between gap-4">
 											<div>
@@ -199,7 +197,7 @@ export function LibraryView() {
 													{song.artist || "No artist set"}
 												</p>
 											</div>
-											<span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-accent)] transition group-hover:border-[var(--color-border-strong)]">
+											<span className="inline-flex h-10 w-10 items-center justify-center border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-accent)] transition group-hover:border-[var(--color-border-strong)]">
 												<ArrowRight size={17} />
 											</span>
 										</div>
@@ -253,7 +251,7 @@ function Field({
 
 function StatChip({ icon, label }: { icon: React.ReactNode; label: string }) {
 	return (
-		<span className="surface-chip inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium">
+		<span className="surface-chip inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium">
 			{icon}
 			{label}
 		</span>

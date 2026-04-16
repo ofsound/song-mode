@@ -46,7 +46,7 @@ export function GlobalSearch() {
 
 	return (
 		<div className="relative w-full max-w-[32rem]">
-			<label className="search-shell group flex items-center gap-3 rounded-full px-4 py-3">
+			<label className="search-shell group flex items-center gap-3 px-4 py-3">
 				<Search size={16} className="text-[var(--color-text-muted)]" />
 				<input
 					ref={inputRef}
@@ -64,19 +64,19 @@ export function GlobalSearch() {
 					placeholder="Search songs, journals, file notes, and markers"
 					className="min-w-0 flex-1 border-0 bg-transparent text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)]"
 				/>
-				<span className="surface-chip hidden rounded-full px-2 py-1 text-[10px] font-semibold tracking-[0.16em] uppercase md:inline-flex">
+				<span className="surface-chip hidden px-2 py-1 text-[10px] font-semibold tracking-[0.16em] uppercase md:inline-flex">
 					Cmd/Ctrl+K
 				</span>
 			</label>
 
 			{open && (
-				<div className="search-popover absolute left-0 right-0 top-[calc(100%+0.75rem)] z-40 rounded-[1.5rem] p-3">
+				<div className="search-popover absolute left-0 right-0 top-[calc(100%+0.75rem)] z-40 p-3">
 					{!ready ? (
-						<div className="rounded-[1rem] px-4 py-5 text-sm text-[var(--color-text-muted)]">
+						<div className="px-4 py-5 text-sm text-[var(--color-text-muted)]">
 							Loading local search index...
 						</div>
 					) : query.trim().length === 0 ? (
-						<div className="flex items-start gap-3 rounded-[1rem] border border-dashed border-[var(--color-border-subtle)] px-4 py-5 text-sm text-[var(--color-text-muted)]">
+						<div className="flex items-start gap-3 border border-dashed border-[var(--color-border-subtle)] px-4 py-5 text-sm text-[var(--color-text-muted)]">
 							<Sparkles
 								size={16}
 								className="mt-0.5 text-[var(--color-accent)]"
@@ -87,7 +87,7 @@ export function GlobalSearch() {
 							</div>
 						</div>
 					) : results.length === 0 ? (
-						<div className="rounded-[1rem] px-4 py-5 text-sm text-[var(--color-text-muted)]">
+						<div className="px-4 py-5 text-sm text-[var(--color-text-muted)]">
 							No local matches yet.
 						</div>
 					) : (
@@ -96,7 +96,7 @@ export function GlobalSearch() {
 								<button
 									key={result.id}
 									type="button"
-									className="flex w-full items-start gap-3 rounded-[1rem] border border-transparent px-3 py-3 text-left hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-elevated)]"
+									className="flex w-full items-start gap-3 border border-transparent px-3 py-3 text-left hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-elevated)]"
 									onClick={() => {
 										setOpen(false);
 										setQuery("");
@@ -109,7 +109,7 @@ export function GlobalSearch() {
 										});
 									}}
 								>
-									<span className="surface-chip mt-1 rounded-full px-2 py-1 text-[10px] font-semibold tracking-[0.16em] uppercase">
+									<span className="surface-chip mt-1 px-2 py-1 text-[10px] font-semibold tracking-[0.16em] uppercase">
 										{result.type}
 									</span>
 									<span className="min-w-0 flex-1">

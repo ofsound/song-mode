@@ -7,6 +7,7 @@ import {
 } from "./rich-text";
 import { searchSongMode } from "./search";
 import type { Annotation, AudioFileRecord, Song } from "./types";
+import { hasRenderableWaveform, normalizeWaveformData } from "./waveform";
 
 describe("song mode rich text", () => {
 	it("converts paragraphs into searchable plain text", () => {
@@ -110,5 +111,47 @@ describe("song mode search", () => {
 			snareResults.find((result) => result.type === "annotation")?.target
 				.timeMs,
 		).toBe(54200);
+	});
+});
+
+describe("song mode waveform normalization", () => {
+	it("filters invalid peaks and falls back to a renderable flat waveform", () => {
+		expect(
+			normalizeWaveformData(
+				{
+					peaks: [0.25, Number.NaN, -1, 4],
+					peakCount: 4,
+					durationMs: 1250,
+					sampleRate: 48000,
+				},
+				500,
+			),
+		).toEqual({
+			peaks: [0.25, 0, 1],
+			peakCount: 3,
+			durationMs: 1250,
+			sampleRate: 48000,
+		});
+
+		const fallback = normalizeWaveformData(
+			{
+				peaks: [],
+				peakCount: 0,
+				durationMs: 0,
+				sampleRate: 0,
+			},
+			2200,
+		);
+
+		expect(fallback.durationMs).toBe(2200);
+		expect(fallback.sampleRate).toBe(44100);
+		expect(fallback.peaks.length).toBeGreaterThan(0);
+		expect(fallback.peaks.every((value) => value === 0)).toBe(true);
+	});
+
+	it("detects whether a stored waveform can be rendered", () => {
+		expect(hasRenderableWaveform({ peaks: [0, 0.4] })).toBe(true);
+		expect(hasRenderableWaveform({ peaks: [Number.NaN] })).toBe(false);
+		expect(hasRenderableWaveform({ peaks: [] })).toBe(false);
 	});
 });
