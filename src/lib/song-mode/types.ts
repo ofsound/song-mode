@@ -137,11 +137,11 @@ export interface CreateAnnotationInput {
 }
 
 export const ANNOTATION_COLORS = [
-	"#fe7f62",
-	"#f6b53b",
-	"#72c98d",
-	"#63b4ff",
-	"#c481ff",
+	"var(--color-annotation-1)",
+	"var(--color-annotation-2)",
+	"var(--color-annotation-3)",
+	"var(--color-annotation-4)",
+	"var(--color-annotation-5)",
 ] as const;
 
 export function createDefaultWorkspaceState(): WorkspaceState {

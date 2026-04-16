@@ -58,23 +58,23 @@ export function InspectorPane({
 
 	return (
 		<div className="flex h-full flex-col gap-4 overflow-y-auto pr-1">
-			<section className="rounded-[1.5rem] border border-[var(--border-strong)] bg-[var(--panel)] p-4">
+			<section className="rounded-[1.5rem] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
 				<div className="flex items-start justify-between gap-3">
 					<div>
 						<p className="eyebrow mb-2">Inspector</p>
-						<h2 className="text-xl font-semibold text-[var(--text-strong)]">
+						<h2 className="text-xl font-semibold text-[var(--color-text)]">
 							{selectedFile ? selectedFile.title : "Select a waveform"}
 						</h2>
 					</div>
 					{copiedMessage && (
-						<span className="rounded-full border border-[var(--border-muted)] bg-[var(--panel-elevated)] px-3 py-1 text-xs text-[var(--text-dim)]">
+						<span className="surface-chip rounded-full px-3 py-1 text-xs">
 							{copiedMessage}
 						</span>
 					)}
 				</div>
 
 				{!selectedFile ? (
-					<p className="mt-4 text-sm leading-7 text-[var(--text-dim)]">
+					<p className="mt-4 text-sm leading-7 text-[var(--color-text-muted)]">
 						Pick an audio lane to edit full-file notes, inspect time-based
 						annotations, and copy deep links back into the song journal.
 					</p>
@@ -126,11 +126,11 @@ export function InspectorPane({
 				)}
 			</section>
 
-			<section className="rounded-[1.5rem] border border-[var(--border-strong)] bg-[var(--panel)] p-4">
+			<section className="rounded-[1.5rem] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
 				<div className="flex items-start justify-between gap-3">
 					<div>
 						<p className="eyebrow mb-2">Timestamped notes</p>
-						<h3 className="text-lg font-semibold text-[var(--text-strong)]">
+						<h3 className="text-lg font-semibold text-[var(--color-text)]">
 							{annotations.length} markers in{" "}
 							{selectedFile?.title ?? song.title}
 						</h3>
@@ -139,7 +139,7 @@ export function InspectorPane({
 
 				<div className="mt-4 space-y-3">
 					{annotations.length === 0 ? (
-						<p className="rounded-[1.2rem] border border-dashed border-[var(--border-muted)] px-4 py-5 text-sm text-[var(--text-dim)]">
+						<p className="rounded-[1.2rem] border border-dashed border-[var(--color-border-subtle)] px-4 py-5 text-sm text-[var(--color-text-muted)]">
 							Create point markers or regions from the waveform to build the
 							linked note list here.
 						</p>
@@ -149,8 +149,8 @@ export function InspectorPane({
 								key={annotation.id}
 								className={`rounded-[1.25rem] border p-3 ${
 									activeAnnotation?.id === annotation.id
-										? "border-[var(--accent-strong)] bg-[var(--accent-muted)]"
-										: "border-[var(--border-muted)] bg-[var(--panel-elevated)]"
+										? "border-[var(--color-accent-strong)] bg-[var(--color-accent-surface)]"
+										: "border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)]"
 								}`}
 							>
 								<div className="flex items-start justify-between gap-3">
@@ -168,10 +168,10 @@ export function InspectorPane({
 										}}
 										className="min-w-0 text-left"
 									>
-										<span className="block text-sm font-semibold text-[var(--text-strong)]">
+										<span className="block text-sm font-semibold text-[var(--color-text)]">
 											{annotation.title || "Untitled marker"}
 										</span>
-										<span className="mt-1 inline-flex items-center gap-2 text-xs text-[var(--text-subtle)]">
+										<span className="mt-1 inline-flex items-center gap-2 text-xs text-[var(--color-text-subtle)]">
 											<Link2 size={12} />
 											{annotation.type === "range" && annotation.endMs
 												? `${formatDuration(annotation.startMs)} to ${formatDuration(annotation.endMs)}`
@@ -201,7 +201,7 @@ export function InspectorPane({
 										</button>
 									</div>
 								</div>
-								<p className="mt-3 text-sm leading-6 text-[var(--text-dim)]">
+								<p className="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">
 									{richTextPreview(annotation.body, "No note body yet.")}
 								</p>
 							</div>
@@ -211,11 +211,11 @@ export function InspectorPane({
 			</section>
 
 			{activeAnnotation && (
-				<section className="rounded-[1.5rem] border border-[var(--border-strong)] bg-[var(--panel)] p-4">
+				<section className="rounded-[1.5rem] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
 					<div className="flex items-start justify-between gap-3">
 						<div>
 							<p className="eyebrow mb-2">Annotation details</p>
-							<h3 className="text-lg font-semibold text-[var(--text-strong)]">
+							<h3 className="text-lg font-semibold text-[var(--color-text)]">
 								Edit marker
 							</h3>
 						</div>
@@ -223,7 +223,7 @@ export function InspectorPane({
 						<button
 							type="button"
 							onClick={() => void onDeleteAnnotation(activeAnnotation.id)}
-							className="icon-button text-[var(--danger-soft)]"
+							className="icon-button text-[var(--color-danger)]"
 							title="Delete annotation"
 						>
 							<Trash2 size={15} />
@@ -267,7 +267,7 @@ export function InspectorPane({
 							) : (
 								<div className="grid gap-2">
 									<span className="field-label">Type</span>
-									<div className="field-input flex items-center text-sm text-[var(--text-dim)]">
+									<div className="field-input flex items-center text-sm text-[var(--color-text-muted)]">
 										Point marker
 									</div>
 								</div>
@@ -289,8 +289,8 @@ export function InspectorPane({
 											}
 											className={`h-9 w-9 rounded-full border ${
 												activeAnnotation.color === color
-													? "border-white"
-													: "border-white/20"
+													? "border-[var(--color-text)]"
+													: "border-[var(--color-border-subtle)]"
 											}`}
 											style={{ backgroundColor: color }}
 											title={color}

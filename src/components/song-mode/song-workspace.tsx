@@ -353,7 +353,7 @@ export function SongWorkspace({
 	if (!ready) {
 		return (
 			<main className="mx-auto w-[min(1480px,calc(100%-1.5rem))] py-8">
-				<section className="panel-shell rounded-[2rem] px-6 py-8 text-sm text-[var(--text-dim)]">
+				<section className="panel-shell rounded-[2rem] px-6 py-8 text-sm text-[var(--color-text-muted)]">
 					Loading song workspace...
 				</section>
 			</main>
@@ -365,12 +365,12 @@ export function SongWorkspace({
 			<main className="mx-auto w-[min(1480px,calc(100%-1.5rem))] py-8">
 				<section className="panel-shell rounded-[2rem] px-6 py-8">
 					<p className="eyebrow mb-3">Missing song</p>
-					<h1 className="text-3xl font-semibold text-[var(--text-strong)]">
+					<h1 className="text-3xl font-semibold text-[var(--color-text)]">
 						This song record was not found in local storage.
 					</h1>
 					<Link
 						to="/"
-						className="mt-5 inline-flex items-center gap-2 rounded-full border border-[var(--border-strong)] bg-[var(--panel-elevated)] px-4 py-2 text-sm font-semibold text-[var(--text-strong)] no-underline"
+						className="action-secondary mt-5 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold no-underline"
 					>
 						<ChevronLeft size={14} />
 						Back to library
@@ -387,7 +387,7 @@ export function SongWorkspace({
 					<div className="min-w-0">
 						<Link
 							to="/"
-							className="inline-flex items-center gap-2 text-sm font-medium text-[var(--text-subtle)] no-underline"
+							className="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-text-subtle)] no-underline"
 						>
 							<ChevronLeft size={14} />
 							Song library
@@ -402,7 +402,7 @@ export function SongWorkspace({
 											title: event.target.value,
 										})
 									}
-									className="field-input font-display text-3xl leading-tight text-[var(--text-strong)] sm:text-4xl"
+									className="field-input font-display text-3xl leading-tight text-[var(--color-text)] sm:text-4xl"
 								/>
 							</label>
 							<div className="grid gap-4 sm:grid-cols-2">
@@ -438,7 +438,7 @@ export function SongWorkspace({
 						<button
 							type="button"
 							onClick={() => setIsUploadOpen((current) => !current)}
-							className="inline-flex items-center gap-2 rounded-full border border-[var(--border-strong)] bg-[var(--panel-elevated)] px-4 py-2 text-sm font-semibold text-[var(--text-strong)]"
+							className="action-secondary inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold"
 						>
 							<Upload size={14} />
 							{isUploadOpen ? "Hide upload" : "Add audio"}
@@ -448,7 +448,7 @@ export function SongWorkspace({
 							onClick={() =>
 								selectedFileId && void togglePlayback(selectedFileId)
 							}
-							className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,var(--accent),var(--accent-strong))] px-4 py-2 text-sm font-semibold text-[var(--ink)]"
+							className="action-primary inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold"
 						>
 							<PauseCircle size={15} />
 							Spacebar ready
@@ -506,21 +506,21 @@ export function SongWorkspace({
 							/>
 						</label>
 						<div className="xl:col-span-4 flex flex-wrap items-center justify-between gap-3">
-							<div className="text-sm text-[var(--text-dim)]">
+							<div className="text-sm text-[var(--color-text-muted)]">
 								Large files decode in-browser, and peak data is cached locally
 								in IndexedDB for future visits.
 							</div>
 							<button
 								type="submit"
 								disabled={uploading || !uploadFile}
-								className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,var(--accent),var(--accent-strong))] px-5 py-3 text-sm font-semibold text-[var(--ink)] disabled:cursor-not-allowed disabled:opacity-55"
+								className="action-primary inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-55"
 							>
 								<Save size={15} />
 								{uploading ? "Importing audio..." : "Import into song"}
 							</button>
 						</div>
 						{uploadError && (
-							<div className="xl:col-span-4 rounded-[1rem] border border-[rgba(255,122,94,0.35)] bg-[rgba(88,22,18,0.35)] px-4 py-3 text-sm text-[var(--danger-soft)]">
+							<div className="callout-danger xl:col-span-4 rounded-[1rem] px-4 py-3 text-sm">
 								{uploadError}
 							</div>
 						)}
@@ -532,7 +532,7 @@ export function SongWorkspace({
 				<div className="panel-shell rounded-[1.9rem] p-4 sm:p-5">
 					<div className="mb-4 flex items-center justify-between gap-3">
 						<p className="eyebrow">Waveform stack</p>
-						<span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-muted)] bg-[var(--panel-elevated)] px-3 py-2 text-xs font-medium text-[var(--text-dim)]">
+						<span className="surface-chip inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-medium">
 							<ListMusic size={14} />
 							Shift+↑ / Shift+↓ jumps markers
 						</span>
@@ -540,7 +540,7 @@ export function SongWorkspace({
 
 					<div className="space-y-4">
 						{audioFiles.length === 0 ? (
-							<div className="rounded-[1.5rem] border border-dashed border-[var(--border-muted)] px-6 py-10 text-sm leading-7 text-[var(--text-dim)]">
+							<div className="rounded-[1.5rem] border border-dashed border-[var(--color-border-subtle)] px-6 py-10 text-sm leading-7 text-[var(--color-text-muted)]">
 								Add audio to start the stacked waveform review. Each file gets
 								its own notes, time markers, range annotations, and immediate
 								seek-and-play links.
@@ -653,7 +653,7 @@ export function SongWorkspace({
 
 				<div className="panel-shell rounded-[1.9rem] p-4 sm:p-5 xl:sticky xl:top-8 xl:self-start">
 					<div className="max-h-[calc(100vh-15rem)] min-h-[44rem] overflow-y-auto">
-						<section className="flex flex-col gap-4 rounded-[1.5rem] border border-[var(--border-strong)] bg-[var(--panel)] p-4">
+						<section className="flex flex-col gap-4 rounded-[1.5rem] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
 							<p className="eyebrow">Song journal</p>
 
 							<div className="grid gap-4">

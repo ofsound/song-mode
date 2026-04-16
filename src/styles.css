@@ -2,26 +2,261 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-@theme {
+@theme static {
   --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+
+  --color-app: light-dark(
+    color-mix(in srgb, var(--color-white) 94%, var(--color-slate-50)),
+    color-mix(in srgb, var(--color-zinc-950) 92%, var(--color-slate-950))
+  );
+  --color-shell: light-dark(var(--color-white), var(--color-zinc-950));
+  --color-surface: light-dark(
+    color-mix(in srgb, var(--color-white) 95%, var(--color-zinc-50)),
+    color-mix(in srgb, var(--color-slate-900) 42%, var(--color-zinc-950))
+  );
+  --color-surface-elevated: light-dark(
+    color-mix(in srgb, var(--color-white) 88%, var(--color-slate-50)),
+    color-mix(in srgb, var(--color-slate-800) 46%, var(--color-zinc-900))
+  );
+  --color-surface-selected: light-dark(
+    color-mix(in srgb, var(--color-emerald-50) 72%, var(--color-sky-50)),
+    color-mix(in srgb, var(--color-slate-900) 58%, var(--color-zinc-950))
+  );
+  --color-surface-overlay: light-dark(
+    color-mix(in srgb, var(--color-white) 90%, transparent),
+    color-mix(in srgb, var(--color-zinc-950) 78%, transparent)
+  );
+  --color-header-surface: light-dark(
+    color-mix(in srgb, var(--color-white) 84%, transparent),
+    color-mix(in srgb, var(--color-zinc-950) 74%, transparent)
+  );
+  --color-header-icon-surface: light-dark(
+    color-mix(in srgb, var(--color-white) 92%, var(--color-slate-50)),
+    color-mix(in srgb, var(--color-white) 9%, transparent)
+  );
+  --color-field: light-dark(var(--color-white), var(--color-slate-900));
+  --color-text: light-dark(var(--color-zinc-900), var(--color-zinc-100));
+  --color-text-muted: light-dark(var(--color-slate-600), var(--color-slate-300));
+  --color-text-subtle: light-dark(var(--color-zinc-500), var(--color-slate-400));
+  --color-text-inverse: light-dark(var(--color-white), var(--color-zinc-950));
+  --color-border: light-dark(var(--color-zinc-300), var(--color-zinc-700));
+  --color-border-strong: light-dark(var(--color-zinc-400), var(--color-slate-500));
+  --color-border-subtle: light-dark(
+    color-mix(in srgb, var(--color-zinc-500) 22%, transparent),
+    color-mix(in srgb, var(--color-slate-400) 26%, transparent)
+  );
+  --color-accent: light-dark(var(--color-emerald-600), var(--color-emerald-300));
+  --color-accent-strong: light-dark(var(--color-sky-600), var(--color-sky-400));
+  --color-accent-surface: light-dark(
+    color-mix(in srgb, var(--color-emerald-500) 14%, transparent),
+    color-mix(in srgb, var(--color-emerald-300) 16%, transparent)
+  );
+  --color-link: light-dark(var(--color-sky-700), var(--color-emerald-300));
+  --color-link-hover: light-dark(var(--color-sky-800), var(--color-emerald-200));
+  --color-danger: light-dark(var(--color-red-700), var(--color-red-200));
+  --color-danger-surface: light-dark(
+    color-mix(in srgb, var(--color-red-50) 92%, var(--color-white)),
+    color-mix(in srgb, var(--color-red-950) 44%, transparent)
+  );
+  --color-danger-border: light-dark(var(--color-red-200), var(--color-red-800));
+  --color-focus-ring: light-dark(
+    color-mix(in srgb, var(--color-sky-500) 22%, transparent),
+    color-mix(in srgb, var(--color-sky-400) 28%, transparent)
+  );
+  --color-selection: light-dark(
+    color-mix(in srgb, var(--color-emerald-400) 28%, transparent),
+    color-mix(in srgb, var(--color-emerald-300) 26%, transparent)
+  );
+  --color-waveform-grid: light-dark(
+    color-mix(in srgb, var(--color-slate-400) 22%, transparent),
+    color-mix(in srgb, var(--color-slate-300) 18%, transparent)
+  );
+  --color-waveform-base: light-dark(
+    color-mix(in srgb, var(--color-slate-500) 62%, transparent),
+    color-mix(in srgb, var(--color-slate-300) 54%, transparent)
+  );
+  --color-waveform-selected: light-dark(
+    color-mix(in srgb, var(--color-emerald-500) 92%, transparent),
+    color-mix(in srgb, var(--color-emerald-300) 88%, transparent)
+  );
+  --color-waveform-progress: light-dark(
+    color-mix(in srgb, var(--color-emerald-500) 14%, transparent),
+    color-mix(in srgb, var(--color-emerald-300) 10%, transparent)
+  );
+  --color-waveform-progress-line: light-dark(
+    var(--color-emerald-600),
+    var(--color-emerald-300)
+  );
+  --color-waveform-range: light-dark(var(--color-amber-500), var(--color-amber-300));
+  --color-waveform-surface: light-dark(
+    color-mix(in srgb, var(--color-white) 92%, var(--color-slate-50)),
+    color-mix(in srgb, var(--color-white) 5%, transparent)
+  );
+  --color-waveform-annotation-active: light-dark(
+    color-mix(in srgb, var(--color-zinc-950) 22%, transparent),
+    color-mix(in srgb, var(--color-white) 82%, transparent)
+  );
+  --color-waveform-annotation-inactive: light-dark(
+    color-mix(in srgb, var(--color-zinc-950) 14%, transparent),
+    color-mix(in srgb, var(--color-white) 20%, transparent)
+  );
+  --color-waveform-marker-active: light-dark(var(--color-zinc-900), var(--color-white));
+  --color-waveform-marker-track: light-dark(
+    var(--color-sky-600),
+    var(--color-emerald-300)
+  );
+  --color-waveform-marker-dot-border: light-dark(
+    color-mix(in srgb, var(--color-white) 80%, transparent),
+    color-mix(in srgb, var(--color-white) 35%, transparent)
+  );
+  --color-range-hint-border: light-dark(var(--color-amber-300), var(--color-amber-700));
+  --color-range-hint-surface: light-dark(
+    color-mix(in srgb, var(--color-amber-100) 86%, transparent),
+    color-mix(in srgb, var(--color-amber-950) 38%, transparent)
+  );
+  --color-annotation-1: light-dark(var(--color-red-400), var(--color-red-500));
+  --color-annotation-2: light-dark(var(--color-amber-400), var(--color-amber-400));
+  --color-annotation-3: light-dark(var(--color-emerald-400), var(--color-emerald-400));
+  --color-annotation-4: light-dark(var(--color-sky-400), var(--color-sky-400));
+  --color-annotation-5: light-dark(var(--color-violet-400), var(--color-violet-400));
+  --shadow-panel:
+    0 20px 50px -24px
+      light-dark(
+        color-mix(in srgb, var(--color-zinc-950) 16%, transparent),
+        color-mix(in srgb, var(--color-black) 55%, transparent)
+      ),
+    0 10px 24px -18px
+      light-dark(
+        color-mix(in srgb, var(--color-zinc-950) 12%, transparent),
+        color-mix(in srgb, var(--color-black) 45%, transparent)
+      );
+  --shadow-overlay:
+    0 24px 80px -34px
+      light-dark(
+        color-mix(in srgb, var(--color-zinc-950) 20%, transparent),
+        color-mix(in srgb, var(--color-black) 68%, transparent)
+      ),
+    0 12px 28px -22px
+      light-dark(
+        color-mix(in srgb, var(--color-zinc-950) 14%, transparent),
+        color-mix(in srgb, var(--color-black) 52%, transparent)
+      );
+  --shadow-control: 0 1px 2px 0
+    light-dark(
+      color-mix(in srgb, var(--color-zinc-950) 12%, transparent),
+      color-mix(in srgb, var(--color-black) 30%, transparent)
+    );
+  --background-image-shell-grid:
+    linear-gradient(
+      to right,
+      light-dark(
+          color-mix(in srgb, var(--color-zinc-400) 14%, transparent),
+          color-mix(in srgb, var(--color-slate-500) 14%, transparent)
+        )
+        1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      light-dark(
+          color-mix(in srgb, var(--color-zinc-400) 14%, transparent),
+          color-mix(in srgb, var(--color-slate-500) 14%, transparent)
+        )
+        1px,
+      transparent 1px
+    );
+  --background-image-shell:
+    radial-gradient(
+      circle at 0% 0%,
+      light-dark(
+          color-mix(in srgb, var(--color-sky-200) 58%, transparent),
+          color-mix(in srgb, var(--color-sky-500) 22%, transparent)
+        )
+        0,
+      transparent 34%
+    ),
+    radial-gradient(
+      circle at 100% 0%,
+      light-dark(
+          color-mix(in srgb, var(--color-emerald-200) 54%, transparent),
+          color-mix(in srgb, var(--color-emerald-400) 18%, transparent)
+        )
+        0,
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 50% 100%,
+      light-dark(
+          color-mix(in srgb, var(--color-slate-200) 64%, transparent),
+          color-mix(in srgb, var(--color-sky-700) 18%, transparent)
+        )
+        0,
+      transparent 42%
+    ),
+    linear-gradient(
+      180deg,
+      light-dark(
+        color-mix(in srgb, var(--color-slate-100) 84%, var(--color-white)),
+        color-mix(in srgb, var(--color-slate-900) 88%, var(--color-zinc-950))
+      ),
+      light-dark(
+        color-mix(in srgb, var(--color-white) 96%, var(--color-zinc-50)),
+        color-mix(in srgb, var(--color-zinc-950) 96%, var(--color-black))
+      )
+    );
+  --background-image-panel:
+    linear-gradient(
+      165deg,
+      light-dark(
+        color-mix(in srgb, var(--color-white) 78%, transparent),
+        color-mix(in srgb, var(--color-white) 7%, transparent)
+      ),
+      light-dark(
+        color-mix(in srgb, var(--color-slate-100) 52%, transparent),
+        color-mix(in srgb, var(--color-white) 2%, transparent)
+      )
+    );
+  --background-image-brand:
+    linear-gradient(
+      145deg,
+      light-dark(
+        color-mix(in srgb, var(--color-white) 92%, var(--color-slate-50)),
+        color-mix(in srgb, var(--color-white) 14%, transparent)
+      ),
+      light-dark(
+        color-mix(in srgb, var(--color-slate-100) 72%, var(--color-white)),
+        color-mix(in srgb, var(--color-white) 4%, transparent)
+      )
+    );
+  --background-image-button-accent: linear-gradient(
+    135deg,
+    var(--color-accent),
+    var(--color-accent-strong)
+  );
+  --background-image-waveform:
+    linear-gradient(
+      180deg,
+      light-dark(
+        color-mix(in srgb, var(--color-white) 74%, transparent),
+        color-mix(in srgb, var(--color-white) 6%, transparent)
+      ),
+      light-dark(
+        color-mix(in srgb, var(--color-slate-100) 58%, transparent),
+        color-mix(in srgb, var(--color-white) 1%, transparent)
+      )
+    );
 }
 
 :root {
-  --bg: #07111f;
-  --bg-soft: #0a1628;
-  --bg-grid: rgba(138, 157, 191, 0.08);
-  --panel: rgba(16, 25, 44, 0.82);
-  --panel-elevated: rgba(23, 35, 59, 0.94);
-  --border-muted: rgba(138, 157, 191, 0.18);
-  --border-strong: rgba(138, 157, 191, 0.28);
-  --text-strong: #f3f8ff;
-  --text-dim: #c0cedf;
-  --text-subtle: #8da0bc;
-  --accent: #7ef4d0;
-  --accent-strong: #4bb8ff;
-  --accent-muted: rgba(126, 244, 208, 0.12);
-  --danger-soft: #ffc0b3;
-  --ink: #06131f;
+  color-scheme: light dark;
+}
+
+.light {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
 }
 
 * {
@@ -34,16 +269,16 @@ body,
   min-height: 100%;
 }
 
+html {
+  background-color: var(--color-app);
+}
+
 body {
   margin: 0;
-  color: var(--text-strong);
+  color: var(--color-text);
   font-family: var(--font-sans);
-  background-color: var(--bg);
-  background:
-    radial-gradient(circle at 0% 0%, rgba(75, 184, 255, 0.22), transparent 34%),
-    radial-gradient(circle at 100% 0%, rgba(126, 244, 208, 0.18), transparent 26%),
-    radial-gradient(circle at 50% 100%, rgba(53, 85, 155, 0.2), transparent 42%),
-    linear-gradient(180deg, #091120 0%, #08101d 38%, #060d19 100%);
+  background-color: var(--color-app);
+  background-image: var(--background-image-shell);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -55,11 +290,10 @@ body::before {
   inset: 0;
   pointer-events: none;
   z-index: -1;
-  opacity: 0.48;
-  background:
-    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.08), transparent 28%),
-    radial-gradient(circle at 82% 16%, rgba(126, 244, 208, 0.08), transparent 24%),
-    radial-gradient(circle at 40% 78%, rgba(75, 184, 255, 0.08), transparent 32%);
+  opacity: 0.72;
+  background-image: var(--background-image-shell-grid);
+  background-size: 34px 34px;
+  mask-image: linear-gradient(180deg, black 0%, color-mix(in srgb, black 20%, transparent) 68%, transparent 100%);
 }
 
 body::after {
@@ -68,29 +302,77 @@ body::after {
   inset: 0;
   pointer-events: none;
   z-index: -1;
-  opacity: 0.22;
-  background-image:
-    linear-gradient(var(--bg-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
-  background-size: 34px 34px;
-  mask-image: linear-gradient(180deg, black 0%, rgba(0, 0, 0, 0.2) 68%, transparent 100%);
+  opacity: 0.56;
+  background:
+    radial-gradient(
+      circle at 18% 12%,
+      light-dark(
+          color-mix(in srgb, var(--color-white) 54%, transparent),
+          color-mix(in srgb, var(--color-white) 8%, transparent)
+        )
+        0,
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 82% 16%,
+      light-dark(
+          color-mix(in srgb, var(--color-emerald-200) 34%, transparent),
+          color-mix(in srgb, var(--color-emerald-400) 10%, transparent)
+        )
+        0,
+      transparent 24%
+    ),
+    radial-gradient(
+      circle at 40% 78%,
+      light-dark(
+          color-mix(in srgb, var(--color-sky-200) 34%, transparent),
+          color-mix(in srgb, var(--color-sky-500) 10%, transparent)
+        )
+        0,
+      transparent 32%
+    );
+}
+
+::selection {
+  background: var(--color-selection);
+  color: var(--color-text);
 }
 
 a {
-  color: var(--accent);
-  text-decoration-color: rgba(126, 244, 208, 0.4);
+  color: var(--color-link);
+  text-decoration-color: color-mix(in srgb, var(--color-link) 40%, transparent);
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
 }
 
 a:hover {
-  color: #aaf8e2;
+  color: var(--color-link-hover);
+}
+
+button,
+a,
+input,
+textarea {
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
 code {
   font-size: 0.9em;
-  border: 1px solid var(--border-muted);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--color-border-subtle);
+  background: color-mix(in srgb, var(--color-surface-elevated) 84%, transparent);
   border-radius: 7px;
   padding: 2px 7px;
 }
@@ -110,15 +392,19 @@ pre code {
   letter-spacing: -0.02em;
 }
 
+.header-shell {
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-header-surface);
+  backdrop-filter: blur(20px);
+}
+
 .panel-shell {
   position: relative;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--color-border-strong);
   background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)),
-    var(--panel);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 22px 60px rgba(2, 6, 23, 0.28);
+    var(--background-image-panel),
+    var(--color-surface);
+  box-shadow: var(--shadow-panel);
   backdrop-filter: blur(16px);
 }
 
@@ -129,14 +415,100 @@ pre code {
   pointer-events: none;
   border-radius: inherit;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.06), transparent 38%),
-    linear-gradient(225deg, rgba(126, 244, 208, 0.05), transparent 28%);
+    linear-gradient(
+      135deg,
+      light-dark(
+        color-mix(in srgb, var(--color-white) 46%, transparent),
+        color-mix(in srgb, var(--color-white) 6%, transparent)
+      ),
+      transparent 38%
+    ),
+    linear-gradient(
+      225deg,
+      light-dark(
+        color-mix(in srgb, var(--color-emerald-200) 18%, transparent),
+        color-mix(in srgb, var(--color-emerald-300) 8%, transparent)
+      ),
+      transparent 28%
+    );
 }
 
-button,
-a {
-  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease,
-    transform 180ms ease;
+.brand-mark {
+  border-color: var(--color-border-strong);
+  background:
+    var(--background-image-brand),
+    var(--color-header-icon-surface);
+  box-shadow: var(--shadow-panel);
+}
+
+.action-secondary {
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-elevated);
+  color: var(--color-text);
+  box-shadow: var(--shadow-control);
+}
+
+.action-secondary:hover {
+  background: color-mix(in srgb, var(--color-surface-elevated) 84%, var(--color-accent-surface));
+}
+
+.action-primary {
+  background: var(--background-image-button-accent);
+  color: var(--color-text-inverse);
+  box-shadow: var(--shadow-control);
+}
+
+.theme-toggle-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  box-shadow: var(--shadow-control);
+}
+
+.theme-toggle-button:hover {
+  background: var(--color-surface-elevated);
+  color: var(--color-text);
+}
+
+.surface-chip {
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-muted);
+}
+
+.callout-danger {
+  border: 1px solid var(--color-danger-border);
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+}
+
+.search-shell {
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-control);
+}
+
+.search-popover {
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-overlay);
+  box-shadow: var(--shadow-overlay);
+  backdrop-filter: blur(20px);
+}
+
+.waveform-surface {
+  background:
+    var(--background-image-waveform),
+    var(--color-waveform-surface);
+}
+
+.range-hint-pill {
+  border: 1px solid var(--color-range-hint-border);
+  background: var(--color-range-hint-surface);
+  color: var(--color-text);
 }
 
 .eyebrow {
@@ -144,35 +516,35 @@ a {
   text-transform: uppercase;
   font-weight: 700;
   font-size: 0.67rem;
-  color: var(--text-subtle);
+  color: var(--color-text-subtle);
 }
 
 .field-label {
   font-size: 0.68rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--text-subtle);
+  color: var(--color-text-subtle);
   font-weight: 700;
 }
 
 .field-input {
   width: 100%;
-  border: 1px solid var(--border-strong);
-  background: var(--panel-elevated);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-field);
   border-radius: 1rem;
-  color: var(--text-strong);
+  color: var(--color-text);
   padding: 0.85rem 1rem;
   font: inherit;
   outline: none;
 }
 
 .field-input::placeholder {
-  color: var(--text-subtle);
+  color: var(--color-text-subtle);
 }
 
 .field-input:focus {
-  border-color: var(--accent-strong);
-  box-shadow: 0 0 0 3px rgba(75, 184, 255, 0.16);
+  border-color: var(--color-accent-strong);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
 .icon-button {
@@ -182,18 +554,18 @@ a {
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  border: 1px solid var(--border-muted);
-  background: var(--panel-elevated);
-  color: var(--text-dim);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-muted);
 }
 
 .icon-button:hover {
-  border-color: var(--border-strong);
-  color: var(--text-strong);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
 }
 
 .song-editor {
-  color: var(--text-dim);
+  color: var(--color-text-muted);
 }
 
 .song-editor > :first-child {
@@ -212,15 +584,15 @@ a {
 
 .song-editor a,
 .song-link {
-  color: var(--accent);
+  color: var(--color-link);
   font-weight: 600;
 }
 
 .song-editor blockquote {
-  border-left: 3px solid var(--accent-strong);
+  border-left: 3px solid var(--color-accent-strong);
   margin-left: 0;
   padding-left: 1rem;
-  color: var(--text-strong);
+  color: var(--color-text);
 }
 
 .song-editor ul,
@@ -232,11 +604,15 @@ input[type="file"]::file-selector-button {
   margin-right: 0.85rem;
   border: 0;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: var(--ink);
+  background: var(--background-image-button-accent);
+  color: var(--color-text-inverse);
   cursor: pointer;
   font-weight: 700;
   padding: 0.55rem 0.9rem;
+}
+
+.rise-in {
+  animation: rise-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @media (max-width: 1100px) {
@@ -245,20 +621,12 @@ input[type="file"]::file-selector-button {
   }
 }
 
-.site-footer {
-  border-top: 1px solid var(--line);
-  background: color-mix(in oklab, var(--header-bg) 84%, transparent 16%);
-}
-
-.rise-in {
-  animation: rise-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
 @keyframes rise-in {
   from {
     opacity: 0;
     transform: translateY(12px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

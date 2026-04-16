@@ -1,10 +1,31 @@
 import { TanStackDevtools } from "@tanstack/react-devtools";
-import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import {
+	createRootRoute,
+	HeadContent,
+	ScriptOnce,
+	Scripts,
+} from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { THEME_STORAGE_KEY } from "#/lib/theme";
 import { SongModeChrome } from "../components/song-mode/app-chrome";
 import { SongModeProvider } from "../providers/song-mode-provider";
+import { ThemeProvider } from "../providers/theme-provider";
 
 import appCss from "../styles.css?url";
+
+const themeBootstrapScript = `(() => {
+	try {
+		const storedTheme = window.localStorage.getItem("${THEME_STORAGE_KEY}");
+		const resolvedTheme =
+			storedTheme === "light" || storedTheme === "dark"
+				? storedTheme
+				: window.matchMedia("(prefers-color-scheme: dark)").matches
+					? "dark"
+					: "light";
+		document.documentElement.classList.remove("light", "dark");
+		document.documentElement.classList.add(resolvedTheme);
+	} catch {}
+})()`;
 
 export const Route = createRootRoute({
 	head: () => ({
@@ -32,25 +53,28 @@ export const Route = createRootRoute({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
 	return (
-		<html lang="en">
+		<html lang="en" suppressHydrationWarning>
 			<head>
 				<HeadContent />
+				<ScriptOnce>{themeBootstrapScript}</ScriptOnce>
 			</head>
-			<body className="selection:bg-[rgba(126,244,208,0.22)] selection:text-[var(--text-strong)]">
-				<SongModeProvider>
-					<SongModeChrome>{children}</SongModeChrome>
-					<TanStackDevtools
-						config={{
-							position: "bottom-right",
-						}}
-						plugins={[
-							{
-								name: "Tanstack Router",
-								render: <TanStackRouterDevtoolsPanel />,
-							},
-						]}
-					/>
-				</SongModeProvider>
+			<body>
+				<ThemeProvider>
+					<SongModeProvider>
+						<SongModeChrome>{children}</SongModeChrome>
+						<TanStackDevtools
+							config={{
+								position: "bottom-right",
+							}}
+							plugins={[
+								{
+									name: "Tanstack Router",
+									render: <TanStackRouterDevtoolsPanel />,
+								},
+							]}
+						/>
+					</SongModeProvider>
+				</ThemeProvider>
 				<Scripts />
 			</body>
 		</html>

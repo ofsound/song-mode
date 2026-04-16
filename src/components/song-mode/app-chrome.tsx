@@ -1,13 +1,14 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { AudioWaveform, Library } from "lucide-react";
 import { GlobalSearch } from "./global-search";
+import { ThemeToggle } from "./theme-toggle";
 
 export function SongModeChrome({ children }: { children: React.ReactNode }) {
 	const navigate = useNavigate();
 
 	return (
-		<div className="min-h-screen bg-[var(--bg)] text-[var(--text-strong)]">
-			<header className="sticky top-0 z-30 border-b border-[var(--border-muted)] bg-[color-mix(in_oklab,var(--bg)_76%,black_24%)]/90 backdrop-blur-xl">
+		<div className="min-h-screen bg-[var(--color-app)] text-[var(--color-text)]">
+			<header className="header-shell sticky top-0 z-30">
 				<div className="mx-auto flex w-[min(1480px,calc(100%-1.5rem))] flex-col gap-4 py-4">
 					<div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
 						<div className="flex min-w-0 items-center gap-4">
@@ -15,10 +16,10 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 								to="/"
 								className="inline-flex items-center gap-3 no-underline"
 							>
-								<span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-[linear-gradient(145deg,rgba(255,255,255,0.14),rgba(255,255,255,0.04))] text-[var(--accent)] shadow-[0_10px_30px_rgba(11,16,32,0.25)]">
+								<span className="brand-mark inline-flex h-12 w-12 items-center justify-center rounded-2xl border text-[var(--color-accent)]">
 									<AudioWaveform size={22} />
 								</span>
-								<span className="min-w-0 font-display text-2xl leading-none text-[var(--text-strong)]">
+								<span className="min-w-0 font-display text-2xl leading-none text-[var(--color-text)]">
 									Song Mode
 								</span>
 							</Link>
@@ -26,14 +27,17 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 							<button
 								type="button"
 								onClick={() => navigate({ to: "/" })}
-								className="hidden items-center gap-2 rounded-full border border-[var(--border-muted)] bg-[var(--panel)] px-4 py-2 text-sm font-semibold text-[var(--text-dim)] md:inline-flex"
+								className="action-secondary hidden items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold md:inline-flex"
 							>
 								<Library size={15} />
 								Library
 							</button>
 						</div>
 
-						<GlobalSearch />
+						<div className="flex w-full items-center gap-3 xl:w-auto">
+							<GlobalSearch />
+							<ThemeToggle />
+						</div>
 					</div>
 				</div>
 			</header>

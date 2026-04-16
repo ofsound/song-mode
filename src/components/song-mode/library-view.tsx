@@ -113,7 +113,7 @@ export function LibraryView() {
 				<button
 					type="submit"
 					disabled={submitting || !title.trim()}
-					className="inline-flex items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,var(--accent),var(--accent-strong))] px-5 py-3 text-sm font-semibold text-[var(--ink)] disabled:cursor-not-allowed disabled:opacity-55"
+					className="action-primary inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-55"
 				>
 					<FolderOpenDot size={16} />
 					{submitting ? "Creating song..." : "Create song workspace"}
@@ -127,13 +127,13 @@ export function LibraryView() {
 			<div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_min(22rem,34vw)] xl:items-start">
 				<div className="flex min-w-0 flex-col gap-8">
 					{error && (
-						<div className="rounded-[1.4rem] border border-[rgba(255,122,94,0.35)] bg-[rgba(88,22,18,0.35)] px-5 py-4 text-sm text-[var(--danger-soft)]">
+						<div className="callout-danger rounded-[1.4rem] px-5 py-4 text-sm">
 							{error}
 						</div>
 					)}
 
 					{!ready ? (
-						<section className="panel-shell rounded-[2rem] px-6 py-8 text-sm text-[var(--text-dim)]">
+						<section className="panel-shell rounded-[2rem] px-6 py-8 text-sm text-[var(--color-text-muted)]">
 							Loading your local Song Mode library...
 						</section>
 					) : songs.length === 0 ? (
@@ -141,18 +141,21 @@ export function LibraryView() {
 							<div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
 								<div className="max-w-3xl">
 									<p className="eyebrow mb-3">Guided empty state</p>
-									<h2 className="text-3xl font-semibold text-[var(--text-strong)]">
+									<h2 className="text-3xl font-semibold text-[var(--color-text)]">
 										Start by creating a song, then upload audio files into it.
 									</h2>
-									<p className="mt-4 text-base leading-8 text-[var(--text-dim)]">
+									<p className="mt-4 text-base leading-8 text-[var(--color-text-muted)]">
 										Each audio file becomes a full waveform lane. You can seek,
 										create point markers or regions, keep file-level notes, and
 										maintain a persistent song journal on the right.
 									</p>
 								</div>
-								<div className="rounded-[1.4rem] border border-[var(--border-strong)] bg-[var(--panel-elevated)] px-5 py-5">
-									<div className="flex items-start gap-3 text-sm leading-7 text-[var(--text-dim)]">
-										<Sparkles size={16} className="mt-1 text-[var(--accent)]" />
+								<div className="rounded-[1.4rem] border border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] px-5 py-5">
+									<div className="flex items-start gap-3 text-sm leading-7 text-[var(--color-text-muted)]">
+										<Sparkles
+											size={16}
+											className="mt-1 text-[var(--color-accent)]"
+										/>
 										<div>
 											Use the global search bar once you have content. It jumps
 											across songs, notes, and time-based annotations.
@@ -189,19 +192,19 @@ export function LibraryView() {
 												<p className="eyebrow mb-3">
 													{song.project || "Song workspace"}
 												</p>
-												<h2 className="text-2xl font-semibold text-[var(--text-strong)]">
+												<h2 className="text-2xl font-semibold text-[var(--color-text)]">
 													{song.title}
 												</h2>
-												<p className="mt-2 text-sm text-[var(--text-subtle)]">
+												<p className="mt-2 text-sm text-[var(--color-text-subtle)]">
 													{song.artist || "No artist set"}
 												</p>
 											</div>
-											<span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--border-muted)] bg-[var(--panel-elevated)] text-[var(--accent)] transition group-hover:border-[var(--border-strong)]">
+											<span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-accent)] transition group-hover:border-[var(--color-border-strong)]">
 												<ArrowRight size={17} />
 											</span>
 										</div>
 
-										<p className="mt-5 text-sm leading-7 text-[var(--text-dim)]">
+										<p className="mt-5 text-sm leading-7 text-[var(--color-text-muted)]">
 											{richTextPreview(
 												song.generalNotes,
 												"Journal is ready for the first pass.",
@@ -240,7 +243,7 @@ function Field({
 }) {
 	return (
 		<div className="grid gap-2">
-			<span className="text-[11px] font-semibold tracking-[0.18em] text-[var(--text-subtle)] uppercase">
+			<span className="text-[11px] font-semibold tracking-[0.18em] text-[var(--color-text-subtle)] uppercase">
 				{label}
 			</span>
 			{children}
@@ -250,7 +253,7 @@ function Field({
 
 function StatChip({ icon, label }: { icon: React.ReactNode; label: string }) {
 	return (
-		<span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-muted)] bg-[var(--panel-elevated)] px-3 py-1.5 text-xs font-medium text-[var(--text-dim)]">
+		<span className="surface-chip inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium">
 			{icon}
 			{label}
 		</span>

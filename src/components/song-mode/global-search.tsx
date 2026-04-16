@@ -46,8 +46,8 @@ export function GlobalSearch() {
 
 	return (
 		<div className="relative w-full max-w-[32rem]">
-			<label className="group flex items-center gap-3 rounded-full border border-[var(--border-strong)] bg-[var(--panel)] px-4 py-3 shadow-[0_10px_32px_rgba(3,8,19,0.2)]">
-				<Search size={16} className="text-[var(--text-dim)]" />
+			<label className="search-shell group flex items-center gap-3 rounded-full px-4 py-3">
+				<Search size={16} className="text-[var(--color-text-muted)]" />
 				<input
 					ref={inputRef}
 					value={query}
@@ -62,29 +62,32 @@ export function GlobalSearch() {
 						}, 140);
 					}}
 					placeholder="Search songs, journals, file notes, and markers"
-					className="min-w-0 flex-1 border-0 bg-transparent text-sm text-[var(--text-strong)] outline-none placeholder:text-[var(--text-dim)]"
+					className="min-w-0 flex-1 border-0 bg-transparent text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)]"
 				/>
-				<span className="hidden rounded-full border border-[var(--border-muted)] px-2 py-1 text-[10px] font-semibold tracking-[0.16em] text-[var(--text-subtle)] uppercase md:inline-flex">
+				<span className="surface-chip hidden rounded-full px-2 py-1 text-[10px] font-semibold tracking-[0.16em] uppercase md:inline-flex">
 					Cmd/Ctrl+K
 				</span>
 			</label>
 
 			{open && (
-				<div className="absolute left-0 right-0 top-[calc(100%+0.75rem)] z-40 rounded-[1.5rem] border border-[var(--border-strong)] bg-[color-mix(in_oklab,var(--panel)_92%,black_8%)] p-3 shadow-[0_22px_80px_rgba(2,6,23,0.4)] backdrop-blur-xl">
+				<div className="search-popover absolute left-0 right-0 top-[calc(100%+0.75rem)] z-40 rounded-[1.5rem] p-3">
 					{!ready ? (
-						<div className="rounded-[1rem] px-4 py-5 text-sm text-[var(--text-dim)]">
+						<div className="rounded-[1rem] px-4 py-5 text-sm text-[var(--color-text-muted)]">
 							Loading local search index...
 						</div>
 					) : query.trim().length === 0 ? (
-						<div className="flex items-start gap-3 rounded-[1rem] border border-dashed border-[var(--border-muted)] px-4 py-5 text-sm text-[var(--text-dim)]">
-							<Sparkles size={16} className="mt-0.5 text-[var(--accent)]" />
+						<div className="flex items-start gap-3 rounded-[1rem] border border-dashed border-[var(--color-border-subtle)] px-4 py-5 text-sm text-[var(--color-text-muted)]">
+							<Sparkles
+								size={16}
+								className="mt-0.5 text-[var(--color-accent)]"
+							/>
 							<div>
 								Jump across songs, waveform notes, bookmark regions, and the
 								song journal from one place.
 							</div>
 						</div>
 					) : results.length === 0 ? (
-						<div className="rounded-[1rem] px-4 py-5 text-sm text-[var(--text-dim)]">
+						<div className="rounded-[1rem] px-4 py-5 text-sm text-[var(--color-text-muted)]">
 							No local matches yet.
 						</div>
 					) : (
@@ -93,7 +96,7 @@ export function GlobalSearch() {
 								<button
 									key={result.id}
 									type="button"
-									className="flex w-full items-start gap-3 rounded-[1rem] border border-transparent px-3 py-3 text-left hover:border-[var(--border-strong)] hover:bg-[var(--panel-elevated)]"
+									className="flex w-full items-start gap-3 rounded-[1rem] border border-transparent px-3 py-3 text-left hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-elevated)]"
 									onClick={() => {
 										setOpen(false);
 										setQuery("");
@@ -106,17 +109,17 @@ export function GlobalSearch() {
 										});
 									}}
 								>
-									<span className="mt-1 rounded-full border border-[var(--border-muted)] bg-[var(--panel-elevated)] px-2 py-1 text-[10px] font-semibold tracking-[0.16em] text-[var(--text-subtle)] uppercase">
+									<span className="surface-chip mt-1 rounded-full px-2 py-1 text-[10px] font-semibold tracking-[0.16em] uppercase">
 										{result.type}
 									</span>
 									<span className="min-w-0 flex-1">
-										<span className="block text-sm font-semibold text-[var(--text-strong)]">
+										<span className="block text-sm font-semibold text-[var(--color-text)]">
 											{result.title}
 										</span>
-										<span className="block text-xs text-[var(--text-subtle)]">
+										<span className="block text-xs text-[var(--color-text-subtle)]">
 											{result.subtitle}
 										</span>
-										<span className="mt-1 block text-sm leading-6 text-[var(--text-dim)]">
+										<span className="mt-1 block text-sm leading-6 text-[var(--color-text-muted)]">
 											{result.snippet}
 										</span>
 									</span>
