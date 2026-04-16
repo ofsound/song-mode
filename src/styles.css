@@ -537,8 +537,16 @@ pre code {
   backdrop-filter: blur(14px);
 }
 
+.song-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+}
+
 .song-modal__panel {
   position: relative;
+  z-index: 1;
   max-height: min(90vh, 64rem);
   overflow: auto;
   border: 1px solid var(--color-border-strong);

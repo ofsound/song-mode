@@ -14,10 +14,7 @@ import { plainTextToRichText } from "#/lib/song-mode/rich-text";
 import type { SongLinkTarget, SongRouteSearch } from "#/lib/song-mode/types";
 import { useSongMode } from "#/providers/song-mode-provider";
 import { InspectorPane } from "./inspector-pane";
-import {
-	type RichTextToolbarAction,
-	RichTextEditor,
-} from "./rich-text-editor";
+import { RichTextEditor, type RichTextToolbarAction } from "./rich-text-editor";
 import { WaveformCard } from "./waveform-card";
 
 export function SongWorkspace({
@@ -434,242 +431,243 @@ export function SongWorkspace({
 				}`}
 				aria-hidden={isUploadOpen}
 			>
-			<section className="panel-shell px-6 py-6">
-				<div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-					<div className="min-w-0">
-						<Link
-							to="/"
-							className="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-text-subtle)] no-underline"
-						>
-							<ChevronLeft size={14} />
-							Song library
-						</Link>
-						<div className="mt-4 grid max-w-3xl gap-4">
-							<label className="grid gap-2">
-								<span className="field-label">Song title</span>
-								<input
-									value={song.title}
-									onChange={(event) =>
-										void updateSong(song.id, {
-											title: event.target.value,
+				<section className="panel-shell px-6 py-6">
+					<div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+						<div className="min-w-0">
+							<Link
+								to="/"
+								className="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-text-subtle)] no-underline"
+							>
+								<ChevronLeft size={14} />
+								Song library
+							</Link>
+							<div className="mt-4 grid max-w-3xl gap-4">
+								<label className="grid gap-2">
+									<span className="field-label">Song title</span>
+									<input
+										value={song.title}
+										onChange={(event) =>
+											void updateSong(song.id, {
+												title: event.target.value,
+											})
+										}
+										className="field-input font-display text-3xl leading-tight text-[var(--color-text)] sm:text-4xl"
+									/>
+								</label>
+								<div className="grid gap-4 sm:grid-cols-2">
+									<label className="grid gap-2">
+										<span className="field-label">Artist</span>
+										<input
+											value={song.artist}
+											onChange={(event) =>
+												void updateSong(song.id, {
+													artist: event.target.value,
+												})
+											}
+											className="field-input"
+										/>
+									</label>
+									<label className="grid gap-2">
+										<span className="field-label">Project</span>
+										<input
+											value={song.project}
+											onChange={(event) =>
+												void updateSong(song.id, {
+													project: event.target.value,
+												})
+											}
+											className="field-input"
+										/>
+									</label>
+								</div>
+							</div>
+						</div>
+
+						<div className="flex flex-wrap items-center gap-3">
+							<button
+								type="button"
+								onClick={() => setIsUploadOpen(true)}
+								className="action-secondary inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold"
+							>
+								<Upload size={14} />
+								Add audio
+							</button>
+							<button
+								type="button"
+								onClick={() =>
+									selectedFileId && void togglePlayback(selectedFileId)
+								}
+								className="action-primary inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold"
+							>
+								<PauseCircle size={15} />
+								Spacebar ready
+							</button>
+						</div>
+					</div>
+				</section>
+
+				<section className="grid gap-5 xl:grid-cols-[minmax(0,1.38fr)_420px_minmax(280px,400px)]">
+					<div className="panel-shell p-4 sm:p-5">
+						<div className="mb-4 flex items-center justify-between gap-3">
+							<p className="eyebrow">Waveform stack</p>
+							<span className="surface-chip inline-flex items-center gap-2 px-3 py-2 text-xs font-medium">
+								<ListMusic size={14} />
+								Shift+↑ / Shift+↓ jumps markers
+							</span>
+						</div>
+
+						<div className="space-y-4">
+							{audioFiles.length === 0 ? (
+								<div className="border border-dashed border-[var(--color-border-subtle)] px-6 py-10 text-sm leading-7 text-[var(--color-text-muted)]">
+									Add audio to start the stacked waveform review. Each file gets
+									its own notes, time markers, range annotations, and immediate
+									seek-and-play links.
+								</div>
+							) : (
+								audioFiles.map((audioFile) => (
+									<div
+										key={audioFile.id}
+										ref={(node) => {
+											itemRefs.current[audioFile.id] = node;
+										}}
+									>
+										<WaveformCard
+											audioFile={audioFile}
+											annotations={getAnnotationsForFile(audioFile.id)}
+											blob={blobsByAudioId[audioFile.id]}
+											currentTimeMs={
+												playback.currentTimeByFileId[audioFile.id] ??
+												workspace.playheadMsByFileId[audioFile.id] ??
+												0
+											}
+											isPlaying={
+												playback.activeFileId === audioFile.id &&
+												playback.isPlaying
+											}
+											isSelected={selectedFileId === audioFile.id}
+											activeAnnotationId={workspace.activeAnnotationId}
+											onSelectFile={(fileId) =>
+												void updateWorkspaceState(songId, {
+													selectedFileId: fileId,
+													activeAnnotationId: undefined,
+												})
+											}
+											onSelectAnnotation={(annotationId) =>
+												void updateWorkspaceState(songId, {
+													selectedFileId: audioFile.id,
+													activeAnnotationId: annotationId,
+												})
+											}
+											onCreateAnnotation={(annotationInput) =>
+												handleCreateAnnotation(audioFile.id, {
+													...annotationInput,
+													songId,
+													audioFileId: audioFile.id,
+												})
+											}
+											onSeek={(timeMs, autoplay) =>
+												seekFile(audioFile.id, timeMs, autoplay)
+											}
+											onTogglePlayback={() => togglePlayback(audioFile.id)}
+											onRegisterAudioElement={(element) =>
+												registerAudioElement(audioFile.id, element)
+											}
+											onReportPlayback={(patch) =>
+												reportPlaybackState(audioFile.id, patch)
+											}
+											onDragStart={() => setDraggingFileId(audioFile.id)}
+											onDragEnd={() => setDraggingFileId(null)}
+											onDrop={() => {
+												if (
+													!draggingFileId ||
+													draggingFileId === audioFile.id
+												) {
+													return;
+												}
+
+												const orderedIds = [...audioFiles].map(
+													(entry) => entry.id,
+												);
+												const fromIndex = orderedIds.indexOf(draggingFileId);
+												const toIndex = orderedIds.indexOf(audioFile.id);
+												if (fromIndex === -1 || toIndex === -1) {
+													return;
+												}
+
+												orderedIds.splice(fromIndex, 1);
+												orderedIds.splice(toIndex, 0, draggingFileId);
+												setDraggingFileId(null);
+												void reorderAudioFiles(songId, orderedIds);
+											}}
+										/>
+									</div>
+								))
+							)}
+						</div>
+					</div>
+
+					<div className="panel-shell p-4 sm:p-5">
+						<div className="flex max-h-[calc(100vh-15rem)] min-h-[44rem] flex-col overflow-hidden">
+							<div className="min-h-0 flex-1 overflow-y-auto">
+								<InspectorPane
+									song={song}
+									selectedFile={selectedFile}
+									annotations={selectedAnnotations}
+									activeAnnotation={activeAnnotation}
+									onOpenTarget={openTarget}
+									onUpdateFile={(patch) =>
+										selectedFile
+											? updateAudioFile(selectedFile.id, patch)
+											: Promise.resolve()
+									}
+									onUpdateAnnotation={updateAnnotation}
+									onDeleteAnnotation={deleteAnnotation}
+									onSelectAnnotation={(annotationId) =>
+										void updateWorkspaceState(songId, {
+											selectedFileId,
+											activeAnnotationId: annotationId,
 										})
 									}
-									className="field-input font-display text-3xl leading-tight text-[var(--color-text)] sm:text-4xl"
 								/>
-							</label>
-							<div className="grid gap-4 sm:grid-cols-2">
-								<label className="grid gap-2">
-									<span className="field-label">Artist</span>
-									<input
-										value={song.artist}
-										onChange={(event) =>
-											void updateSong(song.id, {
-												artist: event.target.value,
-											})
-										}
-										className="field-input"
-									/>
-								</label>
-								<label className="grid gap-2">
-									<span className="field-label">Project</span>
-									<input
-										value={song.project}
-										onChange={(event) =>
-											void updateSong(song.id, {
-												project: event.target.value,
-											})
-										}
-										className="field-input"
-									/>
-								</label>
 							</div>
 						</div>
 					</div>
 
-					<div className="flex flex-wrap items-center gap-3">
-						<button
-							type="button"
-							onClick={() => setIsUploadOpen(true)}
-							className="action-secondary inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold"
-						>
-							<Upload size={14} />
-							Add audio
-						</button>
-						<button
-							type="button"
-							onClick={() =>
-								selectedFileId && void togglePlayback(selectedFileId)
-							}
-							className="action-primary inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold"
-						>
-							<PauseCircle size={15} />
-							Spacebar ready
-						</button>
-					</div>
-				</div>
+					<div className="panel-shell p-4 sm:p-5 xl:sticky xl:top-8 xl:self-start">
+						<div className="max-h-[calc(100vh-15rem)] min-h-[44rem] overflow-y-auto">
+							<section className="flex flex-col gap-4 border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
+								<p className="eyebrow">Song journal</p>
 
-			</section>
-
-			<section className="grid gap-5 xl:grid-cols-[minmax(0,1.38fr)_420px_minmax(280px,400px)]">
-				<div className="panel-shell p-4 sm:p-5">
-					<div className="mb-4 flex items-center justify-between gap-3">
-						<p className="eyebrow">Waveform stack</p>
-						<span className="surface-chip inline-flex items-center gap-2 px-3 py-2 text-xs font-medium">
-							<ListMusic size={14} />
-							Shift+↑ / Shift+↓ jumps markers
-						</span>
-					</div>
-
-					<div className="space-y-4">
-						{audioFiles.length === 0 ? (
-							<div className="border border-dashed border-[var(--color-border-subtle)] px-6 py-10 text-sm leading-7 text-[var(--color-text-muted)]">
-								Add audio to start the stacked waveform review. Each file gets
-								its own notes, time markers, range annotations, and immediate
-								seek-and-play links.
-							</div>
-						) : (
-							audioFiles.map((audioFile) => (
-								<div
-									key={audioFile.id}
-									ref={(node) => {
-										itemRefs.current[audioFile.id] = node;
-									}}
-								>
-									<WaveformCard
-										audioFile={audioFile}
-										annotations={getAnnotationsForFile(audioFile.id)}
-										blob={blobsByAudioId[audioFile.id]}
-										currentTimeMs={
-											playback.currentTimeByFileId[audioFile.id] ??
-											workspace.playheadMsByFileId[audioFile.id] ??
-											0
-										}
-										isPlaying={
-											playback.activeFileId === audioFile.id &&
-											playback.isPlaying
-										}
-										isSelected={selectedFileId === audioFile.id}
-										activeAnnotationId={workspace.activeAnnotationId}
-										onSelectFile={(fileId) =>
-											void updateWorkspaceState(songId, {
-												selectedFileId: fileId,
-												activeAnnotationId: undefined,
-											})
-										}
-										onSelectAnnotation={(annotationId) =>
-											void updateWorkspaceState(songId, {
-												selectedFileId: audioFile.id,
-												activeAnnotationId: annotationId,
-											})
-										}
-										onCreateAnnotation={(annotationInput) =>
-											handleCreateAnnotation(audioFile.id, {
-												...annotationInput,
-												songId,
-												audioFileId: audioFile.id,
-											})
-										}
-										onSeek={(timeMs, autoplay) =>
-											seekFile(audioFile.id, timeMs, autoplay)
-										}
-										onTogglePlayback={() => togglePlayback(audioFile.id)}
-										onRegisterAudioElement={(element) =>
-											registerAudioElement(audioFile.id, element)
-										}
-										onReportPlayback={(patch) =>
-											reportPlaybackState(audioFile.id, patch)
-										}
-										onDragStart={() => setDraggingFileId(audioFile.id)}
-										onDragEnd={() => setDraggingFileId(null)}
-										onDrop={() => {
-											if (!draggingFileId || draggingFileId === audioFile.id) {
-												return;
+								<div className="grid gap-4">
+									<div className="grid gap-2">
+										<span className="field-label">Journal</span>
+										<RichTextEditor
+											value={song.generalNotes}
+											onChange={(nextValue) =>
+												void updateSong(song.id, {
+													generalNotes: nextValue,
+												})
 											}
-
-											const orderedIds = [...audioFiles].map(
-												(entry) => entry.id,
-											);
-											const fromIndex = orderedIds.indexOf(draggingFileId);
-											const toIndex = orderedIds.indexOf(audioFile.id);
-											if (fromIndex === -1 || toIndex === -1) {
-												return;
-											}
-
-											orderedIds.splice(fromIndex, 1);
-											orderedIds.splice(toIndex, 0, draggingFileId);
-											setDraggingFileId(null);
-											void reorderAudioFiles(songId, orderedIds);
-										}}
-									/>
+											onInternalLink={openTarget}
+											focusId="journal"
+											toolbarActions={journalToolbarActions}
+										/>
+									</div>
 								</div>
-							))
-						)}
-					</div>
-				</div>
-
-				<div className="panel-shell p-4 sm:p-5">
-					<div className="flex max-h-[calc(100vh-15rem)] min-h-[44rem] flex-col overflow-hidden">
-						<div className="min-h-0 flex-1 overflow-y-auto">
-							<InspectorPane
-								song={song}
-								selectedFile={selectedFile}
-								annotations={selectedAnnotations}
-								activeAnnotation={activeAnnotation}
-								onOpenTarget={openTarget}
-								onUpdateFile={(patch) =>
-									selectedFile
-										? updateAudioFile(selectedFile.id, patch)
-										: Promise.resolve()
-								}
-								onUpdateAnnotation={updateAnnotation}
-								onDeleteAnnotation={deleteAnnotation}
-								onSelectAnnotation={(annotationId) =>
-									void updateWorkspaceState(songId, {
-										selectedFileId,
-										activeAnnotationId: annotationId,
-									})
-								}
-							/>
+							</section>
 						</div>
 					</div>
-				</div>
-
-				<div className="panel-shell p-4 sm:p-5 xl:sticky xl:top-8 xl:self-start">
-					<div className="max-h-[calc(100vh-15rem)] min-h-[44rem] overflow-y-auto">
-						<section className="flex flex-col gap-4 border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
-							<p className="eyebrow">Song journal</p>
-
-							<div className="grid gap-4">
-								<div className="grid gap-2">
-									<span className="field-label">Journal</span>
-									<RichTextEditor
-										value={song.generalNotes}
-										onChange={(nextValue) =>
-											void updateSong(song.id, {
-												generalNotes: nextValue,
-											})
-										}
-										onInternalLink={openTarget}
-										focusId="journal"
-										toolbarActions={journalToolbarActions}
-									/>
-								</div>
-							</div>
-						</section>
-					</div>
-				</div>
-			</section>
+				</section>
 			</main>
 
 			{isUploadOpen && (
-				<div
-					className="song-modal"
-					onMouseDown={(event) => {
-						if (event.target === event.currentTarget) {
-							setIsUploadOpen(false);
-						}
-					}}
-				>
+				<div className="song-modal">
+					<button
+						type="button"
+						aria-label="Dismiss upload dialog"
+						onClick={() => setIsUploadOpen(false)}
+						className="song-modal__backdrop"
+					/>
 					<div
 						role="dialog"
 						aria-modal="true"
