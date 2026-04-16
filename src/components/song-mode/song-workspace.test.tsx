@@ -276,22 +276,22 @@ describe("SongWorkspace", () => {
 		expect(screen.getByPlaceholderText(/context for this file/i)).toBeTruthy();
 	});
 
-	it("renders the journal label on the panel background with only the editor shell beneath it", () => {
+	it("renders only the journal label and editor without an outer journal shell", () => {
 		currentAudioFiles = [createAudioFile()];
 
 		render(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
 
-		const journalEyebrow = screen.getByText(/song journal/i);
 		const journalFieldLabel = screen.getByText(/^journal$/i);
 		const journalEditor = document.querySelector(
 			'[data-song-mode-editor="journal"]',
 		);
+		const journalColumn = journalFieldLabel.parentElement?.parentElement;
 
-		expect(journalEyebrow).toBeTruthy();
+		expect(screen.queryByText(/song journal/i)).toBeNull();
 		expect(journalFieldLabel).toBeTruthy();
 		expect(journalEditor).toBeTruthy();
-		expect(journalEyebrow.parentElement?.className).not.toContain("border");
-		expect(journalEyebrow.parentElement?.tagName).toBe("DIV");
+		expect(journalEditor?.closest(".panel-shell")).toBeNull();
+		expect(journalColumn?.className).toContain("h-[calc(100vh-4rem)]");
 	});
 
 	it("renders the song controls into the header slot when one is available", () => {

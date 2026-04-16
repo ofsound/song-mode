@@ -26,6 +26,14 @@ import { useTheme } from "#/providers/theme-provider";
 
 type WaveformMode = "seek" | "point" | "range";
 
+interface AudioGraph {
+	context: AudioContext;
+	sourceNode: MediaElementAudioSourceNode;
+	gainNode: GainNode;
+}
+
+const audioGraphByElement = new WeakMap<HTMLAudioElement, AudioGraph>();
+
 interface WaveformCardProps {
 	audioFile: AudioFileRecord;
 	annotations: Annotation[];
@@ -137,6 +145,15 @@ export function WaveformCard({
 			return null;
 		}
 
+		const existingGraph = audioGraphByElement.get(element);
+		if (existingGraph) {
+			audioContextRef.current = existingGraph.context;
+			sourceNodeRef.current = existingGraph.sourceNode;
+			gainNodeRef.current = existingGraph.gainNode;
+			element.volume = 1;
+			return existingGraph.context;
+		}
+
 		const AudioContextCtor =
 			window.AudioContext ||
 			(window as Window & { webkitAudioContext?: typeof AudioContext })
@@ -153,6 +170,11 @@ export function WaveformCard({
 		source.connect(gainNode);
 		gainNode.connect(context.destination);
 
+		audioGraphByElement.set(element, {
+			context,
+			sourceNode: source,
+			gainNode,
+		});
 		audioContextRef.current = context;
 		sourceNodeRef.current = source;
 		gainNodeRef.current = gainNode;
@@ -191,16 +213,9 @@ export function WaveformCard({
 
 	useEffect(() => {
 		return () => {
-			sourceNodeRef.current?.disconnect();
-			gainNodeRef.current?.disconnect();
+			audioContextRef.current = null;
 			sourceNodeRef.current = null;
 			gainNodeRef.current = null;
-
-			const context = audioContextRef.current;
-			audioContextRef.current = null;
-			if (context) {
-				void context.close().catch(() => undefined);
-			}
 		};
 	}, []);
 
@@ -325,18 +340,30 @@ export function WaveformCard({
 		waveform.peaks,
 	]);
 
-	async function handleWaveformAction(clientX: number) {
+	function getWaveformTimeMs(clientX: number): number | null {
 		if (!surfaceRef.current) {
-			return;
+			return null;
 		}
 
 		const rect = surfaceRef.current.getBoundingClientRect();
 		const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-		const timeMs = Math.round(audioFile.durationMs * ratio);
+		return Math.round(audioFile.durationMs * ratio);
+	}
+
+	async function handleWaveformAction(clientX: number, autoplay?: boolean) {
+		const timeMs = getWaveformTimeMs(clientX);
+		if (timeMs === null) {
+			return;
+		}
 
 		onSelectFile(audioFile.id);
 
 		if (mode === "seek") {
+			if (typeof autoplay === "boolean") {
+				await onSeek(timeMs, autoplay);
+				return;
+			}
+
 			await onSeek(timeMs);
 			return;
 		}
@@ -471,6 +498,15 @@ export function WaveformCard({
 						}
 						void handleWaveformAction(event.clientX);
 					}}
+					onDoubleClick={(event) => {
+						if (
+							mode !== "seek" ||
+							(event.target as HTMLElement).closest("[data-annotation-hit]")
+						) {
+							return;
+						}
+						void handleWaveformAction(event.clientX, true);
+					}}
 					onKeyDown={(event) => {
 						if (event.key !== "Enter" && event.key !== " ") {
 							return;
@@ -601,7 +637,7 @@ export function WaveformCard({
 				</span>
 				<span>
 					{mode === "seek"
-						? "Click to seek"
+						? "Click to seek · Double-click to play"
 						: mode === "point"
 							? "Click to add a point marker"
 							: rangeAnchorMs === null

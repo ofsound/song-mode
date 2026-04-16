@@ -84,11 +84,15 @@ function renderWaveformCard({
 	audioFile = createAudioFile(),
 	annotations = [],
 	isPlaying = false,
+	onSeek = vi.fn().mockResolvedValue(undefined),
+	onSelectFile = vi.fn(),
 	onStepVolume = vi.fn().mockResolvedValue(undefined),
 }: {
 	audioFile?: AudioFileRecord;
 	annotations?: Annotation[];
 	isPlaying?: boolean;
+	onSeek?: (timeMs: number, autoplay?: boolean) => Promise<void>;
+	onSelectFile?: (fileId: string) => void;
 	onStepVolume?: (deltaDb: number) => Promise<void>;
 } = {}) {
 	return render(
@@ -99,7 +103,7 @@ function renderWaveformCard({
 			currentTimeMs={0}
 			isPlaying={isPlaying}
 			isSelected
-			onSelectFile={vi.fn()}
+			onSelectFile={onSelectFile}
 			onSelectAnnotation={vi.fn()}
 			onCreateAnnotation={vi.fn(
 				async (input: Omit<CreateAnnotationInput, "songId" | "audioFileId">) =>
@@ -112,7 +116,7 @@ function renderWaveformCard({
 						...input,
 					}) as Annotation,
 			)}
-			onSeek={vi.fn().mockResolvedValue(undefined)}
+			onSeek={onSeek}
 			onTogglePlayback={vi.fn().mockResolvedValue(undefined)}
 			onRegisterAudioElement={vi.fn()}
 			onReportPlayback={vi.fn()}
@@ -122,6 +126,26 @@ function renderWaveformCard({
 			onDrop={vi.fn()}
 		/>,
 	);
+}
+
+function mockWaveformBounds(
+	element: HTMLElement,
+	{ left = 0, width = 200 }: { left?: number; width?: number } = {},
+) {
+	Object.defineProperty(element, "getBoundingClientRect", {
+		configurable: true,
+		value: () => ({
+			left,
+			top: 0,
+			right: left + width,
+			bottom: 164,
+			width,
+			height: 164,
+			x: left,
+			y: 0,
+			toJSON: () => ({}),
+		}),
+	});
 }
 
 describe("WaveformCard", () => {
@@ -269,6 +293,64 @@ describe("WaveformCard", () => {
 				1.995,
 				3,
 			);
+		});
+	});
+
+	it("seeks on click and seeks with autoplay on double-click in seek mode", async () => {
+		const onSeek = vi.fn().mockResolvedValue(undefined);
+		const onSelectFile = vi.fn();
+
+		renderWaveformCard({
+			onSeek,
+			onSelectFile,
+		});
+
+		const waveformSurface = screen.getByRole("button", {
+			name: /waveform for mix v1/i,
+		});
+		mockWaveformBounds(waveformSurface, { left: 10, width: 200 });
+
+		fireEvent.click(waveformSurface, { clientX: 60 });
+
+		await waitFor(() => {
+			expect(onSeek).toHaveBeenCalledWith(45000);
+		});
+		expect(onSelectFile).toHaveBeenCalledWith("file-1");
+
+		fireEvent.doubleClick(waveformSurface, { clientX: 160 });
+
+		await waitFor(() => {
+			expect(onSeek).toHaveBeenCalledWith(135000, true);
+		});
+	});
+
+	it("ignores waveform double-click playback when the event originates from an annotation hit", async () => {
+		const onSeek = vi.fn().mockResolvedValue(undefined);
+
+		renderWaveformCard({
+			onSeek,
+			annotations: [
+				{
+					id: "annotation-1",
+					songId: "song-1",
+					audioFileId: "file-1",
+					type: "point",
+					startMs: 30000,
+					title: "Verse",
+					body: EMPTY_RICH_TEXT,
+					color: "var(--color-annotation-4)",
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+		});
+
+		fireEvent.doubleClick(screen.getByTitle(/verse/i), {
+			clientX: 160,
+		});
+
+		await waitFor(() => {
+			expect(onSeek).not.toHaveBeenCalled();
 		});
 	});
 });

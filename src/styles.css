@@ -454,6 +454,25 @@ pre code {
     );
 }
 
+.panel-shell-action {
+  cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.panel-shell-action:hover {
+  border-color: var(--color-accent-strong);
+  transform: translateY(-2px);
+}
+
+.panel-shell-action:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 3px;
+}
+
 .brand-mark {
   border-color: var(--color-border-strong);
   background:
@@ -656,6 +675,20 @@ pre code {
 .song-editor ul,
 .song-editor ol {
   padding-left: 1.2rem;
+}
+
+[data-song-mode-editor="journal"] {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+[data-song-mode-editor="journal"] .song-editor {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
 }
 
 input[type="file"]::file-selector-button {

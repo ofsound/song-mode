@@ -567,10 +567,7 @@ export function SongWorkspace({
 										onDragStart={() => setDraggingFileId(audioFile.id)}
 										onDragEnd={() => setDraggingFileId(null)}
 										onDrop={() => {
-											if (
-												!draggingFileId ||
-												draggingFileId === audioFile.id
-											) {
+											if (!draggingFileId || draggingFileId === audioFile.id) {
 												return;
 											}
 
@@ -621,27 +618,21 @@ export function SongWorkspace({
 						</div>
 					</div>
 
-					<div className="panel-shell p-4 sm:p-5 xl:sticky xl:top-8 xl:self-start">
-						<div className="max-h-[calc(100vh-15rem)] min-h-[44rem] overflow-y-auto">
-							<div className="flex flex-col gap-4 p-4">
-								<p className="eyebrow">Song journal</p>
-
-								<div className="grid gap-4">
-									<div className="grid gap-2">
-										<span className="field-label">Journal</span>
-										<RichTextEditor
-											value={song.generalNotes}
-											onChange={(nextValue) =>
-												void updateSong(song.id, {
-													generalNotes: nextValue,
-												})
-											}
-											onInternalLink={openTarget}
-											focusId="journal"
-											toolbarActions={journalToolbarActions}
-										/>
-									</div>
-								</div>
+					<div className="p-4 sm:p-5 xl:sticky xl:top-8 xl:self-start">
+						<div className="flex h-[calc(100vh-4rem)] min-h-[44rem] flex-col">
+							<div className="flex min-h-0 flex-1 flex-col gap-2">
+								<span className="field-label">Journal</span>
+								<RichTextEditor
+									value={song.generalNotes}
+									onChange={(nextValue) =>
+										void updateSong(song.id, {
+											generalNotes: nextValue,
+										})
+									}
+									onInternalLink={openTarget}
+									focusId="journal"
+									toolbarActions={journalToolbarActions}
+								/>
 							</div>
 						</div>
 					</div>

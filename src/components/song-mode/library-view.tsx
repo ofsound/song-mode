@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowRight, FolderOpenDot, Sparkles, Waves } from "lucide-react";
+import { FolderOpenDot, Sparkles, Waves } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
 	plainTextToRichText,
@@ -183,9 +183,9 @@ export function LibraryView() {
 												},
 											})
 										}
-										className="panel-shell group p-6 text-left"
+										className="panel-shell panel-shell-action h-full w-full p-6 text-left"
 									>
-										<div className="flex items-start justify-between gap-4">
+										<div>
 											<div>
 												<p className="eyebrow mb-3">
 													{song.project || "Song workspace"}
@@ -197,9 +197,6 @@ export function LibraryView() {
 													{song.artist || "No artist set"}
 												</p>
 											</div>
-											<span className="inline-flex h-10 w-10 items-center justify-center border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-accent)] transition group-hover:border-[var(--color-border-strong)]">
-												<ArrowRight size={17} />
-											</span>
 										</div>
 
 										<p className="mt-5 text-sm leading-7 text-[var(--color-text-muted)]">
