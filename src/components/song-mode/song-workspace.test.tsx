@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_RICH_TEXT } from "#/lib/song-mode/rich-text";
 import type {
@@ -196,5 +196,40 @@ describe("SongWorkspace", () => {
 				activeAnnotationId: undefined,
 			});
 		});
+	});
+
+	it("opens the upload form inside a modal when add audio is clicked", () => {
+		currentAudioFiles = [
+			{
+				id: "file-1",
+				songId: baseSong.id,
+				title: "Mix v1",
+				notes: EMPTY_RICH_TEXT,
+				masteringNote: EMPTY_RICH_TEXT,
+				durationMs: 180000,
+				waveform: {
+					peaks: [0.2, 0.6, 0.4],
+					peakCount: 3,
+					durationMs: 180000,
+					sampleRate: 44100,
+				},
+				createdAt: "2026-04-16T00:00:00.000Z",
+				updatedAt: "2026-04-16T00:00:00.000Z",
+			},
+		];
+
+		render(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+
+		expect(screen.queryByRole("dialog")).toBeNull();
+
+		fireEvent.click(screen.getByRole("button", { name: /add audio/i }));
+
+		expect(
+			screen.getByRole("dialog", {
+				name: /add audio/i,
+			}),
+		).toBeTruthy();
+		expect(screen.getByLabelText(/audio file/i)).toBeTruthy();
+		expect(screen.getByPlaceholderText(/context for this file/i)).toBeTruthy();
 	});
 });

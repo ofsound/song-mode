@@ -520,6 +520,35 @@ pre code {
   backdrop-filter: blur(20px);
 }
 
+.song-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-zinc-950) 22%, transparent),
+      color-mix(in srgb, var(--color-zinc-950) 42%, transparent)
+    );
+  backdrop-filter: blur(14px);
+}
+
+.song-modal__panel {
+  position: relative;
+  max-height: min(90vh, 64rem);
+  overflow: auto;
+  border: 1px solid var(--color-border-strong);
+  background:
+    var(--background-image-panel),
+    var(--color-surface-overlay);
+  box-shadow: var(--shadow-overlay);
+  backdrop-filter: blur(22px);
+}
+
 .waveform-surface {
   background:
     var(--background-image-waveform),
@@ -639,6 +668,12 @@ input[type="file"]::file-selector-button {
 @media (max-width: 1100px) {
   .panel-shell {
     backdrop-filter: blur(12px);
+  }
+}
+
+@media (min-width: 40rem) {
+  .song-modal {
+    padding: 1.5rem;
   }
 }
 

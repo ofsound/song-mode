@@ -1,5 +1,5 @@
 import Link from "@tiptap/extension-link";
-import { EditorContent, useEditor } from "@tiptap/react";
+import { type Editor, EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import {
 	Bold,
@@ -24,6 +24,12 @@ interface RichTextEditorProps {
 	focusId?: string;
 	/** When false, formatting toolbar is hidden (editor still supports rich content). */
 	showToolbar?: boolean;
+	toolbarActions?: RichTextToolbarAction[];
+}
+
+export interface RichTextToolbarAction {
+	label: string;
+	onClick: (editor: Editor) => void;
 }
 
 export function RichTextEditor({
@@ -34,6 +40,7 @@ export function RichTextEditor({
 	placeholder,
 	focusId,
 	showToolbar = true,
+	toolbarActions = [],
 }: RichTextEditorProps) {
 	const wrapperRef = useRef<HTMLDivElement | null>(null);
 	const serializedValue = useMemo(
@@ -219,6 +226,16 @@ export function RichTextEditor({
 					>
 						<Unlink size={15} />
 					</ToolbarButton>
+					{toolbarActions.map((action) => (
+						<ToolbarButton
+							key={action.label}
+							label={action.label}
+							active={false}
+							onClick={() => action.onClick(editor)}
+						>
+							{action.label}
+						</ToolbarButton>
+					))}
 				</div>
 			) : null}
 			<EditorContent editor={editor} />

@@ -5,15 +5,19 @@ import {
 	PauseCircle,
 	Save,
 	Upload,
+	X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { isEditableElement } from "#/lib/song-mode/dom";
 import { targetToRouteSearch } from "#/lib/song-mode/links";
 import { plainTextToRichText } from "#/lib/song-mode/rich-text";
 import type { SongLinkTarget, SongRouteSearch } from "#/lib/song-mode/types";
 import { useSongMode } from "#/providers/song-mode-provider";
 import { InspectorPane } from "./inspector-pane";
-import { RichTextEditor } from "./rich-text-editor";
+import {
+	type RichTextToolbarAction,
+	RichTextEditor,
+} from "./rich-text-editor";
 import { WaveformCard } from "./waveform-card";
 
 export function SongWorkspace({
@@ -161,6 +165,29 @@ export function SongWorkspace({
 		(selectedFileId && workspace.playheadMsByFileId[selectedFileId]) ||
 		0;
 	const persistedSecond = Math.round(currentTimeMs / 1000);
+	const journalTimestampFormatter = useMemo(
+		() =>
+			new Intl.DateTimeFormat(undefined, {
+				dateStyle: "medium",
+				timeStyle: "short",
+			}),
+		[],
+	);
+	const journalToolbarActions = useMemo<RichTextToolbarAction[]>(
+		() => [
+			{
+				label: "Add Timestamp",
+				onClick: (editor) => {
+					editor
+						.chain()
+						.focus(undefined, { scrollIntoView: false })
+						.insertContent(journalTimestampFormatter.format(new Date()))
+						.run();
+				},
+			},
+		],
+		[journalTimestampFormatter],
+	);
 
 	useEffect(() => {
 		if (!selectedFileId) {
@@ -191,7 +218,28 @@ export function SongWorkspace({
 	]);
 
 	useEffect(() => {
+		if (!isUploadOpen) {
+			return;
+		}
+
+		const { overflow } = document.body.style;
+		document.body.style.overflow = "hidden";
+
+		return () => {
+			document.body.style.overflow = overflow;
+		};
+	}, [isUploadOpen]);
+
+	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
+			if (isUploadOpen) {
+				if (event.key === "Escape") {
+					event.preventDefault();
+					setIsUploadOpen(false);
+				}
+				return;
+			}
+
 			if (isEditableElement(event.target)) {
 				return;
 			}
@@ -258,6 +306,7 @@ export function SongWorkspace({
 			window.removeEventListener("keydown", handleKeyDown);
 		};
 	}, [
+		isUploadOpen,
 		jumpBetweenAnnotations,
 		seekActiveBy,
 		selectedFileId,
@@ -378,7 +427,13 @@ export function SongWorkspace({
 	}
 
 	return (
-		<main className="flex w-full flex-col gap-6 px-3 py-8">
+		<>
+			<main
+				className={`flex w-full flex-col gap-6 px-3 py-8 transition-[filter,opacity] duration-200 ${
+					isUploadOpen ? "pointer-events-none blur-[3px] opacity-45" : ""
+				}`}
+				aria-hidden={isUploadOpen}
+			>
 			<section className="panel-shell px-6 py-6">
 				<div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
 					<div className="min-w-0">
@@ -434,11 +489,11 @@ export function SongWorkspace({
 					<div className="flex flex-wrap items-center gap-3">
 						<button
 							type="button"
-							onClick={() => setIsUploadOpen((current) => !current)}
+							onClick={() => setIsUploadOpen(true)}
 							className="action-secondary inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold"
 						>
 							<Upload size={14} />
-							{isUploadOpen ? "Hide upload" : "Add audio"}
+							Add audio
 						</button>
 						<button
 							type="button"
@@ -453,76 +508,6 @@ export function SongWorkspace({
 					</div>
 				</div>
 
-				{isUploadOpen && (
-					<form
-						className="mt-6 grid gap-4 xl:grid-cols-[1fr_1fr_1fr_auto]"
-						onSubmit={handleUpload}
-					>
-						<label className="grid gap-2">
-							<span className="field-label">Audio file</span>
-							<input
-								type="file"
-								accept="audio/*"
-								onChange={(event) => {
-									const nextFile = event.target.files?.[0] ?? null;
-									setUploadFile(nextFile);
-									if (nextFile && !uploadTitle) {
-										setUploadTitle(nextFile.name.replace(/\.[^.]+$/, ""));
-									}
-								}}
-								className="field-input py-3"
-							/>
-						</label>
-						<label className="grid gap-2">
-							<span className="field-label">Display title</span>
-							<input
-								value={uploadTitle}
-								onChange={(event) => setUploadTitle(event.target.value)}
-								placeholder="Mix v3, ref print, master candidate..."
-								className="field-input"
-							/>
-						</label>
-						<label className="grid gap-2">
-							<span className="field-label">Notes</span>
-							<textarea
-								value={uploadNotes}
-								onChange={(event) => setUploadNotes(event.target.value)}
-								rows={3}
-								placeholder="Context for this file"
-								className="field-input resize-y"
-							/>
-						</label>
-						<label className="grid gap-2">
-							<span className="field-label">Mastering note</span>
-							<textarea
-								value={uploadMastering}
-								onChange={(event) => setUploadMastering(event.target.value)}
-								rows={3}
-								placeholder="Technical notes or delivery constraints"
-								className="field-input resize-y"
-							/>
-						</label>
-						<div className="xl:col-span-4 flex flex-wrap items-center justify-between gap-3">
-							<div className="text-sm text-[var(--color-text-muted)]">
-								Large files decode in-browser, and peak data is cached locally
-								in IndexedDB for future visits.
-							</div>
-							<button
-								type="submit"
-								disabled={uploading || !uploadFile}
-								className="action-primary inline-flex items-center gap-2 px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-55"
-							>
-								<Save size={15} />
-								{uploading ? "Importing audio..." : "Import into song"}
-							</button>
-						</div>
-						{uploadError && (
-							<div className="callout-danger xl:col-span-4 px-4 py-3 text-sm">
-								{uploadError}
-							</div>
-						)}
-					</form>
-				)}
 			</section>
 
 			<section className="grid gap-5 xl:grid-cols-[minmax(0,1.38fr)_420px_minmax(280px,400px)]">
@@ -666,6 +651,7 @@ export function SongWorkspace({
 										}
 										onInternalLink={openTarget}
 										focusId="journal"
+										toolbarActions={journalToolbarActions}
 									/>
 								</div>
 							</div>
@@ -673,6 +659,114 @@ export function SongWorkspace({
 					</div>
 				</div>
 			</section>
-		</main>
+			</main>
+
+			{isUploadOpen && (
+				<div
+					className="song-modal"
+					onMouseDown={(event) => {
+						if (event.target === event.currentTarget) {
+							setIsUploadOpen(false);
+						}
+					}}
+				>
+					<div
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="upload-audio-title"
+						className="song-modal__panel rise-in w-full max-w-[min(96rem,calc(100vw-2rem))]"
+					>
+						<div className="flex items-start justify-between gap-4 border-b border-[var(--color-border-subtle)] px-5 py-4 sm:px-6">
+							<div className="min-w-0">
+								<p className="eyebrow mb-2">Audio import</p>
+								<h2
+									id="upload-audio-title"
+									className="text-2xl font-semibold text-[var(--color-text)]"
+								>
+									Add audio
+								</h2>
+							</div>
+							<button
+								type="button"
+								aria-label="Close upload dialog"
+								onClick={() => setIsUploadOpen(false)}
+								className="icon-button shrink-0"
+							>
+								<X size={16} />
+							</button>
+						</div>
+
+						<form
+							className="grid gap-4 p-5 sm:p-6 xl:grid-cols-[1fr_1fr_1fr_auto]"
+							onSubmit={handleUpload}
+						>
+							<label className="grid gap-2">
+								<span className="field-label">Audio file</span>
+								<input
+									type="file"
+									accept="audio/*"
+									onChange={(event) => {
+										const nextFile = event.target.files?.[0] ?? null;
+										setUploadFile(nextFile);
+										if (nextFile && !uploadTitle) {
+											setUploadTitle(nextFile.name.replace(/\.[^.]+$/, ""));
+										}
+									}}
+									className="field-input py-3"
+								/>
+							</label>
+							<label className="grid gap-2">
+								<span className="field-label">Display title</span>
+								<input
+									value={uploadTitle}
+									onChange={(event) => setUploadTitle(event.target.value)}
+									placeholder="Mix v3, ref print, master candidate..."
+									className="field-input"
+								/>
+							</label>
+							<label className="grid gap-2">
+								<span className="field-label">Notes</span>
+								<textarea
+									value={uploadNotes}
+									onChange={(event) => setUploadNotes(event.target.value)}
+									rows={3}
+									placeholder="Context for this file"
+									className="field-input resize-y"
+								/>
+							</label>
+							<label className="grid gap-2">
+								<span className="field-label">Mastering note</span>
+								<textarea
+									value={uploadMastering}
+									onChange={(event) => setUploadMastering(event.target.value)}
+									rows={3}
+									placeholder="Technical notes or delivery constraints"
+									className="field-input resize-y"
+								/>
+							</label>
+							<div className="xl:col-span-4 flex flex-wrap items-center justify-between gap-3">
+								<div className="text-sm text-[var(--color-text-muted)]">
+									Large files decode in-browser, and peak data is cached locally
+									in IndexedDB for future visits.
+								</div>
+								<button
+									type="submit"
+									disabled={uploading || !uploadFile}
+									className="action-primary inline-flex items-center gap-2 px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-55"
+								>
+									<Save size={15} />
+									{uploading ? "Importing audio..." : "Import into song"}
+								</button>
+							</div>
+							{uploadError && (
+								<div className="callout-danger xl:col-span-4 px-4 py-3 text-sm">
+									{uploadError}
+								</div>
+							)}
+						</form>
+					</div>
+				</div>
+			)}
+		</>
 	);
 }
