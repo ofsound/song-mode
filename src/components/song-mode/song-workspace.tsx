@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, Save, Upload, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { isEditableElement } from "#/lib/song-mode/dom";
 import { targetToRouteSearch } from "#/lib/song-mode/links";
@@ -77,11 +77,42 @@ export function SongWorkspace({
 	const [uploadFile, setUploadFile] = useState<File | null>(null);
 	const [uploadTitle, setUploadTitle] = useState("");
 	const [uploadNotes, setUploadNotes] = useState("");
-	const [uploadMastering, setUploadMastering] = useState("");
 	const [draggingFileId, setDraggingFileId] = useState<string | null>(null);
 
 	const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
 	const appliedSearchRef = useRef<string>("");
+
+	const patchRouteSelection = useCallback(
+		(options: {
+			fileId: string;
+			annotationId?: string;
+			clearPlaybackParams?: boolean;
+		}) => {
+			const { fileId, annotationId, clearPlaybackParams } = options;
+			navigate({
+				to: "/songs/$songId",
+				params: { songId },
+				replace: true,
+				search: (prev: SongRouteSearch) => {
+					const next: SongRouteSearch = { ...prev, fileId };
+
+					if (annotationId !== undefined) {
+						next.annotationId = annotationId;
+					} else {
+						delete next.annotationId;
+					}
+
+					if (clearPlaybackParams) {
+						delete next.timeMs;
+						next.autoplay = false;
+					}
+
+					return next;
+				},
+			});
+		},
+		[navigate, songId],
+	);
 
 	useEffect(() => {
 		if (!ready || !song) {
@@ -276,6 +307,11 @@ export function SongWorkspace({
 							void updateWorkspaceState(songId, {
 								activeAnnotationId: annotation.id,
 							});
+							patchRouteSelection({
+								fileId: selectedFileId,
+								annotationId: annotation.id,
+								clearPlaybackParams: true,
+							});
 						}
 					},
 				);
@@ -288,6 +324,11 @@ export function SongWorkspace({
 						if (annotation) {
 							void updateWorkspaceState(songId, {
 								activeAnnotationId: annotation.id,
+							});
+							patchRouteSelection({
+								fileId: selectedFileId,
+								annotationId: annotation.id,
+								clearPlaybackParams: true,
 							});
 						}
 					},
@@ -313,6 +354,7 @@ export function SongWorkspace({
 	}, [
 		isUploadOpen,
 		jumpBetweenAnnotations,
+		patchRouteSelection,
 		seekActiveBy,
 		selectedFileId,
 		songId,
@@ -362,6 +404,11 @@ export function SongWorkspace({
 			selectedFileId: fileId,
 			activeAnnotationId: annotation.id,
 		});
+		patchRouteSelection({
+			fileId,
+			annotationId: annotation.id,
+			clearPlaybackParams: true,
+		});
 		return annotation;
 	}
 
@@ -378,17 +425,19 @@ export function SongWorkspace({
 				file: uploadFile,
 				title: uploadTitle,
 				notes: plainTextToRichText(uploadNotes),
-				masteringNote: plainTextToRichText(uploadMastering),
 			});
 			await updateWorkspaceState(songId, {
 				selectedFileId: audioFile.id,
 				activeAnnotationId: undefined,
 			});
+			patchRouteSelection({
+				fileId: audioFile.id,
+				clearPlaybackParams: true,
+			});
 
 			setUploadFile(null);
 			setUploadTitle("");
 			setUploadNotes("");
-			setUploadMastering("");
 			setIsUploadOpen(false);
 		} catch (uploadFailure) {
 			setUploadError(
@@ -495,13 +544,13 @@ export function SongWorkspace({
 		<>
 			{renderedSongHeaderControls}
 			<main
-				className={`flex w-full flex-col gap-6 px-3 py-8 transition-[filter,opacity] duration-200 ${
+				className={`flex min-h-0 w-full flex-1 flex-col gap-6 overflow-y-auto px-3 py-8 transition-[filter,opacity] duration-200 xl:overflow-hidden ${
 					isUploadOpen ? "pointer-events-none blur-[3px] opacity-45" : ""
 				}`}
 				aria-hidden={isUploadOpen}
 			>
-				<section className="song-workspace-main-grid grid gap-5">
-					<div className="min-w-0 space-y-4">
+				<section className="song-workspace-main-grid grid gap-5 xl:min-h-0 xl:flex-1 xl:overflow-hidden">
+					<div className="song-workspace-waveform-column min-w-0 space-y-4 xl:min-h-0">
 						{audioFiles.length === 0 ? (
 							<div className="border border-dashed border-[var(--color-border-subtle)] px-6 py-10 text-sm leading-7 text-[var(--color-text-muted)]">
 								Add audio to start the stacked waveform review. Each file gets
@@ -531,18 +580,27 @@ export function SongWorkspace({
 										}
 										isSelected={selectedFileId === audioFile.id}
 										activeAnnotationId={workspace.activeAnnotationId}
-										onSelectFile={(fileId) =>
+										onSelectFile={(fileId) => {
 											void updateWorkspaceState(songId, {
 												selectedFileId: fileId,
 												activeAnnotationId: undefined,
-											})
-										}
-										onSelectAnnotation={(annotationId) =>
+											});
+											patchRouteSelection({
+												fileId,
+												clearPlaybackParams: true,
+											});
+										}}
+										onSelectAnnotation={(annotationId) => {
 											void updateWorkspaceState(songId, {
 												selectedFileId: audioFile.id,
 												activeAnnotationId: annotationId,
-											})
-										}
+											});
+											patchRouteSelection({
+												fileId: audioFile.id,
+												annotationId,
+												clearPlaybackParams: true,
+											});
+										}}
 										onCreateAnnotation={(annotationInput) =>
 											handleCreateAnnotation(audioFile.id, {
 												...annotationInput,
@@ -594,8 +652,8 @@ export function SongWorkspace({
 						)}
 					</div>
 
-					<div className="flex max-h-[calc(100vh-15rem)] min-h-[44rem] flex-col overflow-hidden">
-						<div className="min-h-0 flex-1 overflow-y-auto">
+					<div className="flex min-w-0 flex-col xl:min-h-0 xl:overflow-hidden">
+						<div className="min-h-0 flex-1 overflow-y-auto pr-1">
 							<InspectorPane
 								song={song}
 								selectedFile={selectedFile}
@@ -609,17 +667,26 @@ export function SongWorkspace({
 								}
 								onUpdateAnnotation={updateAnnotation}
 								onDeleteAnnotation={deleteAnnotation}
-								onSelectAnnotation={(annotationId) =>
+								onSelectAnnotation={(annotationId) => {
+									if (!selectedFileId) {
+										return;
+									}
+
 									void updateWorkspaceState(songId, {
 										selectedFileId,
 										activeAnnotationId: annotationId,
-									})
-								}
+									});
+									patchRouteSelection({
+										fileId: selectedFileId,
+										annotationId,
+										clearPlaybackParams: true,
+									});
+								}}
 							/>
 						</div>
 					</div>
 
-					<div className="flex h-[calc(100vh-4rem)] min-h-[44rem] min-w-0 flex-col xl:sticky xl:top-8 xl:self-start">
+					<div className="flex min-w-0 flex-col xl:min-h-0 xl:overflow-hidden">
 						<div className="flex min-h-0 flex-1 flex-col">
 							<RichTextEditor
 								value={song.generalNotes}
@@ -672,7 +739,7 @@ export function SongWorkspace({
 						</div>
 
 						<form
-							className="grid gap-4 p-5 sm:p-6 xl:grid-cols-[1fr_1fr_1fr_auto]"
+							className="grid gap-4 p-5 sm:p-6 xl:grid-cols-[1fr_1fr_auto]"
 							onSubmit={handleUpload}
 						>
 							<label className="grid gap-2">
@@ -709,17 +776,7 @@ export function SongWorkspace({
 									className="field-input resize-y"
 								/>
 							</label>
-							<label className="grid gap-2">
-								<span className="field-label">Mastering note</span>
-								<textarea
-									value={uploadMastering}
-									onChange={(event) => setUploadMastering(event.target.value)}
-									rows={3}
-									placeholder="Technical notes or delivery constraints"
-									className="field-input resize-y"
-								/>
-							</label>
-							<div className="xl:col-span-4 flex flex-wrap items-center justify-between gap-3">
+							<div className="xl:col-span-3 flex flex-wrap items-center justify-between gap-3">
 								<div className="text-sm text-[var(--color-text-muted)]">
 									Large files decode in-browser, and peak data is cached locally
 									in IndexedDB for future visits.
@@ -734,7 +791,7 @@ export function SongWorkspace({
 								</button>
 							</div>
 							{uploadError && (
-								<div className="callout-danger xl:col-span-4 px-4 py-3 text-sm">
+								<div className="callout-danger xl:col-span-3 px-4 py-3 text-sm">
 									{uploadError}
 								</div>
 							)}

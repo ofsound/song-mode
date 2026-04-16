@@ -5,6 +5,7 @@ import {
 	Pause,
 	Play,
 	Plus,
+	RotateCcw,
 	SquareStack,
 	TimerReset,
 } from "lucide-react";
@@ -492,14 +493,15 @@ export function WaveformCard({
 					/>
 					<button
 						type="button"
+						aria-label={isPlaying ? "Pause" : "Play"}
+						title={isPlaying ? "Pause" : "Play"}
 						onClick={() => {
 							onSelectFile(audioFile.id);
 							onTogglePlayback();
 						}}
-						className="action-primary inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold"
+						className="action-primary inline-flex h-9 w-9 items-center justify-center p-0"
 					>
 						{isPlaying ? <Pause size={16} /> : <Play size={16} />}
-						{isPlaying ? "Pause" : "Play"}
 					</button>
 				</div>
 			</div>
@@ -543,6 +545,19 @@ export function WaveformCard({
 						void handleWaveformAction(bounds.left + bounds.width / 2);
 					}}
 				>
+					<button
+						type="button"
+						aria-label={`Reset playhead for ${audioFile.title}`}
+						title="Reset playhead to start"
+						onClick={(event) => {
+							event.stopPropagation();
+							onSelectFile(audioFile.id);
+							void onSeek(0, false);
+						}}
+						className="absolute left-1 top-1 z-10 inline-flex h-8 w-8 items-center justify-center border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] shadow-sm transition hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
+					>
+						<RotateCcw size={14} />
+					</button>
 					<canvas ref={canvasRef} className="block w-full" />
 
 					{sortedAnnotations.map((annotation) => {

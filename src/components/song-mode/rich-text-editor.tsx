@@ -20,6 +20,8 @@ interface RichTextEditorProps {
 	onChange: (value: RichTextDoc) => void;
 	onInternalLink?: (target: SongLinkTarget) => void;
 	compact?: boolean;
+	/** Further shrinks padding/min-height; only meaningful when `compact` is also set. */
+	dense?: boolean;
 	placeholder?: string;
 	focusId?: string;
 	/** When false, formatting toolbar is hidden (editor still supports rich content). */
@@ -37,6 +39,7 @@ export function RichTextEditor({
 	onChange,
 	onInternalLink,
 	compact = false,
+	dense = false,
 	placeholder,
 	focusId,
 	showToolbar = true,
@@ -68,7 +71,11 @@ export function RichTextEditor({
 			attributes: {
 				class: [
 					"song-editor prose prose-sm max-w-none outline-none",
-					compact ? "min-h-28 px-3 py-3" : "min-h-44 px-4 py-4",
+					compact
+						? dense
+							? "min-h-12 px-2 py-1.5 text-[13px]"
+							: "min-h-28 px-3 py-3"
+						: "min-h-44 px-4 py-4",
 				].join(" "),
 				"data-placeholder": placeholder ?? "",
 			},
@@ -148,11 +155,15 @@ export function RichTextEditor({
 	return (
 		<div
 			ref={wrapperRef}
-			className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] shadow-[var(--shadow-control)]"
+			className="min-h-0 border border-[var(--color-border-strong)] bg-[var(--color-surface)] shadow-[var(--shadow-control)]"
 			data-song-mode-editor={focusId}
+			data-testid={focusId ? `rich-text-editor-${focusId}` : undefined}
 		>
 			{showToolbar ? (
-				<div className="flex flex-wrap items-center gap-2 border-b border-[var(--color-border-subtle)] px-3 py-2">
+				<div
+					className="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--color-border-subtle)] px-3 py-2"
+					data-song-mode-toolbar
+				>
 					<ToolbarButton
 						label="Bold"
 						active={editor.isActive("bold")}
@@ -238,7 +249,9 @@ export function RichTextEditor({
 					))}
 				</div>
 			) : null}
-			<EditorContent editor={editor} />
+			<div className="song-editor-scroll-region min-h-0 flex-1 overflow-hidden">
+				<EditorContent editor={editor} />
+			</div>
 		</div>
 	);
 }

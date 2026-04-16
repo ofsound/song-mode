@@ -67,7 +67,6 @@ describe("song mode search", () => {
 				songId: "song-1",
 				title: "Mix v4",
 				notes: plainTextToRichText("Snare still feels dark"),
-				masteringNote: EMPTY_RICH_TEXT,
 				volumeDb: 0,
 				durationMs: 180000,
 				waveform: {

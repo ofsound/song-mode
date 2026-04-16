@@ -111,4 +111,25 @@ describe("RichTextEditor", () => {
 			richTextToMultiline(onChangeSpy.mock.lastCall?.[0] as RichTextDoc),
 		).toBe(`Alpha ${expectedTimestamp}Beta`);
 	});
+
+	it("keeps the journal toolbar outside the scroll region", async () => {
+		render(
+			<RichTextEditor
+				value={plainTextToRichText("Scrollable body")}
+				onChange={() => {}}
+				focusId="journal"
+			/>,
+		);
+
+		const journalEditor = await screen.findByTestId("rich-text-editor-journal");
+		const toolbar = journalEditor.querySelector("[data-song-mode-toolbar]");
+		const scrollRegion = journalEditor.querySelector(".song-editor-scroll-region");
+		const editorBody = journalEditor.querySelector(".song-editor");
+
+		expect(toolbar).toBeTruthy();
+		expect(scrollRegion).toBeTruthy();
+		expect(editorBody).toBeTruthy();
+		expect(scrollRegion?.contains(toolbar as Node)).toBe(false);
+		expect(scrollRegion?.contains(editorBody as Node)).toBe(true);
+	});
 });

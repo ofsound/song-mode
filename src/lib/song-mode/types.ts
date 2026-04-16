@@ -41,7 +41,6 @@ export interface AudioFileRecord {
 	songId: string;
 	title: string;
 	notes: RichTextDoc;
-	masteringNote: RichTextDoc;
 	volumeDb: number;
 	durationMs: number;
 	waveform: WaveformData;
@@ -123,7 +122,6 @@ export interface AddAudioFileInput {
 	file: File;
 	title: string;
 	notes: RichTextDoc;
-	masteringNote: RichTextDoc;
 }
 
 export interface CreateAnnotationInput {

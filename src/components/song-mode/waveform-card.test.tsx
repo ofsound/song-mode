@@ -65,7 +65,6 @@ function createAudioFile(
 		songId: "song-1",
 		title: "Mix v1",
 		notes: EMPTY_RICH_TEXT,
-		masteringNote: EMPTY_RICH_TEXT,
 		volumeDb: 0,
 		durationMs: 180000,
 		waveform: {
@@ -325,6 +324,29 @@ describe("WaveformCard", () => {
 		});
 	});
 
+	it("resets the playhead to the start without enabling autoplay", async () => {
+		const onSeek = vi.fn().mockResolvedValue(undefined);
+		const onSelectFile = vi.fn();
+
+		renderWaveformCard({
+			onSeek,
+			onSelectFile,
+			isPlaying: true,
+		});
+
+		fireEvent.click(
+			screen.getByRole("button", {
+				name: /reset playhead for mix v1/i,
+			}),
+		);
+
+		await waitFor(() => {
+			expect(onSeek).toHaveBeenCalledWith(0, false);
+		});
+		expect(onSeek).toHaveBeenCalledTimes(1);
+		expect(onSelectFile).toHaveBeenCalledWith("file-1");
+	});
+
 	it("selects the file when clicking non-interactive row space", () => {
 		const onSelectFile = vi.fn();
 
@@ -345,7 +367,7 @@ describe("WaveformCard", () => {
 
 		fireEvent.click(
 			screen.getByRole("button", {
-				name: /play/i,
+				name: /^play$/i,
 			}),
 		);
 		expect(onSelectFile).toHaveBeenCalledTimes(2);

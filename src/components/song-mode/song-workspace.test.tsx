@@ -147,7 +147,6 @@ function createAudioFile(
 		songId: baseSong.id,
 		title: "Mix v1",
 		notes: EMPTY_RICH_TEXT,
-		masteringNote: EMPTY_RICH_TEXT,
 		volumeDb: 0,
 		durationMs: 180000,
 		waveform: {
@@ -301,6 +300,7 @@ describe("SongWorkspace", () => {
 		});
 
 		updateWorkspaceStateMock.mockClear();
+		navigateMock.mockClear();
 
 		fireEvent.click(screen.getByRole("button", { name: "Select file-2" }));
 
@@ -308,6 +308,26 @@ describe("SongWorkspace", () => {
 			expect(screen.getByText("Mix B:true")).toBeTruthy();
 			expect(screen.getByText("Mix A:false")).toBeTruthy();
 		});
+
+		await waitFor(() => {
+			expect(navigateMock).toHaveBeenCalled();
+		});
+		const navigateArg = navigateMock.mock.calls.find(
+			(call) =>
+				call[0] &&
+				typeof call[0] === "object" &&
+				"search" in call[0] &&
+				typeof (call[0] as { search?: unknown }).search === "function",
+		)?.[0] as {
+			replace?: boolean;
+			search: (prev: SongRouteSearch) => SongRouteSearch;
+		};
+		expect(navigateArg?.replace).toBe(true);
+		const nextSearch = navigateArg.search(search);
+		expect(nextSearch.fileId).toBe("file-2");
+		expect(nextSearch.annotationId).toBeUndefined();
+		expect(nextSearch.timeMs).toBeUndefined();
+		expect(nextSearch.autoplay).toBe(false);
 
 		const objectPatches = updateWorkspaceStateMock.mock.calls
 			.map((call) => call[1])
@@ -390,7 +410,7 @@ describe("SongWorkspace", () => {
 		expect(screen.queryByText(/song journal/i)).toBeNull();
 		expect(journalEditor).toBeTruthy();
 		expect(journalEditor?.closest(".panel-shell")).toBeNull();
-		expect(journalColumn?.className).toContain("h-[calc(100vh-4rem)]");
+		expect(journalColumn?.className).toContain("xl:min-h-0");
 	});
 
 	it("renders the song controls into the header slot when one is available", () => {

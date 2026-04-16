@@ -70,13 +70,19 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 		ready,
 		songTitle,
 	});
+	const shellClassName = isSongRoute
+		? "flex h-[100dvh] min-h-screen flex-col overflow-hidden bg-[var(--color-app)] text-[var(--color-text)]"
+		: "min-h-screen bg-[var(--color-app)] text-[var(--color-text)]";
+	const headerClassName = isSongRoute
+		? "header-shell z-30 shrink-0"
+		: "header-shell sticky top-0 z-30";
 
 	return (
 		<SongRouteHeaderSlotContext.Provider
 			value={{ enabled: isSongRoute, slot: songHeaderSlot }}
 		>
-			<div className="min-h-screen bg-[var(--color-app)] text-[var(--color-text)]">
-				<header className="header-shell sticky top-0 z-30">
+			<div className={shellClassName}>
+				<header className={headerClassName}>
 					<div className="flex w-full flex-col gap-4 px-3 py-4">
 						<div className="flex flex-col gap-4 xl:flex-row xl:items-end">
 							<div
@@ -126,7 +132,13 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 					</div>
 				</header>
 
-				{children}
+				{isSongRoute ? (
+					<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+						{children}
+					</div>
+				) : (
+					children
+				)}
 			</div>
 		</SongRouteHeaderSlotContext.Provider>
 	);

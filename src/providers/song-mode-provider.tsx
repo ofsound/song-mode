@@ -18,7 +18,11 @@ import {
 	saveSettings,
 	saveSong,
 } from "#/lib/song-mode/db";
-import { EMPTY_RICH_TEXT, normalizeRichText } from "#/lib/song-mode/rich-text";
+import {
+	EMPTY_RICH_TEXT,
+	hasRichTextContent,
+	normalizeRichText,
+} from "#/lib/song-mode/rich-text";
 import { searchSongMode } from "#/lib/song-mode/search";
 import {
 	type AddAudioFileInput,
@@ -28,6 +32,7 @@ import {
 	type CreateSongInput,
 	createDefaultWorkspaceState,
 	createEmptySettings,
+	type RichTextDoc,
 	type SearchResult,
 	type Song,
 	type SongModeSnapshot,
@@ -46,6 +51,10 @@ interface PlaybackState {
 	isPlaying: boolean;
 	currentTimeByFileId: Record<string, number>;
 }
+
+type LegacyAudioFileRecord = AudioFileRecord & {
+	masteringNote?: RichTextDoc | null;
+};
 
 interface SongModeContextValue extends SongModeSnapshot {
 	ready: boolean;
@@ -149,26 +158,34 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 					return;
 				}
 
-				const repairedAudioFiles: AudioFileRecord[] = [];
+				const audioFilesToPersist: AudioFileRecord[] = [];
 				const audioFiles = await Promise.all(
 					loadedSnapshot.audioFiles.map(async (audioFile) => {
+						const legacyAudioFile = audioFile as LegacyAudioFileRecord;
+						const { masteringNote, ...restAudioFile } = legacyAudioFile;
 						const normalizedAudioFile: AudioFileRecord = {
-							...audioFile,
-							notes: normalizeRichText(audioFile.notes),
-							masteringNote: normalizeRichText(audioFile.masteringNote),
+							...restAudioFile,
+							notes: mergeAudioFileNotes(legacyAudioFile.notes, masteringNote),
 							volumeDb: normalizeVolumeDb(audioFile.volumeDb),
 							waveform: normalizeWaveformData(
 								audioFile.waveform,
 								audioFile.durationMs,
 							),
 						};
+						const hadLegacyMasteringNote = typeof masteringNote !== "undefined";
 
 						if (hasRenderableWaveform(audioFile.waveform)) {
+							if (hadLegacyMasteringNote) {
+								audioFilesToPersist.push(normalizedAudioFile);
+							}
 							return normalizedAudioFile;
 						}
 
 						const blob = loadedSnapshot.blobsByAudioId[audioFile.id];
 						if (!(blob instanceof Blob)) {
+							if (hadLegacyMasteringNote) {
+								audioFilesToPersist.push(normalizedAudioFile);
+							}
 							return normalizedAudioFile;
 						}
 
@@ -179,7 +196,7 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 								durationMs: repairedWaveform.durationMs,
 								waveform: repairedWaveform,
 							};
-							repairedAudioFiles.push(repairedAudioFile);
+							audioFilesToPersist.push(repairedAudioFile);
 							return repairedAudioFile;
 						} catch {
 							return normalizedAudioFile;
@@ -187,9 +204,9 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 					}),
 				);
 
-				if (repairedAudioFiles.length > 0) {
+				if (audioFilesToPersist.length > 0) {
 					await Promise.all(
-						repairedAudioFiles.map((audioFile) => saveAudioFile(audioFile)),
+						audioFilesToPersist.map((audioFile) => saveAudioFile(audioFile)),
 					);
 				}
 
@@ -402,7 +419,6 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 				songId,
 				title: input.title.trim() || input.file.name.replace(/\.[^.]+$/, ""),
 				notes: normalizeRichText(input.notes),
-				masteringNote: normalizeRichText(input.masteringNote),
 				volumeDb: 0,
 				durationMs: waveform.durationMs,
 				waveform,
@@ -457,9 +473,6 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 									...audioFile,
 									...patch,
 									notes: normalizeRichText(patch.notes ?? audioFile.notes),
-									masteringNote: normalizeRichText(
-										patch.masteringNote ?? audioFile.masteringNote,
-									),
 									volumeDb: normalizeVolumeDb(
 										patch.volumeDb ?? audioFile.volumeDb,
 									),
@@ -910,4 +923,28 @@ export function useSongModeError() {
 
 export function useSongModeRichTextFallback() {
 	return EMPTY_RICH_TEXT;
+}
+
+function mergeAudioFileNotes(
+	notes?: RichTextDoc | null,
+	legacyMasteringNote?: RichTextDoc | null,
+): RichTextDoc {
+	const normalizedNotes = normalizeRichText(notes);
+	const normalizedLegacyMastering = normalizeRichText(legacyMasteringNote);
+
+	if (!hasRichTextContent(normalizedNotes)) {
+		return normalizedLegacyMastering;
+	}
+
+	if (!hasRichTextContent(normalizedLegacyMastering)) {
+		return normalizedNotes;
+	}
+
+	return {
+		type: "doc",
+		content: [
+			...(normalizedNotes.content ?? []),
+			...(normalizedLegacyMastering.content ?? []),
+		],
+	};
 }

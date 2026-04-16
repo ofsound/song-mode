@@ -1,20 +1,15 @@
-import { Copy, Link2, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Copy, Play, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { buildSongTargetPath } from "#/lib/song-mode/links";
-import { richTextPreview } from "#/lib/song-mode/rich-text";
-import {
-	ANNOTATION_COLORS,
-	type Annotation,
-	type AudioFileRecord,
-	type RichTextDoc,
-	type Song,
-	type SongLinkTarget,
+import type {
+	Annotation,
+	AudioFileRecord,
+	RichTextDoc,
+	Song,
+	SongLinkTarget,
 } from "#/lib/song-mode/types";
 import { formatDuration } from "#/lib/song-mode/waveform";
 import { RichTextEditor } from "./rich-text-editor";
-
-/** Set true to show per-annotation color swatches in the inspector again. */
-const SHOW_ANNOTATION_COLOR_PICKER = false;
 
 interface InspectorPaneProps {
 	song: Song;
@@ -57,7 +52,7 @@ export function InspectorPane({
 	}
 
 	return (
-		<div className="flex h-full flex-col gap-4 overflow-y-auto pr-1">
+		<div className="flex h-full min-h-0 flex-col gap-4">
 			<section className="inspector-echo-section">
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0">
@@ -71,7 +66,7 @@ export function InspectorPane({
 					</div>
 				</div>
 
-				<div className="mt-4 space-y-3">
+				<div className="mt-3 flex flex-col gap-1.5">
 					{annotations.length === 0 ? (
 						<p className="border border-dashed border-[var(--color-border-subtle)] px-4 py-5 text-sm text-[var(--color-text-muted)]">
 							Create point markers or regions from the waveform to build the
@@ -91,63 +86,136 @@ export function InspectorPane({
 							}
 
 							return (
-								/* biome-ignore lint/a11y/useSemanticElements: copy control is a nested button, so the card cannot be a single <button> wrapper */
+								/* biome-ignore lint/a11y/useSemanticElements: nested interactive controls require a non-button wrapper */
 								<div
 									key={annotation.id}
 									role="button"
 									tabIndex={0}
-									onClick={activateAnnotation}
+									data-testid={`marker-card-${annotation.id}`}
+									onClick={(event) => {
+										if (isNestedInteractiveTarget(event.target)) {
+											return;
+										}
+
+										activateAnnotation();
+									}}
 									onKeyDown={(event) => {
+										if (isNestedInteractiveTarget(event.target)) {
+											return;
+										}
+
 										if (event.key === "Enter" || event.key === " ") {
 											event.preventDefault();
 											activateAnnotation();
 										}
 									}}
-									className={`cursor-pointer border p-3 text-left outline-none transition-[border-color,background-color] duration-150 focus-visible:ring-2 focus-visible:ring-[var(--color-accent-strong)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] ${
+									className={`marker-card cursor-pointer border text-left outline-none transition-[border-color,background-color] duration-150 focus-visible:ring-2 focus-visible:ring-[var(--color-accent-strong)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] ${
 										activeAnnotation?.id === annotation.id
 											? "border-[var(--color-accent-strong)] bg-[var(--color-accent-surface)]"
 											: "border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] hover:border-[var(--color-border-strong)]"
 									}`}
 								>
-									<div className="flex items-start justify-between gap-3">
-										<div className="min-w-0">
-											<span className="block text-sm font-semibold text-[var(--color-text)]">
-												{annotation.title || "Untitled marker"}
-											</span>
-											<span className="mt-1 inline-flex items-center gap-2 text-xs text-[var(--color-text-subtle)]">
-												<Link2 size={12} />
-												{annotation.type === "range" && annotation.endMs
-													? `${formatDuration(annotation.startMs)} to ${formatDuration(annotation.endMs)}`
-													: formatDuration(annotation.startMs)}
-											</span>
-										</div>
-
-										<div className="flex shrink-0 items-center gap-2">
-											<button
-												type="button"
-												onClick={(event) => {
-													event.stopPropagation();
-													void copyLink(
-														{
-															songId: song.id,
-															fileId: annotation.audioFileId,
-															annotationId: annotation.id,
-															timeMs: annotation.startMs,
-															autoplay: true,
-														},
-														annotation.title || "Marker",
-													);
-												}}
-												className="icon-button"
-												title="Copy link"
-											>
-												<Copy size={14} />
-											</button>
-										</div>
+									<div className="marker-play-cell">
+										<button
+											type="button"
+											onClick={(event) => {
+												event.stopPropagation();
+												activateAnnotation();
+											}}
+											className="icon-button icon-button--sm marker-play-button"
+											title="Play marker"
+											aria-label="Play marker"
+										>
+											<Play size={12} />
+										</button>
 									</div>
-									<p className="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">
-										{richTextPreview(annotation.body, "No note body yet.")}
-									</p>
+									<div className="marker-row">
+										<MmSsField
+											ariaLabel="Start time"
+											valueMs={annotation.startMs}
+											onCommit={(value) =>
+												void onUpdateAnnotation(annotation.id, {
+													startMs: value,
+												})
+											}
+										/>
+										{annotation.type === "range" ? (
+											<>
+												<span aria-hidden="true" className="marker-time-sep">
+													→
+												</span>
+												<MmSsField
+													ariaLabel="End time"
+													valueMs={annotation.endMs ?? annotation.startMs}
+													onCommit={(value) =>
+														void onUpdateAnnotation(annotation.id, {
+															endMs: value,
+														})
+													}
+												/>
+											</>
+										) : null}
+										<input
+											value={annotation.title}
+											onChange={(event) =>
+												void onUpdateAnnotation(annotation.id, {
+													title: event.target.value,
+												})
+											}
+											className="field-input field-input--compact marker-title-input"
+											placeholder="Untitled marker"
+											aria-label="Title"
+										/>
+										<button
+											type="button"
+											onClick={(event) => {
+												event.stopPropagation();
+												void copyLink(
+													{
+														songId: song.id,
+														fileId: annotation.audioFileId,
+														annotationId: annotation.id,
+														timeMs: annotation.startMs,
+														autoplay: true,
+													},
+													annotation.title || "Marker",
+												);
+											}}
+											className="icon-button icon-button--sm shrink-0"
+											title="Copy link"
+										>
+											<Copy size={12} />
+										</button>
+										<button
+											type="button"
+											onClick={(event) => {
+												event.stopPropagation();
+												if (!window.confirm("Delete this marker?")) {
+													return;
+												}
+
+												void onDeleteAnnotation(annotation.id);
+											}}
+											className="icon-button icon-button--sm shrink-0 text-[var(--color-danger)]"
+											title="Delete annotation"
+										>
+											<Trash2 size={12} />
+										</button>
+									</div>
+									<div className="marker-editor">
+										<RichTextEditor
+											value={annotation.body as RichTextDoc}
+											onChange={(nextValue) =>
+												void onUpdateAnnotation(annotation.id, {
+													body: nextValue,
+												})
+											}
+											onInternalLink={onOpenTarget}
+											compact
+											dense
+											showToolbar={false}
+										/>
+									</div>
 								</div>
 							);
 						})
@@ -166,13 +234,13 @@ export function InspectorPane({
 
 				{!selectedFile ? (
 					<p className="text-sm leading-7 text-[var(--color-text-muted)]">
-						Pick an audio lane to edit full-file notes, inspect time-based
-						annotations, and copy deep links back into the song journal.
+						Pick an audio lane to edit notes, inspect time-based annotations,
+						and copy deep links back into the song journal.
 					</p>
 				) : (
 					<div className="grid gap-4">
 						<div className="grid gap-2">
-							<span className="field-label">Full-file notes</span>
+							<span className="field-label">Notes</span>
 							<RichTextEditor
 								value={selectedFile.notes}
 								onChange={(nextValue) =>
@@ -185,161 +253,102 @@ export function InspectorPane({
 								showToolbar={false}
 							/>
 						</div>
-
-						<div className="grid gap-2">
-							<span className="field-label">Mastering note</span>
-							<RichTextEditor
-								value={selectedFile.masteringNote}
-								onChange={(nextValue) =>
-									void onUpdateFile({
-										masteringNote: nextValue,
-									})
-								}
-								onInternalLink={onOpenTarget}
-								compact
-								showToolbar={false}
-							/>
-						</div>
 					</div>
 				)}
 			</section>
-
-			{activeAnnotation && (
-				<section className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
-					<div className="flex items-start justify-between gap-3">
-						<div>
-							<p className="eyebrow mb-2">Annotation details</p>
-							<h3 className="text-lg font-semibold text-[var(--color-text)]">
-								Edit marker
-							</h3>
-						</div>
-
-						<button
-							type="button"
-							onClick={() => void onDeleteAnnotation(activeAnnotation.id)}
-							className="icon-button text-[var(--color-danger)]"
-							title="Delete annotation"
-						>
-							<Trash2 size={15} />
-						</button>
-					</div>
-
-					<div className="mt-4 grid gap-4">
-						<label className="grid gap-2">
-							<span className="field-label">Title</span>
-							<input
-								value={activeAnnotation.title}
-								onChange={(event) =>
-									void onUpdateAnnotation(activeAnnotation.id, {
-										title: event.target.value,
-									})
-								}
-								className="field-input"
-							/>
-						</label>
-
-						<div className="grid gap-4 md:grid-cols-2">
-							<SecondsField
-								label="Start"
-								value={activeAnnotation.startMs}
-								onChange={(value) =>
-									void onUpdateAnnotation(activeAnnotation.id, {
-										startMs: value,
-									})
-								}
-							/>
-							{activeAnnotation.type === "range" ? (
-								<SecondsField
-									label="End"
-									value={activeAnnotation.endMs ?? activeAnnotation.startMs}
-									onChange={(value) =>
-										void onUpdateAnnotation(activeAnnotation.id, {
-											endMs: value,
-										})
-									}
-								/>
-							) : (
-								<div className="grid gap-2">
-									<span className="field-label">Type</span>
-									<div className="field-input flex items-center text-sm text-[var(--color-text-muted)]">
-										Point marker
-									</div>
-								</div>
-							)}
-						</div>
-
-						{SHOW_ANNOTATION_COLOR_PICKER ? (
-							<div className="grid gap-2">
-								<span className="field-label">Color</span>
-								<div className="flex flex-wrap gap-2">
-									{ANNOTATION_COLORS.map((color) => (
-										<button
-											key={color}
-											type="button"
-											onClick={() =>
-												void onUpdateAnnotation(activeAnnotation.id, {
-													color,
-												})
-											}
-											className={`h-9 w-9 border ${
-												activeAnnotation.color === color
-													? "border-[var(--color-text)]"
-													: "border-[var(--color-border-subtle)]"
-											}`}
-											style={{ backgroundColor: color }}
-											title={color}
-										/>
-									))}
-								</div>
-							</div>
-						) : null}
-
-						<div className="grid gap-2">
-							<span className="field-label">Annotation note</span>
-							<RichTextEditor
-								value={activeAnnotation.body as RichTextDoc}
-								onChange={(nextValue) =>
-									void onUpdateAnnotation(activeAnnotation.id, {
-										body: nextValue,
-									})
-								}
-								onInternalLink={onOpenTarget}
-								compact
-								showToolbar={false}
-							/>
-						</div>
-					</div>
-				</section>
-			)}
 		</div>
 	);
 }
 
-function SecondsField({
-	label,
-	value,
-	onChange,
-}: {
-	label: string;
-	value: number;
-	onChange: (value: number) => void;
-}) {
-	return (
-		<label className="grid gap-2">
-			<span className="field-label">{label}</span>
-			<input
-				type="number"
-				min={0}
-				step={0.1}
-				value={(value / 1000).toFixed(1)}
-				onChange={(event) => {
-					const nextValue = Number(event.target.value);
-					if (!Number.isNaN(nextValue)) {
-						onChange(Math.max(0, Math.round(nextValue * 1000)));
-					}
-				}}
-				className="field-input"
-			/>
-		</label>
+function isNestedInteractiveTarget(target: EventTarget | null) {
+	if (!(target instanceof HTMLElement)) {
+		return false;
+	}
+
+	return Boolean(
+		target.closest(
+			'button, input, textarea, select, [contenteditable="true"], [role="textbox"]',
+		),
 	);
+}
+
+function MmSsField({
+	ariaLabel,
+	valueMs,
+	onCommit,
+}: {
+	ariaLabel: string;
+	valueMs: number;
+	onCommit: (value: number) => void;
+}) {
+	const formatted = formatDuration(valueMs);
+	const [draft, setDraft] = useState(formatted);
+	const [focused, setFocused] = useState(false);
+
+	useEffect(() => {
+		if (!focused) {
+			setDraft(formatted);
+		}
+	}, [focused, formatted]);
+
+	function commit() {
+		const parsed = parseMmSs(draft);
+		if (parsed == null) {
+			setDraft(formatted);
+			return;
+		}
+
+		if (parsed !== valueMs) {
+			onCommit(parsed);
+		} else {
+			setDraft(formatted);
+		}
+	}
+
+	return (
+		<input
+			type="text"
+			inputMode="numeric"
+			aria-label={ariaLabel}
+			value={draft}
+			onFocus={() => setFocused(true)}
+			onChange={(event) => setDraft(event.target.value)}
+			onBlur={() => {
+				setFocused(false);
+				commit();
+			}}
+			onKeyDown={(event) => {
+				if (event.key === "Enter") {
+					event.preventDefault();
+					(event.target as HTMLInputElement).blur();
+				} else if (event.key === "Escape") {
+					event.preventDefault();
+					setDraft(formatted);
+					(event.target as HTMLInputElement).blur();
+				}
+			}}
+			className="field-input field-input--compact marker-time-input"
+		/>
+	);
+}
+
+function parseMmSs(input: string): number | null {
+	const trimmed = input.trim();
+	if (trimmed === "") {
+		return null;
+	}
+
+	const colonMatch = /^(\d{1,3}):([0-5]\d)$/.exec(trimmed);
+	if (colonMatch) {
+		const minutes = Number(colonMatch[1]);
+		const seconds = Number(colonMatch[2]);
+		return Math.max(0, minutes * 60_000 + seconds * 1_000);
+	}
+
+	const plainSeconds = /^\d+(\.\d+)?$/.exec(trimmed);
+	if (plainSeconds) {
+		return Math.max(0, Math.round(Number(trimmed) * 1000));
+	}
+
+	return null;
 }
