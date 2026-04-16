@@ -6,7 +6,7 @@ import {
 	Save,
 	Upload,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { isEditableElement } from "#/lib/song-mode/dom";
 import { targetToRouteSearch } from "#/lib/song-mode/links";
 import { plainTextToRichText } from "#/lib/song-mode/rich-text";
@@ -50,10 +50,7 @@ export function SongWorkspace({
 	} = useSongMode();
 
 	const song = getSongById(songId);
-	const audioFiles = useMemo(
-		() => getSongAudioFiles(songId),
-		[getSongAudioFiles, songId],
-	);
+	const audioFiles = getSongAudioFiles(songId);
 	const workspace = getWorkspaceState(songId);
 	const selectedFileId =
 		(workspace.selectedFileId &&
