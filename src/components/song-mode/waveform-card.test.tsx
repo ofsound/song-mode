@@ -332,7 +332,7 @@ describe("WaveformCard", () => {
 			onSelectFile,
 		});
 
-		fireEvent.pointerDown(screen.getByText(/0 markers/i));
+		fireEvent.pointerDown(screen.getByRole("article"));
 		expect(onSelectFile).toHaveBeenCalledTimes(1);
 		expect(onSelectFile).toHaveBeenCalledWith("file-1");
 

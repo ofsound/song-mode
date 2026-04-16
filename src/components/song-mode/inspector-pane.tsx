@@ -58,41 +58,119 @@ export function InspectorPane({
 
 	return (
 		<div className="flex h-full flex-col gap-4 overflow-y-auto pr-1">
-			<section className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
+			<section className="inspector-echo-section">
 				<div className="flex items-start justify-between gap-3">
-					<div>
-						<p className="eyebrow mb-2">Inspector</p>
-						<h2 className="text-xl font-semibold text-[var(--color-text)]">
-							{selectedFile ? selectedFile.title : "Select a waveform"}
-						</h2>
+					<div className="min-w-0">
+						<p className="eyebrow mb-2">Timestamped notes</p>
+						<h3 className="text-lg font-semibold text-[var(--color-text)]">
+							{annotations.length} markers in{" "}
+							<span className="inspector-echo-filename">
+								{selectedFile?.title ?? song.title}
+							</span>
+						</h3>
 					</div>
-					{copiedMessage && (
+				</div>
+
+				<div className="mt-4 space-y-3">
+					{annotations.length === 0 ? (
+						<p className="border border-dashed border-[var(--color-border-subtle)] px-4 py-5 text-sm text-[var(--color-text-muted)]">
+							Create point markers or regions from the waveform to build the
+							linked note list here.
+						</p>
+					) : (
+						annotations.map((annotation) => {
+							function activateAnnotation() {
+								onSelectAnnotation(annotation.id);
+								onOpenTarget({
+									songId: song.id,
+									fileId: annotation.audioFileId,
+									annotationId: annotation.id,
+									timeMs: annotation.startMs,
+									autoplay: true,
+								});
+							}
+
+							return (
+								/* biome-ignore lint/a11y/useSemanticElements: copy control is a nested button, so the card cannot be a single <button> wrapper */
+								<div
+									key={annotation.id}
+									role="button"
+									tabIndex={0}
+									onClick={activateAnnotation}
+									onKeyDown={(event) => {
+										if (event.key === "Enter" || event.key === " ") {
+											event.preventDefault();
+											activateAnnotation();
+										}
+									}}
+									className={`cursor-pointer border p-3 text-left outline-none transition-[border-color,background-color] duration-150 focus-visible:ring-2 focus-visible:ring-[var(--color-accent-strong)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] ${
+										activeAnnotation?.id === annotation.id
+											? "border-[var(--color-accent-strong)] bg-[var(--color-accent-surface)]"
+											: "border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] hover:border-[var(--color-border-strong)]"
+									}`}
+								>
+									<div className="flex items-start justify-between gap-3">
+										<div className="min-w-0">
+											<span className="block text-sm font-semibold text-[var(--color-text)]">
+												{annotation.title || "Untitled marker"}
+											</span>
+											<span className="mt-1 inline-flex items-center gap-2 text-xs text-[var(--color-text-subtle)]">
+												<Link2 size={12} />
+												{annotation.type === "range" && annotation.endMs
+													? `${formatDuration(annotation.startMs)} to ${formatDuration(annotation.endMs)}`
+													: formatDuration(annotation.startMs)}
+											</span>
+										</div>
+
+										<div className="flex shrink-0 items-center gap-2">
+											<button
+												type="button"
+												onClick={(event) => {
+													event.stopPropagation();
+													void copyLink(
+														{
+															songId: song.id,
+															fileId: annotation.audioFileId,
+															annotationId: annotation.id,
+															timeMs: annotation.startMs,
+															autoplay: true,
+														},
+														annotation.title || "Marker",
+													);
+												}}
+												className="icon-button"
+												title="Copy link"
+											>
+												<Copy size={14} />
+											</button>
+										</div>
+									</div>
+									<p className="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">
+										{richTextPreview(annotation.body, "No note body yet.")}
+									</p>
+								</div>
+							);
+						})
+					)}
+				</div>
+			</section>
+
+			<section className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
+				{copiedMessage ? (
+					<div className="mb-3 flex justify-end">
 						<span className="surface-chip px-3 py-1 text-xs">
 							{copiedMessage}
 						</span>
-					)}
-				</div>
+					</div>
+				) : null}
 
 				{!selectedFile ? (
-					<p className="mt-4 text-sm leading-7 text-[var(--color-text-muted)]">
+					<p className="text-sm leading-7 text-[var(--color-text-muted)]">
 						Pick an audio lane to edit full-file notes, inspect time-based
 						annotations, and copy deep links back into the song journal.
 					</p>
 				) : (
-					<div className="mt-5 grid gap-4">
-						<label className="grid gap-2">
-							<span className="field-label">File title</span>
-							<input
-								value={selectedFile.title}
-								onChange={(event) =>
-									void onUpdateFile({
-										title: event.target.value,
-									})
-								}
-								className="field-input"
-							/>
-						</label>
-
+					<div className="grid gap-4">
 						<div className="grid gap-2">
 							<span className="field-label">Full-file notes</span>
 							<RichTextEditor
@@ -124,90 +202,6 @@ export function InspectorPane({
 						</div>
 					</div>
 				)}
-			</section>
-
-			<section className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
-				<div className="flex items-start justify-between gap-3">
-					<div>
-						<p className="eyebrow mb-2">Timestamped notes</p>
-						<h3 className="text-lg font-semibold text-[var(--color-text)]">
-							{annotations.length} markers in{" "}
-							{selectedFile?.title ?? song.title}
-						</h3>
-					</div>
-				</div>
-
-				<div className="mt-4 space-y-3">
-					{annotations.length === 0 ? (
-						<p className="border border-dashed border-[var(--color-border-subtle)] px-4 py-5 text-sm text-[var(--color-text-muted)]">
-							Create point markers or regions from the waveform to build the
-							linked note list here.
-						</p>
-					) : (
-						annotations.map((annotation) => (
-							<div
-								key={annotation.id}
-								className={`border p-3 ${
-									activeAnnotation?.id === annotation.id
-										? "border-[var(--color-accent-strong)] bg-[var(--color-accent-surface)]"
-										: "border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)]"
-								}`}
-							>
-								<div className="flex items-start justify-between gap-3">
-									<button
-										type="button"
-										onClick={() => {
-											onSelectAnnotation(annotation.id);
-											onOpenTarget({
-												songId: song.id,
-												fileId: annotation.audioFileId,
-												annotationId: annotation.id,
-												timeMs: annotation.startMs,
-												autoplay: true,
-											});
-										}}
-										className="min-w-0 text-left"
-									>
-										<span className="block text-sm font-semibold text-[var(--color-text)]">
-											{annotation.title || "Untitled marker"}
-										</span>
-										<span className="mt-1 inline-flex items-center gap-2 text-xs text-[var(--color-text-subtle)]">
-											<Link2 size={12} />
-											{annotation.type === "range" && annotation.endMs
-												? `${formatDuration(annotation.startMs)} to ${formatDuration(annotation.endMs)}`
-												: formatDuration(annotation.startMs)}
-										</span>
-									</button>
-
-									<div className="flex items-center gap-2">
-										<button
-											type="button"
-											onClick={() =>
-												void copyLink(
-													{
-														songId: song.id,
-														fileId: annotation.audioFileId,
-														annotationId: annotation.id,
-														timeMs: annotation.startMs,
-														autoplay: true,
-													},
-													annotation.title || "Marker",
-												)
-											}
-											className="icon-button"
-											title="Copy link"
-										>
-											<Copy size={14} />
-										</button>
-									</div>
-								</div>
-								<p className="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">
-									{richTextPreview(annotation.body, "No note body yet.")}
-								</p>
-							</div>
-						))
-					)}
-				</div>
 			</section>
 
 			{activeAnnotation && (

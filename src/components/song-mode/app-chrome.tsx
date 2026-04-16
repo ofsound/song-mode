@@ -1,5 +1,5 @@
 import { Link, useMatchRoute, useNavigate } from "@tanstack/react-router";
-import { AudioWaveform, Library } from "lucide-react";
+import { Library } from "lucide-react";
 import { createContext, useContext, useState } from "react";
 import { useSongMode } from "#/providers/song-mode-provider";
 import { GlobalSearch } from "./global-search";
@@ -79,16 +79,24 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 				<header className="header-shell sticky top-0 z-30">
 					<div className="flex w-full flex-col gap-4 px-3 py-4">
 						<div className="flex flex-col gap-4 xl:flex-row xl:items-end">
-							<div className="flex min-w-0 items-center gap-4 xl:shrink-0">
-								<Link
-									to="/"
-									aria-label="Go to library"
-									className="inline-flex items-center no-underline"
-								>
-									<span className="brand-mark inline-flex h-12 w-12 items-center justify-center border text-[var(--color-accent)]">
-										<AudioWaveform size={22} />
-									</span>
-								</Link>
+							<div
+								className={
+									isSongRoute
+										? "flex min-w-0 items-center gap-4 xl:shrink-0"
+										: "flex min-w-0 flex-1 items-center gap-4"
+								}
+							>
+								{isSongRoute ? (
+									<Link
+										to="/"
+										aria-label="Go to library"
+										className="inline-flex items-center no-underline"
+									>
+										<span className="brand-mark inline-flex h-12 w-12 items-center justify-center border text-[var(--color-accent)]">
+											<Library size={22} />
+										</span>
+									</Link>
+								) : null}
 
 								{headerState.showLibraryLink && !isSongRoute ? (
 									<button
@@ -100,6 +108,8 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 										Library
 									</button>
 								) : null}
+
+								{!isSongRoute ? <GlobalSearch /> : null}
 							</div>
 
 							{showSongHeaderSlot ? (
@@ -109,8 +119,7 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 								/>
 							) : null}
 
-							<div className="flex w-full items-center justify-end gap-3 xl:w-auto xl:shrink-0">
-								{!isSongRoute ? <GlobalSearch /> : null}
+							<div className="flex w-full min-w-0 items-center justify-end gap-3 xl:ml-auto xl:w-auto xl:shrink-0">
 								<ThemeToggle />
 							</div>
 						</div>

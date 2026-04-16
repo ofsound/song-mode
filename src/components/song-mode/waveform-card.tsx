@@ -437,12 +437,9 @@ export function WaveformCard({
 				event.preventDefault();
 				onDrop();
 			}}
-			className={`border ${
-				isSelected
-					? "border-[var(--color-accent-strong)] bg-[var(--color-surface-selected)]"
-					: "border-[var(--color-border-strong)] bg-[var(--color-surface)]"
-			} p-4 shadow-[var(--shadow-panel)]`}
+			className={`waveform-card ${isSelected ? "waveform-card--selected" : ""}`}
 		>
+			<span className="waveform-card__tab" aria-hidden="true" />
 			<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
 				<div className="flex min-w-0 items-center gap-3">
 					<button
@@ -463,10 +460,6 @@ export function WaveformCard({
 						>
 							{audioFile.title}
 						</button>
-						<p className="mt-1 text-sm text-[var(--color-text-subtle)]">
-							{formatDuration(audioFile.durationMs)} ·{" "}
-							{sortedAnnotations.length} markers
-						</p>
 					</div>
 				</div>
 

@@ -45,7 +45,7 @@ export function GlobalSearch() {
 	}, []);
 
 	return (
-		<div className="relative w-full max-w-[32rem]">
+		<div className="relative min-w-0 w-full max-w-[32rem]">
 			<label className="search-shell group flex items-center gap-3 px-4 py-3">
 				<Search size={16} className="text-[var(--color-text-muted)]" />
 				<input

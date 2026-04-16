@@ -48,18 +48,27 @@ vi.mock("./waveform-card", () => ({
 		isSelected,
 		currentTimeMs,
 		onStepVolume,
+		onSelectFile,
 	}: {
 		audioFile: AudioFileRecord;
 		isSelected: boolean;
 		currentTimeMs: number;
 		onStepVolume: (deltaDb: number) => Promise<void>;
+		onSelectFile: (fileId: string) => void;
 	}) => (
-		<div data-testid="waveform-card">
+		<div data-testid="waveform-card" data-file-id={audioFile.id}>
 			<span>
 				{audioFile.title}:{String(isSelected)}
 			</span>
 			<span>{currentTimeMs} ms</span>
 			<span>{audioFile.volumeDb} dB</span>
+			<button
+				type="button"
+				aria-label={`Select ${audioFile.id}`}
+				onClick={() => onSelectFile(audioFile.id)}
+			>
+				Select file
+			</button>
 			<button
 				type="button"
 				onClick={() => void onStepVolume(-1)}
@@ -195,7 +204,8 @@ describe("SongWorkspace", () => {
 			currentTimeByFileId: {},
 		};
 		navigateMock.mockReset();
-		updateWorkspaceStateMock.mockClear();
+		updateWorkspaceStateMock.mockReset();
+		updateWorkspaceStateMock.mockResolvedValue(undefined);
 		getSongById.mockClear();
 		getSongAudioFiles.mockClear();
 		getAnnotationsForFile.mockClear();
@@ -250,6 +260,66 @@ describe("SongWorkspace", () => {
 				activeAnnotationId: undefined,
 			});
 		});
+	});
+
+	it("does not reset selection to a stale ?fileId= when picking another waveform", async () => {
+		const search: SongRouteSearch = {
+			fileId: "file-1",
+			autoplay: false,
+		};
+		currentAudioFiles = [
+			createAudioFile({ id: "file-1", title: "Mix A" }),
+			createAudioFile({ id: "file-2", title: "Mix B" }),
+		];
+		currentBlobsByAudioId = {
+			"file-1": new Blob(["a"]),
+			"file-2": new Blob(["b"]),
+		};
+
+		let rerenderWorkspace: null | (() => void) = null;
+		updateWorkspaceStateMock.mockImplementation((_songId, patch) => {
+			currentWorkspace =
+				typeof patch === "function"
+					? patch(currentWorkspace as WorkspaceState)
+					: { ...currentWorkspace, ...patch };
+			rerenderWorkspace?.();
+			return Promise.resolve();
+		});
+
+		const { rerender } = render(
+			<SongWorkspace songId={baseSong.id} search={search} />,
+		);
+		rerenderWorkspace = () =>
+			rerender(<SongWorkspace songId={baseSong.id} search={search} />);
+		rerenderWorkspace();
+
+		await waitFor(() => {
+			expect(updateWorkspaceStateMock).toHaveBeenCalledWith(
+				baseSong.id,
+				expect.objectContaining({ selectedFileId: "file-1" }),
+			);
+		});
+
+		updateWorkspaceStateMock.mockClear();
+
+		fireEvent.click(screen.getByRole("button", { name: "Select file-2" }));
+
+		await waitFor(() => {
+			expect(screen.getByText("Mix B:true")).toBeTruthy();
+			expect(screen.getByText("Mix A:false")).toBeTruthy();
+		});
+
+		const objectPatches = updateWorkspaceStateMock.mock.calls
+			.map((call) => call[1])
+			.filter(
+				(patch): patch is { selectedFileId?: string } =>
+					typeof patch === "object" &&
+					patch !== null &&
+					"selectedFileId" in patch,
+			);
+		expect(
+			objectPatches.some((patch) => patch.selectedFileId === "file-1"),
+		).toBe(false);
 	});
 
 	it("steps file volume by 1 dB through the persisted audio update path", async () => {
@@ -307,19 +377,17 @@ describe("SongWorkspace", () => {
 		expect(screen.getByPlaceholderText(/context for this file/i)).toBeTruthy();
 	});
 
-	it("renders only the journal label and editor without an outer journal shell", () => {
+	it("renders the journal editor without an outer journal shell", () => {
 		currentAudioFiles = [createAudioFile()];
 
 		render(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
 
-		const journalFieldLabel = screen.getByText(/^journal$/i);
 		const journalEditor = document.querySelector(
 			'[data-song-mode-editor="journal"]',
 		);
-		const journalColumn = journalFieldLabel.parentElement?.parentElement;
+		const journalColumn = journalEditor?.parentElement?.parentElement;
 
 		expect(screen.queryByText(/song journal/i)).toBeNull();
-		expect(journalFieldLabel).toBeTruthy();
 		expect(journalEditor).toBeTruthy();
 		expect(journalEditor?.closest(".panel-shell")).toBeNull();
 		expect(journalColumn?.className).toContain("h-[calc(100vh-4rem)]");

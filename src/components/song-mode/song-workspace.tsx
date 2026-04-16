@@ -50,6 +50,11 @@ export function SongWorkspace({
 	const song = getSongById(songId);
 	const audioFiles = getSongAudioFiles(songId);
 	const workspace = getWorkspaceState(songId);
+	const workspaceRef = useRef(workspace);
+	workspaceRef.current = workspace;
+	const audioFileListKey = audioFiles
+		.map((audioFile) => audioFile.id)
+		.join("|");
 	const selectedFileId =
 		(workspace.selectedFileId &&
 		audioFiles.some((audioFile) => audioFile.id === workspace.selectedFileId)
@@ -86,25 +91,30 @@ export function SongWorkspace({
 		void rememberSongOpened(songId);
 	}, [ready, rememberSongOpened, song, songId]);
 
+	// Sync route search → workspace when the URL (or loaded files) change — not
+	// when workspace alone changes. Otherwise a stale ?fileId=… keeps winning
+	// over an in-UI waveform selection on every workspace update.
 	useEffect(() => {
-		if (!ready || !song || !audioFiles.length) {
+		if (!ready || !audioFileListKey) {
 			return;
 		}
 
+		const w = workspaceRef.current;
+		const fallbackFirstFileId = audioFileListKey.split("|")[0] ?? "";
 		const nextSelectedFileId =
-			search.fileId ?? workspace.selectedFileId ?? audioFiles[0]?.id;
+			search.fileId ?? w.selectedFileId ?? fallbackFirstFileId;
 		const nextActiveAnnotationId =
 			search.annotationId ??
-			(workspace.activeAnnotationId &&
+			(w.activeAnnotationId &&
 			getAnnotationsForFile(nextSelectedFileId ?? "").some(
-				(annotation) => annotation.id === workspace.activeAnnotationId,
+				(annotation) => annotation.id === w.activeAnnotationId,
 			)
-				? workspace.activeAnnotationId
+				? w.activeAnnotationId
 				: undefined);
 
 		if (
-			nextSelectedFileId !== workspace.selectedFileId ||
-			nextActiveAnnotationId !== workspace.activeAnnotationId
+			nextSelectedFileId !== w.selectedFileId ||
+			nextActiveAnnotationId !== w.activeAnnotationId
 		) {
 			void updateWorkspaceState(songId, {
 				selectedFileId: nextSelectedFileId,
@@ -112,16 +122,13 @@ export function SongWorkspace({
 			});
 		}
 	}, [
-		audioFiles,
+		audioFileListKey,
 		getAnnotationsForFile,
 		ready,
 		search.annotationId,
 		search.fileId,
-		song,
 		songId,
 		updateWorkspaceState,
-		workspace.activeAnnotationId,
-		workspace.selectedFileId,
 	]);
 
 	useEffect(() => {
@@ -425,8 +432,8 @@ export function SongWorkspace({
 	}
 
 	const songHeaderControls = (
-		<div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-end xl:justify-end">
-			<label className="grid min-w-0 gap-2 xl:min-w-[18rem] xl:flex-[1.35]">
+		<div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-end xl:justify-start">
+			<label className="grid w-full min-w-0 max-w-[450px] gap-2 xl:min-w-[18rem] xl:flex-[1.35]">
 				<span className="field-label">Song title</span>
 				<input
 					value={song.title}
@@ -493,8 +500,8 @@ export function SongWorkspace({
 				}`}
 				aria-hidden={isUploadOpen}
 			>
-				<section className="grid gap-5 xl:grid-cols-[minmax(0,1.38fr)_420px_minmax(280px,400px)]">
-					<div className="space-y-4">
+				<section className="song-workspace-main-grid grid gap-5">
+					<div className="min-w-0 space-y-4">
 						{audioFiles.length === 0 ? (
 							<div className="border border-dashed border-[var(--color-border-subtle)] px-6 py-10 text-sm leading-7 text-[var(--color-text-muted)]">
 								Add audio to start the stacked waveform review. Each file gets
@@ -587,49 +594,44 @@ export function SongWorkspace({
 						)}
 					</div>
 
-					<div className="panel-shell p-4 sm:p-5">
-						<div className="flex max-h-[calc(100vh-15rem)] min-h-[44rem] flex-col overflow-hidden">
-							<div className="min-h-0 flex-1 overflow-y-auto">
-								<InspectorPane
-									song={song}
-									selectedFile={selectedFile}
-									annotations={selectedAnnotations}
-									activeAnnotation={activeAnnotation}
-									onOpenTarget={openTarget}
-									onUpdateFile={(patch) =>
-										selectedFile
-											? updateAudioFile(selectedFile.id, patch)
-											: Promise.resolve()
-									}
-									onUpdateAnnotation={updateAnnotation}
-									onDeleteAnnotation={deleteAnnotation}
-									onSelectAnnotation={(annotationId) =>
-										void updateWorkspaceState(songId, {
-											selectedFileId,
-											activeAnnotationId: annotationId,
-										})
-									}
-								/>
-							</div>
+					<div className="flex max-h-[calc(100vh-15rem)] min-h-[44rem] flex-col overflow-hidden">
+						<div className="min-h-0 flex-1 overflow-y-auto">
+							<InspectorPane
+								song={song}
+								selectedFile={selectedFile}
+								annotations={selectedAnnotations}
+								activeAnnotation={activeAnnotation}
+								onOpenTarget={openTarget}
+								onUpdateFile={(patch) =>
+									selectedFile
+										? updateAudioFile(selectedFile.id, patch)
+										: Promise.resolve()
+								}
+								onUpdateAnnotation={updateAnnotation}
+								onDeleteAnnotation={deleteAnnotation}
+								onSelectAnnotation={(annotationId) =>
+									void updateWorkspaceState(songId, {
+										selectedFileId,
+										activeAnnotationId: annotationId,
+									})
+								}
+							/>
 						</div>
 					</div>
 
-					<div className="p-4 sm:p-5 xl:sticky xl:top-8 xl:self-start">
-						<div className="flex h-[calc(100vh-4rem)] min-h-[44rem] flex-col">
-							<div className="flex min-h-0 flex-1 flex-col gap-2">
-								<span className="field-label">Journal</span>
-								<RichTextEditor
-									value={song.generalNotes}
-									onChange={(nextValue) =>
-										void updateSong(song.id, {
-											generalNotes: nextValue,
-										})
-									}
-									onInternalLink={openTarget}
-									focusId="journal"
-									toolbarActions={journalToolbarActions}
-								/>
-							</div>
+					<div className="flex h-[calc(100vh-4rem)] min-h-[44rem] min-w-0 flex-col xl:sticky xl:top-8 xl:self-start">
+						<div className="flex min-h-0 flex-1 flex-col">
+							<RichTextEditor
+								value={song.generalNotes}
+								onChange={(nextValue) =>
+									void updateSong(song.id, {
+										generalNotes: nextValue,
+									})
+								}
+								onInternalLink={openTarget}
+								focusId="journal"
+								toolbarActions={journalToolbarActions}
+							/>
 						</div>
 					</div>
 				</section>

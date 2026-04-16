@@ -186,17 +186,12 @@ export function LibraryView() {
 										className="panel-shell panel-shell-action h-full w-full p-6 text-left"
 									>
 										<div>
-											<div>
-												<p className="eyebrow mb-3">
-													{song.project || "Song workspace"}
-												</p>
-												<h2 className="text-2xl font-semibold text-[var(--color-text)]">
-													{song.title}
-												</h2>
-												<p className="mt-2 text-sm text-[var(--color-text-subtle)]">
-													{song.artist || "No artist set"}
-												</p>
-											</div>
+											<h2 className="text-2xl font-semibold text-[var(--color-text)]">
+												{song.title}
+											</h2>
+											<p className="mt-2 text-sm text-[var(--color-text-subtle)]">
+												{song.artist || "No artist set"}
+											</p>
 										</div>
 
 										<p className="mt-5 text-sm leading-7 text-[var(--color-text-muted)]">
