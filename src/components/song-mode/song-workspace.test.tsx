@@ -37,7 +37,9 @@ vi.mock("./inspector-pane", () => ({
 }));
 
 vi.mock("./rich-text-editor", () => ({
-	RichTextEditor: () => <div data-testid="rich-text-editor" />,
+	RichTextEditor: ({ focusId }: { focusId?: string }) => (
+		<div data-testid="rich-text-editor" data-song-mode-editor={focusId} />
+	),
 }));
 
 vi.mock("./waveform-card", () => ({
@@ -272,6 +274,24 @@ describe("SongWorkspace", () => {
 		).toBeTruthy();
 		expect(screen.getByLabelText(/audio file/i)).toBeTruthy();
 		expect(screen.getByPlaceholderText(/context for this file/i)).toBeTruthy();
+	});
+
+	it("renders the journal label on the panel background with only the editor shell beneath it", () => {
+		currentAudioFiles = [createAudioFile()];
+
+		render(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+
+		const journalEyebrow = screen.getByText(/song journal/i);
+		const journalFieldLabel = screen.getByText(/^journal$/i);
+		const journalEditor = document.querySelector(
+			'[data-song-mode-editor="journal"]',
+		);
+
+		expect(journalEyebrow).toBeTruthy();
+		expect(journalFieldLabel).toBeTruthy();
+		expect(journalEditor).toBeTruthy();
+		expect(journalEyebrow.parentElement?.className).not.toContain("border");
+		expect(journalEyebrow.parentElement?.tagName).toBe("DIV");
 	});
 
 	it("renders the song controls into the header slot when one is available", () => {

@@ -623,7 +623,7 @@ export function SongWorkspace({
 
 					<div className="panel-shell p-4 sm:p-5 xl:sticky xl:top-8 xl:self-start">
 						<div className="max-h-[calc(100vh-15rem)] min-h-[44rem] overflow-y-auto">
-							<section className="flex flex-col gap-4 border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
+							<div className="flex flex-col gap-4 p-4">
 								<p className="eyebrow">Song journal</p>
 
 								<div className="grid gap-4">
@@ -642,7 +642,7 @@ export function SongWorkspace({
 										/>
 									</div>
 								</div>
-							</section>
+							</div>
 						</div>
 					</div>
 				</section>
