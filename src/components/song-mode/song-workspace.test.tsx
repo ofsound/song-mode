@@ -6,6 +6,7 @@ import {
 	render,
 	screen,
 	waitFor,
+	within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_RICH_TEXT } from "#/lib/song-mode/rich-text";
@@ -15,6 +16,7 @@ import type {
 	SongRouteSearch,
 	WorkspaceState,
 } from "#/lib/song-mode/types";
+import { SongRouteHeaderSlotContext } from "./app-chrome";
 import { SongWorkspace } from "./song-workspace";
 
 const navigateMock = vi.fn();
@@ -238,5 +240,50 @@ describe("SongWorkspace", () => {
 		).toBeTruthy();
 		expect(screen.getByLabelText(/audio file/i)).toBeTruthy();
 		expect(screen.getByPlaceholderText(/context for this file/i)).toBeTruthy();
+	});
+
+	it("renders the song controls into the header slot when one is available", () => {
+		currentAudioFiles = [
+			{
+				id: "file-1",
+				songId: baseSong.id,
+				title: "Mix v1",
+				notes: EMPTY_RICH_TEXT,
+				masteringNote: EMPTY_RICH_TEXT,
+				durationMs: 180000,
+				waveform: {
+					peaks: [0.2, 0.6, 0.4],
+					peakCount: 3,
+					durationMs: 180000,
+					sampleRate: 44100,
+				},
+				createdAt: "2026-04-16T00:00:00.000Z",
+				updatedAt: "2026-04-16T00:00:00.000Z",
+			},
+		];
+
+		const headerSlot = document.createElement("div");
+		document.body.appendChild(headerSlot);
+
+		const { container, unmount } = render(
+			<SongRouteHeaderSlotContext.Provider
+				value={{ enabled: true, slot: headerSlot }}
+			>
+				<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />
+			</SongRouteHeaderSlotContext.Provider>,
+		);
+
+		expect(within(headerSlot).getByText(/song library/i)).toBeTruthy();
+		expect(
+			within(headerSlot).getByRole("button", { name: /add audio/i }),
+		).toBeTruthy();
+		expect(
+			within(container.querySelector("main") as HTMLElement).queryByText(
+				/song library/i,
+			),
+		).toBeNull();
+
+		unmount();
+		headerSlot.remove();
 	});
 });

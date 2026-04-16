@@ -1,18 +1,13 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import {
-	ChevronLeft,
-	ListMusic,
-	PauseCircle,
-	Save,
-	Upload,
-	X,
-} from "lucide-react";
+import { ChevronLeft, ListMusic, Save, Upload, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { isEditableElement } from "#/lib/song-mode/dom";
 import { targetToRouteSearch } from "#/lib/song-mode/links";
 import { plainTextToRichText } from "#/lib/song-mode/rich-text";
 import type { SongLinkTarget, SongRouteSearch } from "#/lib/song-mode/types";
 import { useSongMode } from "#/providers/song-mode-provider";
+import { useSongRouteHeaderSlot } from "./app-chrome";
 import { InspectorPane } from "./inspector-pane";
 import { RichTextEditor, type RichTextToolbarAction } from "./rich-text-editor";
 import { WaveformCard } from "./waveform-card";
@@ -25,6 +20,7 @@ export function SongWorkspace({
 	search: SongRouteSearch;
 }) {
 	const navigate = useNavigate();
+	const songRouteHeaderSlot = useSongRouteHeaderSlot();
 	const {
 		ready,
 		getSongById,
@@ -423,89 +419,83 @@ export function SongWorkspace({
 		);
 	}
 
+	const songHeaderControls = (
+		<div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-end xl:justify-end">
+			<Link
+				to="/"
+				className="inline-flex shrink-0 items-center gap-2 text-sm font-medium text-[var(--color-text-subtle)] no-underline xl:mb-3"
+			>
+				<ChevronLeft size={14} />
+				Song library
+			</Link>
+
+			<label className="grid min-w-0 gap-2 xl:min-w-[18rem] xl:flex-[1.35]">
+				<span className="field-label">Song title</span>
+				<input
+					value={song.title}
+					onChange={(event) =>
+						void updateSong(song.id, {
+							title: event.target.value,
+						})
+					}
+					className="field-input px-3 py-2 text-lg leading-tight text-[var(--color-text)]"
+				/>
+			</label>
+
+			<label className="grid min-w-0 gap-2 xl:w-[10rem] xl:shrink-0">
+				<span className="field-label">Artist</span>
+				<input
+					value={song.artist}
+					onChange={(event) =>
+						void updateSong(song.id, {
+							artist: event.target.value,
+						})
+					}
+					className="field-input px-3 py-2"
+				/>
+			</label>
+
+			<label className="grid min-w-0 gap-2 xl:w-[10rem] xl:shrink-0">
+				<span className="field-label">Project</span>
+				<input
+					value={song.project}
+					onChange={(event) =>
+						void updateSong(song.id, {
+							project: event.target.value,
+						})
+					}
+					className="field-input px-3 py-2"
+				/>
+			</label>
+
+			<div className="flex shrink-0 flex-wrap items-center gap-3 xl:pb-[1px]">
+				<button
+					type="button"
+					onClick={() => setIsUploadOpen(true)}
+					className="action-secondary inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold"
+				>
+					<Upload size={14} />
+					Add audio
+				</button>
+			</div>
+		</div>
+	);
+
+	const renderedSongHeaderControls = songRouteHeaderSlot?.slot ? (
+		createPortal(songHeaderControls, songRouteHeaderSlot.slot)
+	) : songRouteHeaderSlot?.enabled ? null : (
+		<section className="panel-shell px-6 py-6">{songHeaderControls}</section>
+	);
+
 	return (
 		<>
+			{renderedSongHeaderControls}
 			<main
 				className={`flex w-full flex-col gap-6 px-3 py-8 transition-[filter,opacity] duration-200 ${
 					isUploadOpen ? "pointer-events-none blur-[3px] opacity-45" : ""
 				}`}
 				aria-hidden={isUploadOpen}
 			>
-				<section className="panel-shell px-6 py-6">
-					<div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-						<div className="min-w-0">
-							<Link
-								to="/"
-								className="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-text-subtle)] no-underline"
-							>
-								<ChevronLeft size={14} />
-								Song library
-							</Link>
-							<div className="mt-4 grid max-w-3xl gap-4">
-								<label className="grid gap-2">
-									<span className="field-label">Song title</span>
-									<input
-										value={song.title}
-										onChange={(event) =>
-											void updateSong(song.id, {
-												title: event.target.value,
-											})
-										}
-										className="field-input font-display text-3xl leading-tight text-[var(--color-text)] sm:text-4xl"
-									/>
-								</label>
-								<div className="grid gap-4 sm:grid-cols-2">
-									<label className="grid gap-2">
-										<span className="field-label">Artist</span>
-										<input
-											value={song.artist}
-											onChange={(event) =>
-												void updateSong(song.id, {
-													artist: event.target.value,
-												})
-											}
-											className="field-input"
-										/>
-									</label>
-									<label className="grid gap-2">
-										<span className="field-label">Project</span>
-										<input
-											value={song.project}
-											onChange={(event) =>
-												void updateSong(song.id, {
-													project: event.target.value,
-												})
-											}
-											className="field-input"
-										/>
-									</label>
-								</div>
-							</div>
-						</div>
-
-						<div className="flex flex-wrap items-center gap-3">
-							<button
-								type="button"
-								onClick={() => setIsUploadOpen(true)}
-								className="action-secondary inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold"
-							>
-								<Upload size={14} />
-								Add audio
-							</button>
-							<button
-								type="button"
-								onClick={() =>
-									selectedFileId && void togglePlayback(selectedFileId)
-								}
-								className="action-primary inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold"
-							>
-								<PauseCircle size={15} />
-								Spacebar ready
-							</button>
-						</div>
-					</div>
-				</section>
-
 				<section className="grid gap-5 xl:grid-cols-[minmax(0,1.38fr)_420px_minmax(280px,400px)]">
 					<div className="panel-shell p-4 sm:p-5">
 						<div className="mb-4 flex items-center justify-between gap-3">
