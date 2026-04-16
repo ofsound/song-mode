@@ -6,9 +6,13 @@ import {
 	render,
 	screen,
 	waitFor,
+	within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { EMPTY_RICH_TEXT } from "#/lib/song-mode/rich-text";
+import {
+	EMPTY_RICH_TEXT,
+	plainTextToRichText,
+} from "#/lib/song-mode/rich-text";
 import type {
 	Annotation,
 	AudioFileRecord,
@@ -139,7 +143,11 @@ function renderWaveformCard({
 
 function mockWaveformBounds(
 	element: HTMLElement,
-	{ left = 0, width = 200 }: { left?: number; width?: number } = {},
+	{
+		left = 0,
+		width = 200,
+		height = 164,
+	}: { left?: number; width?: number; height?: number } = {},
 ) {
 	Object.defineProperty(element, "getBoundingClientRect", {
 		configurable: true,
@@ -147,13 +155,21 @@ function mockWaveformBounds(
 			left,
 			top: 0,
 			right: left + width,
-			bottom: 164,
+			bottom: height,
 			width,
-			height: 164,
+			height,
 			x: left,
 			y: 0,
 			toJSON: () => ({}),
 		}),
+	});
+	Object.defineProperty(element, "clientWidth", {
+		configurable: true,
+		value: width,
+	});
+	Object.defineProperty(element, "clientHeight", {
+		configurable: true,
+		value: height,
 	});
 }
 
@@ -469,13 +485,121 @@ describe("WaveformCard", () => {
 			],
 		});
 
-		fireEvent.doubleClick(screen.getByTitle(/verse/i), {
-			clientX: 160,
-		});
+		fireEvent.doubleClick(
+			screen.getByRole("button", {
+				name: /verse at 0:30/i,
+			}),
+			{
+				clientX: 160,
+			},
+		);
 
 		await waitFor(() => {
 			expect(onSeek).not.toHaveBeenCalled();
 		});
+	});
+
+	it("shows a custom tooltip when hovering a marker handle square", () => {
+		renderWaveformCard({
+			annotations: [
+				{
+					id: "annotation-1",
+					songId: "song-1",
+					audioFileId: "file-1",
+					type: "point",
+					startMs: 30000,
+					title: "Verse",
+					body: plainTextToRichText("Lead vocal starts"),
+					color: "var(--color-annotation-4)",
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+		});
+
+		const waveformSurface = screen.getByRole("button", {
+			name: /waveform for mix v1/i,
+		});
+		mockWaveformBounds(waveformSurface, { left: 10, width: 180 });
+
+		const markerButton = screen.getByRole("button", {
+			name: /verse at 0:30/i,
+		});
+		const markerHandle = markerButton.querySelector("[data-marker-handle]");
+		expect(markerHandle).toBeTruthy();
+
+		fireEvent.pointerEnter(markerHandle as Element, {
+			clientX: 40,
+			clientY: 30,
+		});
+
+		const markerDescription = screen.getByText("Lead vocal starts");
+		const markerTooltip = markerDescription.closest(
+			".waveform-annotation-tooltip",
+		);
+		expect(markerTooltip).toBeTruthy();
+		expect(
+			within(markerTooltip as HTMLElement).getByText("Marker"),
+		).toBeTruthy();
+		expect(within(markerTooltip as HTMLElement).getByText("0:30")).toBeTruthy();
+		expect(
+			within(markerTooltip as HTMLElement).getByText("Verse"),
+		).toBeTruthy();
+		expect(markerDescription).toBeTruthy();
+
+		fireEvent.pointerLeave(markerHandle as Element);
+		expect(screen.queryByText("Lead vocal starts")).toBeNull();
+	});
+
+	it("shows a custom tooltip when hovering a range annotation", () => {
+		renderWaveformCard({
+			annotations: [
+				{
+					id: "annotation-1",
+					songId: "song-1",
+					audioFileId: "file-1",
+					type: "range",
+					startMs: 30000,
+					endMs: 45000,
+					title: "Chorus",
+					body: plainTextToRichText("Main hook"),
+					color: "var(--color-annotation-2)",
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+		});
+
+		const waveformSurface = screen.getByRole("button", {
+			name: /waveform for mix v1/i,
+		});
+		mockWaveformBounds(waveformSurface, { left: 10, width: 220 });
+
+		const rangeButton = screen.getByRole("button", {
+			name: /chorus at 0:30 - 0:45/i,
+		});
+
+		fireEvent.pointerEnter(rangeButton, {
+			clientX: 100,
+			clientY: 50,
+		});
+
+		const rangeDescription = screen.getByText("Main hook");
+		const rangeTooltip = rangeDescription.closest(
+			".waveform-annotation-tooltip",
+		);
+		expect(rangeTooltip).toBeTruthy();
+		expect(within(rangeTooltip as HTMLElement).getByText("Range")).toBeTruthy();
+		expect(
+			within(rangeTooltip as HTMLElement).getByText("0:30 - 0:45"),
+		).toBeTruthy();
+		expect(
+			within(rangeTooltip as HTMLElement).getByText("Chorus"),
+		).toBeTruthy();
+		expect(rangeDescription).toBeTruthy();
+
+		fireEvent.pointerLeave(rangeButton);
+		expect(screen.queryByText("Main hook")).toBeNull();
 	});
 
 	it("drags point markers horizontally from the square handle", async () => {
@@ -510,7 +634,9 @@ describe("WaveformCard", () => {
 		});
 		mockWaveformBounds(waveformSurface, { left: 10, width: 180 });
 
-		const markerButton = screen.getByTitle(/verse/i);
+		const markerButton = screen.getByRole("button", {
+			name: /verse at 0:30/i,
+		});
 		const markerHandle = markerButton.querySelector("[data-marker-handle]");
 		expect(markerHandle).toBeTruthy();
 
@@ -566,7 +692,9 @@ describe("WaveformCard", () => {
 		});
 		mockWaveformBounds(waveformSurface, { left: 10, width: 180 });
 
-		const markerButton = screen.getByTitle(/verse/i);
+		const markerButton = screen.getByRole("button", {
+			name: /verse at 0:30/i,
+		});
 		const markerHandle = markerButton.querySelector("[data-marker-handle]");
 		expect(markerHandle).toBeTruthy();
 

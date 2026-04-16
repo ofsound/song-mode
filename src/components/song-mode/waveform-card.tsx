@@ -10,7 +10,7 @@ import {
 	TimerReset,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { EMPTY_RICH_TEXT } from "#/lib/song-mode/rich-text";
+import { EMPTY_RICH_TEXT, richTextPreview } from "#/lib/song-mode/rich-text";
 import type {
 	Annotation,
 	AudioFileRecord,
@@ -31,6 +31,12 @@ interface AudioGraph {
 	context: AudioContext;
 	sourceNode: MediaElementAudioSourceNode;
 	gainNode: GainNode;
+}
+
+interface HoveredAnnotationState {
+	annotationId: string;
+	x: number;
+	y: number;
 }
 
 const audioGraphByElement = new WeakMap<HTMLAudioElement, AudioGraph>();
@@ -106,6 +112,8 @@ export function WaveformCard({
 		dragging: boolean;
 	} | null>(null);
 	const suppressAnnotationClickRef = useRef<string | null>(null);
+	const [hoveredAnnotation, setHoveredAnnotation] =
+		useState<HoveredAnnotationState | null>(null);
 
 	const sortedAnnotations = useMemo(
 		() => [...annotations].sort((left, right) => left.startMs - right.startMs),
@@ -115,6 +123,37 @@ export function WaveformCard({
 		() => normalizeWaveformData(audioFile.waveform, audioFile.durationMs),
 		[audioFile.durationMs, audioFile.waveform],
 	);
+	const hoveredAnnotationRecord = useMemo(
+		() =>
+			hoveredAnnotation
+				? (annotations.find(
+						(annotation) => annotation.id === hoveredAnnotation.annotationId,
+					) ?? null)
+				: null,
+		[annotations, hoveredAnnotation],
+	);
+	const hoveredTooltipPosition = useMemo(() => {
+		if (!hoveredAnnotation || !surfaceRef.current) {
+			return null;
+		}
+
+		const width = surfaceRef.current.clientWidth;
+		const height = surfaceRef.current.clientHeight;
+		if (width <= 0 || height <= 0) {
+			return null;
+		}
+
+		const anchorX = Math.max(10, Math.min(width - 10, hoveredAnnotation.x));
+		const anchorY = Math.max(10, Math.min(height - 10, hoveredAnnotation.y));
+		const placeLeft = anchorX > width * 0.62;
+		const placeBelow = anchorY < 82;
+
+		return {
+			left: `${anchorX + (placeLeft ? -14 : 14)}px`,
+			top: `${anchorY + (placeBelow ? 14 : -14)}px`,
+			transform: `${placeLeft ? "translateX(-100%)" : "translateX(0)"} ${placeBelow ? "translateY(0)" : "translateY(-100%)"}`,
+		};
+	}, [hoveredAnnotation]);
 
 	useEffect(() => {
 		if (!blob) {
@@ -379,6 +418,23 @@ export function WaveformCard({
 		return audioFile.durationMs / rect.width;
 	}
 
+	function updateHoveredAnnotationPosition(
+		annotationId: string,
+		clientX: number,
+		clientY: number,
+	) {
+		if (!surfaceRef.current) {
+			return;
+		}
+
+		const rect = surfaceRef.current.getBoundingClientRect();
+		setHoveredAnnotation({
+			annotationId,
+			x: clientX - rect.left,
+			y: clientY - rect.top,
+		});
+	}
+
 	function endMarkerDrag(
 		event: React.PointerEvent<HTMLButtonElement>,
 		preserveFocus = true,
@@ -607,6 +663,7 @@ export function WaveformCard({
 					role="button"
 					tabIndex={0}
 					aria-label={`Waveform for ${audioFile.title}`}
+					onPointerLeave={() => setHoveredAnnotation(null)}
 					onClick={(event) => {
 						if (
 							(event.target as HTMLElement).closest("[data-annotation-hit]")
@@ -666,6 +723,22 @@ export function WaveformCard({
 									key={annotation.id}
 									type="button"
 									data-annotation-hit
+									aria-label={buildAnnotationAriaLabel(annotation)}
+									onPointerEnter={(event) =>
+										updateHoveredAnnotationPosition(
+											annotation.id,
+											event.clientX,
+											event.clientY,
+										)
+									}
+									onPointerMove={(event) =>
+										updateHoveredAnnotationPosition(
+											annotation.id,
+											event.clientX,
+											event.clientY,
+										)
+									}
+									onPointerLeave={() => setHoveredAnnotation(null)}
 									onClick={(event) => {
 										event.stopPropagation();
 										onSelectFile(audioFile.id);
@@ -684,7 +757,6 @@ export function WaveformCard({
 											annotation.color ?? "var(--color-annotation-2)",
 										opacity: activeAnnotationId === annotation.id ? 0.34 : 0.2,
 									}}
-									title={annotation.title || "Range"}
 								/>
 							);
 						}
@@ -694,6 +766,7 @@ export function WaveformCard({
 								key={annotation.id}
 								type="button"
 								data-annotation-hit
+								aria-label={buildAnnotationAriaLabel(annotation)}
 								onClick={(event) => {
 									if (suppressAnnotationClickRef.current === annotation.id) {
 										suppressAnnotationClickRef.current = null;
@@ -717,6 +790,7 @@ export function WaveformCard({
 									}
 
 									event.stopPropagation();
+									setHoveredAnnotation(null);
 									markerDragStateRef.current = {
 										annotationId: annotation.id,
 										pointerId: event.pointerId,
@@ -779,7 +853,6 @@ export function WaveformCard({
 								onPointerCancel={(event) => endMarkerDrag(event, false)}
 								className="absolute bottom-0 top-0 w-3 -translate-x-1/2"
 								style={{ left }}
-								title={annotation.title || "Marker"}
 							>
 								<span
 									className={`absolute bottom-0 top-0 left-1/2 w-0.5 -translate-x-1/2 ${
@@ -790,7 +863,22 @@ export function WaveformCard({
 								/>
 								<span
 									data-marker-handle
-									className="absolute left-1/2 top-4 h-3 w-3 -translate-x-1/2 cursor-ew-resize border border-[var(--color-waveform-marker-dot-border)]"
+									onPointerEnter={(event) =>
+										updateHoveredAnnotationPosition(
+											annotation.id,
+											event.clientX,
+											event.clientY,
+										)
+									}
+									onPointerMove={(event) =>
+										updateHoveredAnnotationPosition(
+											annotation.id,
+											event.clientX,
+											event.clientY,
+										)
+									}
+									onPointerLeave={() => setHoveredAnnotation(null)}
+										className="absolute left-1/2 top-4 h-3 w-3 -translate-x-1/2 cursor-pointer border border-[var(--color-waveform-marker-dot-border)]"
 									style={{
 										backgroundColor:
 											annotation.color ?? "var(--color-annotation-4)",
@@ -805,6 +893,33 @@ export function WaveformCard({
 							Pick the range end point
 						</div>
 					)}
+					{hoveredAnnotationRecord && hoveredTooltipPosition ? (
+						<div
+							className="waveform-annotation-tooltip pointer-events-none absolute z-20"
+							style={hoveredTooltipPosition}
+						>
+							<p className="text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
+								{hoveredAnnotationRecord.type === "range" ? "Range" : "Marker"}
+							</p>
+							<p className="mt-1 text-[0.72rem] font-medium text-[var(--color-text-muted)]">
+								{formatAnnotationTime(hoveredAnnotationRecord)}
+							</p>
+							<p className="mt-1 text-sm font-semibold text-[var(--color-text)]">
+								{hoveredAnnotationRecord.title?.trim() ||
+									(hoveredAnnotationRecord.type === "range"
+										? "Untitled range"
+										: "Untitled marker")}
+							</p>
+							<p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
+								{richTextPreview(
+									hoveredAnnotationRecord.body,
+									hoveredAnnotationRecord.type === "range"
+										? "No range description yet."
+										: "No marker description yet.",
+								)}
+							</p>
+						</div>
+					) : null}
 				</div>
 
 				<div className="flex min-w-[5.75rem] flex-col items-stretch justify-center border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] px-2 py-3">
@@ -905,6 +1020,24 @@ function formatVolumeDb(volumeDb: number): string {
 	}
 
 	return `${volumeDb} dB`;
+}
+
+function formatAnnotationTime(annotation: Annotation): string {
+	if (
+		annotation.type === "range" &&
+		typeof annotation.endMs === "number" &&
+		annotation.endMs > annotation.startMs
+	) {
+		return `${formatDuration(annotation.startMs)} - ${formatDuration(annotation.endMs)}`;
+	}
+
+	return formatDuration(annotation.startMs);
+}
+
+function buildAnnotationAriaLabel(annotation: Annotation): string {
+	const typeLabel = annotation.type === "range" ? "range" : "marker";
+	const title = annotation.title?.trim() || `Untitled ${typeLabel}`;
+	return `${title} at ${formatAnnotationTime(annotation)}`;
 }
 
 function ModeButton({

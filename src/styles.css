@@ -660,6 +660,23 @@ pre code {
   color: var(--color-text);
 }
 
+.waveform-annotation-tooltip {
+  width: min(22rem, calc(100% - 1rem));
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 78%, transparent);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-surface-overlay) 92%, transparent),
+      color-mix(in srgb, var(--color-surface-elevated) 96%, transparent)
+    );
+  color: var(--color-text);
+  padding: 0.6rem 0.72rem;
+  box-shadow:
+    0 18px 34px -26px color-mix(in srgb, var(--color-accent-strong) 48%, transparent),
+    0 6px 20px -14px color-mix(in srgb, black 55%, transparent);
+  backdrop-filter: blur(10px);
+}
+
 .eyebrow {
   letter-spacing: 0.2em;
   text-transform: uppercase;

@@ -221,6 +221,12 @@ describe("InspectorPane", () => {
 			timeMs: 54000,
 			autoplay: true,
 		});
+
+		onOpenTarget.mockClear();
+		onSelectAnnotation.mockClear();
+		fireEvent.click(screen.getByTestId("marker-card-annotation-1"));
+		expect(onOpenTarget).not.toHaveBeenCalled();
+		expect(onSelectAnnotation).not.toHaveBeenCalled();
 	});
 
 	it("confirms before deleting a marker from the inline card", () => {

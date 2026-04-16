@@ -66,7 +66,6 @@ export function InspectorPane({
 			<section className="inspector-echo-section">
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0">
-						<p className="eyebrow mb-2">Timestamped notes</p>
 						<h3 className="text-lg font-semibold text-[var(--color-text)]">
 							{annotations.length} markers in{" "}
 							<span className="inspector-echo-filename">
@@ -76,7 +75,7 @@ export function InspectorPane({
 					</div>
 				</div>
 
-				<div className="mt-3 flex flex-col gap-1.5">
+				<div className="mt-3 flex flex-col gap-2">
 					{annotations.length === 0 ? (
 						<p className="border border-dashed border-[var(--color-border-subtle)] px-4 py-5 text-sm text-[var(--color-text-muted)]">
 							Create point markers or regions from the waveform to build the
@@ -96,30 +95,10 @@ export function InspectorPane({
 							}
 
 							return (
-								/* biome-ignore lint/a11y/useSemanticElements: nested interactive controls require a non-button wrapper */
 								<div
 									key={annotation.id}
-									role="button"
-									tabIndex={0}
 									data-testid={`marker-card-${annotation.id}`}
-									onClick={(event) => {
-										if (isNestedInteractiveTarget(event.target)) {
-											return;
-										}
-
-										activateAnnotation();
-									}}
-									onKeyDown={(event) => {
-										if (isNestedInteractiveTarget(event.target)) {
-											return;
-										}
-
-										if (event.key === "Enter" || event.key === " ") {
-											event.preventDefault();
-											activateAnnotation();
-										}
-									}}
-									className={`marker-card cursor-pointer border text-left outline-none transition-[border-color,background-color] duration-150 focus-visible:ring-2 focus-visible:ring-[var(--color-accent-strong)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] ${
+									className={`marker-card border text-left transition-[border-color,background-color] duration-150 ${
 										activeAnnotation?.id === annotation.id
 											? "border-[var(--color-accent-strong)] bg-[var(--color-accent-surface)]"
 											: "border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] hover:border-[var(--color-border-strong)]"
@@ -128,8 +107,7 @@ export function InspectorPane({
 									<div className="marker-play-cell">
 										<button
 											type="button"
-											onClick={(event) => {
-												event.stopPropagation();
+											onClick={() => {
 												activateAnnotation();
 											}}
 											className="icon-button icon-button--sm marker-play-button"
@@ -280,18 +258,6 @@ export function InspectorPane({
 				)}
 			</section>
 		</div>
-	);
-}
-
-function isNestedInteractiveTarget(target: EventTarget | null) {
-	if (!(target instanceof HTMLElement)) {
-		return false;
-	}
-
-	return Boolean(
-		target.closest(
-			'button, input, textarea, select, [contenteditable="true"], [role="textbox"]',
-		),
 	);
 }
 

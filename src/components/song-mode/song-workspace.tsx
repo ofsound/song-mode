@@ -528,9 +528,9 @@ export function SongWorkspace({
 				<button
 					type="button"
 					onClick={() => setIsUploadOpen(true)}
-					className="action-secondary inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold"
+					className="action-primary inline-flex items-center gap-3 px-5 py-3 text-sm font-semibold"
 				>
-					<Upload size={14} />
+					<Upload size={16} />
 					Add audio
 				</button>
 			</div>
