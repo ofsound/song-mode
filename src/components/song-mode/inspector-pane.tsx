@@ -13,6 +13,9 @@ import {
 import { formatDuration } from "#/lib/song-mode/waveform";
 import { RichTextEditor } from "./rich-text-editor";
 
+/** Set true to show per-annotation color swatches in the inspector again. */
+const SHOW_ANNOTATION_COLOR_PICKER = false;
+
 interface InspectorPaneProps {
 	song: Song;
 	selectedFile?: AudioFileRecord;
@@ -101,6 +104,7 @@ export function InspectorPane({
 								}
 								onInternalLink={onOpenTarget}
 								compact
+								showToolbar={false}
 							/>
 						</div>
 
@@ -115,6 +119,7 @@ export function InspectorPane({
 								}
 								onInternalLink={onOpenTarget}
 								compact
+								showToolbar={false}
 							/>
 						</div>
 					</div>
@@ -269,29 +274,31 @@ export function InspectorPane({
 							)}
 						</div>
 
-						<div className="grid gap-2">
-							<span className="field-label">Color</span>
-							<div className="flex flex-wrap gap-2">
-								{ANNOTATION_COLORS.map((color) => (
-									<button
-										key={color}
-										type="button"
-										onClick={() =>
-											void onUpdateAnnotation(activeAnnotation.id, {
-												color,
-											})
-										}
-										className={`h-9 w-9 rounded-full border ${
-											activeAnnotation.color === color
-												? "border-white"
-												: "border-white/20"
-										}`}
-										style={{ backgroundColor: color }}
-										title={color}
-									/>
-								))}
+						{SHOW_ANNOTATION_COLOR_PICKER ? (
+							<div className="grid gap-2">
+								<span className="field-label">Color</span>
+								<div className="flex flex-wrap gap-2">
+									{ANNOTATION_COLORS.map((color) => (
+										<button
+											key={color}
+											type="button"
+											onClick={() =>
+												void onUpdateAnnotation(activeAnnotation.id, {
+													color,
+												})
+											}
+											className={`h-9 w-9 rounded-full border ${
+												activeAnnotation.color === color
+													? "border-white"
+													: "border-white/20"
+											}`}
+											style={{ backgroundColor: color }}
+											title={color}
+										/>
+									))}
+								</div>
 							</div>
-						</div>
+						) : null}
 
 						<div className="grid gap-2">
 							<span className="field-label">Annotation note</span>
@@ -304,6 +311,7 @@ export function InspectorPane({
 								}
 								onInternalLink={onOpenTarget}
 								compact
+								showToolbar={false}
 							/>
 						</div>
 					</div>

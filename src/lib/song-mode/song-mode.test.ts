@@ -49,7 +49,6 @@ describe("song mode search", () => {
 				artist: "Northline",
 				project: "LP1",
 				generalNotes: plainTextToRichText("Need more lift in the chorus"),
-				masteringDetails: EMPTY_RICH_TEXT,
 				audioFileOrder: ["file-1"],
 				createdAt: "2026-04-15T00:00:00.000Z",
 				updatedAt: "2026-04-15T00:00:00.000Z",

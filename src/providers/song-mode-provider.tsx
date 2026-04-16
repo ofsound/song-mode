@@ -146,9 +146,14 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 				const normalized: SongModeSnapshot = {
 					...loadedSnapshot,
 					songs: loadedSnapshot.songs.map((song) => ({
-						...song,
+						id: song.id,
+						title: song.title,
+						artist: song.artist,
+						project: song.project,
 						generalNotes: normalizeRichText(song.generalNotes),
-						masteringDetails: normalizeRichText(song.masteringDetails),
+						audioFileOrder: song.audioFileOrder,
+						createdAt: song.createdAt,
+						updatedAt: song.updatedAt,
 					})),
 					audioFiles: loadedSnapshot.audioFiles.map((audioFile) => ({
 						...audioFile,
@@ -274,7 +279,6 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 				artist: input.artist.trim(),
 				project: input.project.trim(),
 				generalNotes: normalizeRichText(input.generalNotes),
-				masteringDetails: normalizeRichText(input.masteringDetails),
 				audioFileOrder: [],
 				createdAt: now,
 				updatedAt: now,
@@ -316,9 +320,6 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 									...patch,
 									generalNotes: normalizeRichText(
 										patch.generalNotes ?? song.generalNotes,
-									),
-									masteringDetails: normalizeRichText(
-										patch.masteringDetails ?? song.masteringDetails,
 									),
 									updatedAt: new Date().toISOString(),
 								}

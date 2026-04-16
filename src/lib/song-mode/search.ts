@@ -33,7 +33,7 @@ export function searchSongMode(
 	const results: SearchResult[] = [];
 
 	for (const song of snapshot.songs) {
-		const songPlain = `${song.title} ${song.artist} ${song.project} ${richTextToPlainText(song.generalNotes)} ${richTextToPlainText(song.masteringDetails)}`;
+		const songPlain = `${song.title} ${song.artist} ${song.project} ${richTextToPlainText(song.generalNotes)}`;
 		pushMatch(
 			results,
 			buildScore(song.title, songPlain, terms, 2.5),

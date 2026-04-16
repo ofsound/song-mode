@@ -82,22 +82,9 @@ export function SongWorkspace({
 	const [uploadNotes, setUploadNotes] = useState("");
 	const [uploadMastering, setUploadMastering] = useState("");
 	const [draggingFileId, setDraggingFileId] = useState<string | null>(null);
-	const [inspectorRatio, setInspectorRatio] = useState(
-		workspace.inspectorRatio,
-	);
 
 	const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
 	const appliedSearchRef = useRef<string>("");
-	const inspectorRatioRef = useRef(workspace.inspectorRatio);
-
-	useEffect(() => {
-		setInspectorRatio(workspace.inspectorRatio);
-		inspectorRatioRef.current = workspace.inspectorRatio;
-	}, [workspace.inspectorRatio]);
-
-	useEffect(() => {
-		inspectorRatioRef.current = inspectorRatio;
-	}, [inspectorRatio]);
 
 	useEffect(() => {
 		if (!ready || !song) {
@@ -408,16 +395,52 @@ export function SongWorkspace({
 							<ChevronLeft size={14} />
 							Song library
 						</Link>
-						<h1 className="mt-4 font-display text-4xl leading-none text-[var(--text-strong)] sm:text-5xl">
-							{song.title}
-						</h1>
-						<p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--text-dim)] sm:text-base">
-							{song.artist || "No artist yet"}
-							{song.project ? ` · ${song.project}` : ""}
-							{song.generalNotes
-								? ` · ${richTextPreview(song.generalNotes, "Song journal is ready.")}`
-								: ""}
-						</p>
+						<div className="mt-4 grid max-w-3xl gap-4">
+							<label className="grid gap-2">
+								<span className="field-label">Song title</span>
+								<input
+									value={song.title}
+									onChange={(event) =>
+										void updateSong(song.id, {
+											title: event.target.value,
+										})
+									}
+									className="field-input font-display text-3xl leading-tight text-[var(--text-strong)] sm:text-4xl"
+								/>
+							</label>
+							<div className="grid gap-4 sm:grid-cols-2">
+								<label className="grid gap-2">
+									<span className="field-label">Artist</span>
+									<input
+										value={song.artist}
+										onChange={(event) =>
+											void updateSong(song.id, {
+												artist: event.target.value,
+											})
+										}
+										className="field-input"
+									/>
+								</label>
+								<label className="grid gap-2">
+									<span className="field-label">Project</span>
+									<input
+										value={song.project}
+										onChange={(event) =>
+											void updateSong(song.id, {
+												project: event.target.value,
+											})
+										}
+										className="field-input"
+									/>
+								</label>
+							</div>
+							<p className="text-sm leading-7 text-[var(--text-dim)] sm:text-base">
+								{richTextPreview(
+									song.generalNotes,
+									"Song journal is ready for the first entry.",
+								)}
+							</p>
+						</div>
 					</div>
 
 					<div className="flex flex-wrap items-center gap-3">
@@ -514,15 +537,10 @@ export function SongWorkspace({
 				)}
 			</section>
 
-			<section className="grid gap-5 xl:grid-cols-[minmax(0,1.38fr)_420px]">
+			<section className="grid gap-5 xl:grid-cols-[minmax(0,1.38fr)_420px_minmax(280px,400px)]">
 				<div className="panel-shell rounded-[1.9rem] p-4 sm:p-5">
 					<div className="mb-4 flex items-center justify-between gap-3">
-						<div>
-							<p className="eyebrow mb-2">Waveform stack</p>
-							<h2 className="text-2xl font-semibold text-[var(--text-strong)]">
-								Every file stays visible
-							</h2>
-						</div>
+						<p className="eyebrow">Waveform stack</p>
 						<span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-muted)] bg-[var(--panel-elevated)] px-3 py-2 text-xs font-medium text-[var(--text-dim)]">
 							<ListMusic size={14} />
 							Shift+↑ / Shift+↓ jumps markers
@@ -616,13 +634,8 @@ export function SongWorkspace({
 				</div>
 
 				<div className="panel-shell rounded-[1.9rem] p-4 sm:p-5">
-					<div className="grid h-[calc(100vh-15rem)] min-h-[44rem] gap-4 overflow-hidden">
-						<div
-							className="min-h-[16rem] overflow-hidden"
-							style={{
-								flexBasis: `${inspectorRatio * 100}%`,
-							}}
-						>
+					<div className="flex max-h-[calc(100vh-15rem)] min-h-[44rem] flex-col overflow-hidden">
+						<div className="min-h-0 flex-1 overflow-y-auto">
 							<InspectorPane
 								song={song}
 								selectedFile={selectedFile}
@@ -644,146 +657,30 @@ export function SongWorkspace({
 								}
 							/>
 						</div>
+					</div>
+				</div>
 
-						<button
-							type="button"
-							className="mx-auto h-2 w-28 cursor-row-resize rounded-full bg-[var(--border-strong)]"
-							aria-label="Resize inspector and journal panels"
-							onKeyDown={(event) => {
-								if (event.key !== "ArrowUp" && event.key !== "ArrowDown") {
-									return;
-								}
+				<div className="panel-shell rounded-[1.9rem] p-4 sm:p-5 xl:sticky xl:top-8 xl:self-start">
+					<div className="max-h-[calc(100vh-15rem)] min-h-[44rem] overflow-y-auto">
+						<section className="flex flex-col gap-4 rounded-[1.5rem] border border-[var(--border-strong)] bg-[var(--panel)] p-4">
+							<p className="eyebrow">Song journal</p>
 
-								event.preventDefault();
-								const nextRatio = Math.min(
-									0.78,
-									Math.max(
-										0.28,
-										inspectorRatioRef.current +
-											(event.key === "ArrowUp" ? -0.03 : 0.03),
-									),
-								);
-								setInspectorRatio(nextRatio);
-								inspectorRatioRef.current = nextRatio;
-								void updateWorkspaceState(songId, {
-									inspectorRatio: nextRatio,
-								});
-							}}
-							onMouseDown={(event) => {
-								event.preventDefault();
-								const container = event.currentTarget.parentElement;
-								const bounds = container?.getBoundingClientRect();
-								if (!bounds) {
-									return;
-								}
-
-								const startY = event.clientY;
-								const startRatio = inspectorRatio;
-
-								const handleMouseMove = (moveEvent: MouseEvent) => {
-									const nextRatio = Math.min(
-										0.78,
-										Math.max(
-											0.28,
-											startRatio + (moveEvent.clientY - startY) / bounds.height,
-										),
-									);
-									setInspectorRatio(nextRatio);
-								};
-
-								const handleMouseUp = () => {
-									window.removeEventListener("mousemove", handleMouseMove);
-									window.removeEventListener("mouseup", handleMouseUp);
-									void updateWorkspaceState(songId, {
-										inspectorRatio: inspectorRatioRef.current,
-									});
-								};
-
-								window.addEventListener("mousemove", handleMouseMove);
-								window.addEventListener("mouseup", handleMouseUp);
-							}}
-						/>
-
-						<div className="min-h-[18rem] overflow-y-auto">
-							<section className="flex h-full flex-col gap-4 rounded-[1.5rem] border border-[var(--border-strong)] bg-[var(--panel)] p-4">
-								<div>
-									<p className="eyebrow mb-2">Song journal</p>
-									<h2 className="text-xl font-semibold text-[var(--text-strong)]">
-										Persistent notes beside the waveforms
-									</h2>
+							<div className="grid gap-4">
+								<div className="grid gap-2">
+									<span className="field-label">Journal</span>
+									<RichTextEditor
+										value={song.generalNotes}
+										onChange={(nextValue) =>
+											void updateSong(song.id, {
+												generalNotes: nextValue,
+											})
+										}
+										onInternalLink={openTarget}
+										focusId="journal"
+									/>
 								</div>
-
-								<div className="grid gap-4">
-									<div className="grid gap-4 md:grid-cols-2">
-										<label className="grid gap-2">
-											<span className="field-label">Song title</span>
-											<input
-												value={song.title}
-												onChange={(event) =>
-													void updateSong(song.id, {
-														title: event.target.value,
-													})
-												}
-												className="field-input"
-											/>
-										</label>
-										<label className="grid gap-2">
-											<span className="field-label">Artist</span>
-											<input
-												value={song.artist}
-												onChange={(event) =>
-													void updateSong(song.id, {
-														artist: event.target.value,
-													})
-												}
-												className="field-input"
-											/>
-										</label>
-									</div>
-
-									<label className="grid gap-2">
-										<span className="field-label">Project</span>
-										<input
-											value={song.project}
-											onChange={(event) =>
-												void updateSong(song.id, {
-													project: event.target.value,
-												})
-											}
-											className="field-input"
-										/>
-									</label>
-
-									<div className="grid gap-2">
-										<span className="field-label">Mastering details</span>
-										<RichTextEditor
-											value={song.masteringDetails}
-											onChange={(nextValue) =>
-												void updateSong(song.id, {
-													masteringDetails: nextValue,
-												})
-											}
-											onInternalLink={openTarget}
-											compact
-										/>
-									</div>
-
-									<div className="grid gap-2">
-										<span className="field-label">Journal</span>
-										<RichTextEditor
-											value={song.generalNotes}
-											onChange={(nextValue) =>
-												void updateSong(song.id, {
-													generalNotes: nextValue,
-												})
-											}
-											onInternalLink={openTarget}
-											focusId="journal"
-										/>
-									</div>
-								</div>
-							</section>
-						</div>
+							</div>
+						</section>
 					</div>
 				</div>
 			</section>

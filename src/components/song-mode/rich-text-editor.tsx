@@ -22,6 +22,8 @@ interface RichTextEditorProps {
 	compact?: boolean;
 	placeholder?: string;
 	focusId?: string;
+	/** When false, formatting toolbar is hidden (editor still supports rich content). */
+	showToolbar?: boolean;
 }
 
 export function RichTextEditor({
@@ -31,6 +33,7 @@ export function RichTextEditor({
 	compact = false,
 	placeholder,
 	focusId,
+	showToolbar = true,
 }: RichTextEditorProps) {
 	const wrapperRef = useRef<HTMLDivElement | null>(null);
 	const serializedValue = useMemo(
@@ -141,81 +144,83 @@ export function RichTextEditor({
 			className="rounded-[1.15rem] border border-[var(--border-strong)] bg-[var(--panel)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
 			data-song-mode-editor={focusId}
 		>
-			<div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-muted)] px-3 py-2">
-				<ToolbarButton
-					label="Bold"
-					active={editor.isActive("bold")}
-					onClick={() => editor.chain().focus().toggleBold().run()}
-				>
-					<Bold size={15} />
-				</ToolbarButton>
-				<ToolbarButton
-					label="Italic"
-					active={editor.isActive("italic")}
-					onClick={() => editor.chain().focus().toggleItalic().run()}
-				>
-					<Italic size={15} />
-				</ToolbarButton>
-				<ToolbarButton
-					label="Bullets"
-					active={editor.isActive("bulletList")}
-					onClick={() => editor.chain().focus().toggleBulletList().run()}
-				>
-					<List size={15} />
-				</ToolbarButton>
-				<ToolbarButton
-					label="Numbers"
-					active={editor.isActive("orderedList")}
-					onClick={() => editor.chain().focus().toggleOrderedList().run()}
-				>
-					<ListOrdered size={15} />
-				</ToolbarButton>
-				<ToolbarButton
-					label="Quote"
-					active={editor.isActive("blockquote")}
-					onClick={() => editor.chain().focus().toggleBlockquote().run()}
-				>
-					<Quote size={15} />
-				</ToolbarButton>
-				<ToolbarButton
-					label="Link"
-					active={editor.isActive("link")}
-					onClick={() => {
-						const existing = editor.getAttributes("link").href as
-							| string
-							| undefined;
-						const href = window.prompt(
-							"Paste a URL or an internal Song Mode link.",
-							existing ?? "",
-						);
+			{showToolbar ? (
+				<div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-muted)] px-3 py-2">
+					<ToolbarButton
+						label="Bold"
+						active={editor.isActive("bold")}
+						onClick={() => editor.chain().focus().toggleBold().run()}
+					>
+						<Bold size={15} />
+					</ToolbarButton>
+					<ToolbarButton
+						label="Italic"
+						active={editor.isActive("italic")}
+						onClick={() => editor.chain().focus().toggleItalic().run()}
+					>
+						<Italic size={15} />
+					</ToolbarButton>
+					<ToolbarButton
+						label="Bullets"
+						active={editor.isActive("bulletList")}
+						onClick={() => editor.chain().focus().toggleBulletList().run()}
+					>
+						<List size={15} />
+					</ToolbarButton>
+					<ToolbarButton
+						label="Numbers"
+						active={editor.isActive("orderedList")}
+						onClick={() => editor.chain().focus().toggleOrderedList().run()}
+					>
+						<ListOrdered size={15} />
+					</ToolbarButton>
+					<ToolbarButton
+						label="Quote"
+						active={editor.isActive("blockquote")}
+						onClick={() => editor.chain().focus().toggleBlockquote().run()}
+					>
+						<Quote size={15} />
+					</ToolbarButton>
+					<ToolbarButton
+						label="Link"
+						active={editor.isActive("link")}
+						onClick={() => {
+							const existing = editor.getAttributes("link").href as
+								| string
+								| undefined;
+							const href = window.prompt(
+								"Paste a URL or an internal Song Mode link.",
+								existing ?? "",
+							);
 
-						if (href === null) {
-							return;
-						}
+							if (href === null) {
+								return;
+							}
 
-						if (!href.trim()) {
-							editor.chain().focus().unsetLink().run();
-							return;
-						}
+							if (!href.trim()) {
+								editor.chain().focus().unsetLink().run();
+								return;
+							}
 
-						editor
-							.chain()
-							.focus()
-							.extendMarkRange("link")
-							.setLink({ href })
-							.run();
-					}}
-				>
-					<Link2 size={15} />
-				</ToolbarButton>
-				<ToolbarButton
-					label="Remove link"
-					active={false}
-					onClick={() => editor.chain().focus().unsetLink().run()}
-				>
-					<Unlink size={15} />
-				</ToolbarButton>
-			</div>
+							editor
+								.chain()
+								.focus()
+								.extendMarkRange("link")
+								.setLink({ href })
+								.run();
+						}}
+					>
+						<Link2 size={15} />
+					</ToolbarButton>
+					<ToolbarButton
+						label="Remove link"
+						active={false}
+						onClick={() => editor.chain().focus().unsetLink().run()}
+					>
+						<Unlink size={15} />
+					</ToolbarButton>
+				</div>
+			) : null}
 			<EditorContent editor={editor} />
 		</div>
 	);
