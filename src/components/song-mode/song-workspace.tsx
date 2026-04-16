@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ChevronLeft, ListMusic, Save, Upload, X } from "lucide-react";
+import { ChevronLeft, Save, Upload, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { isEditableElement } from "#/lib/song-mode/dom";
@@ -498,110 +498,100 @@ export function SongWorkspace({
 				aria-hidden={isUploadOpen}
 			>
 				<section className="grid gap-5 xl:grid-cols-[minmax(0,1.38fr)_420px_minmax(280px,400px)]">
-					<div className="panel-shell p-4 sm:p-5">
-						<div className="mb-4 flex items-center justify-between gap-3">
-							<p className="eyebrow">Waveform stack</p>
-							<span className="surface-chip inline-flex items-center gap-2 px-3 py-2 text-xs font-medium">
-								<ListMusic size={14} />
-								Shift+↑ / Shift+↓ jumps markers
-							</span>
-						</div>
+					<div className="space-y-4">
+						{audioFiles.length === 0 ? (
+							<div className="border border-dashed border-[var(--color-border-subtle)] px-6 py-10 text-sm leading-7 text-[var(--color-text-muted)]">
+								Add audio to start the stacked waveform review. Each file gets
+								its own notes, time markers, range annotations, and immediate
+								seek-and-play links.
+							</div>
+						) : (
+							audioFiles.map((audioFile) => (
+								<div
+									key={audioFile.id}
+									ref={(node) => {
+										itemRefs.current[audioFile.id] = node;
+									}}
+								>
+									<WaveformCard
+										audioFile={audioFile}
+										annotations={getAnnotationsForFile(audioFile.id)}
+										blob={blobsByAudioId[audioFile.id]}
+										currentTimeMs={
+											playback.currentTimeByFileId[audioFile.id] ??
+											workspace.playheadMsByFileId[audioFile.id] ??
+											0
+										}
+										isPlaying={
+											playback.activeFileId === audioFile.id &&
+											playback.isPlaying
+										}
+										isSelected={selectedFileId === audioFile.id}
+										activeAnnotationId={workspace.activeAnnotationId}
+										onSelectFile={(fileId) =>
+											void updateWorkspaceState(songId, {
+												selectedFileId: fileId,
+												activeAnnotationId: undefined,
+											})
+										}
+										onSelectAnnotation={(annotationId) =>
+											void updateWorkspaceState(songId, {
+												selectedFileId: audioFile.id,
+												activeAnnotationId: annotationId,
+											})
+										}
+										onCreateAnnotation={(annotationInput) =>
+											handleCreateAnnotation(audioFile.id, {
+												...annotationInput,
+												songId,
+												audioFileId: audioFile.id,
+											})
+										}
+										onSeek={(timeMs, autoplay) =>
+											seekFile(audioFile.id, timeMs, autoplay)
+										}
+										onTogglePlayback={() => togglePlayback(audioFile.id)}
+										onRegisterAudioElement={(element) =>
+											registerAudioElement(audioFile.id, element)
+										}
+										onReportPlayback={(patch) =>
+											reportPlaybackState(audioFile.id, patch)
+										}
+										onStepVolume={(deltaDb) =>
+											updateAudioFile(audioFile.id, {
+												volumeDb: normalizeVolumeDb(
+													audioFile.volumeDb + deltaDb,
+												),
+											})
+										}
+										onDragStart={() => setDraggingFileId(audioFile.id)}
+										onDragEnd={() => setDraggingFileId(null)}
+										onDrop={() => {
+											if (
+												!draggingFileId ||
+												draggingFileId === audioFile.id
+											) {
+												return;
+											}
 
-						<div className="space-y-4">
-							{audioFiles.length === 0 ? (
-								<div className="border border-dashed border-[var(--color-border-subtle)] px-6 py-10 text-sm leading-7 text-[var(--color-text-muted)]">
-									Add audio to start the stacked waveform review. Each file gets
-									its own notes, time markers, range annotations, and immediate
-									seek-and-play links.
-								</div>
-							) : (
-								audioFiles.map((audioFile) => (
-									<div
-										key={audioFile.id}
-										ref={(node) => {
-											itemRefs.current[audioFile.id] = node;
+											const orderedIds = [...audioFiles].map(
+												(entry) => entry.id,
+											);
+											const fromIndex = orderedIds.indexOf(draggingFileId);
+											const toIndex = orderedIds.indexOf(audioFile.id);
+											if (fromIndex === -1 || toIndex === -1) {
+												return;
+											}
+
+											orderedIds.splice(fromIndex, 1);
+											orderedIds.splice(toIndex, 0, draggingFileId);
+											setDraggingFileId(null);
+											void reorderAudioFiles(songId, orderedIds);
 										}}
-									>
-										<WaveformCard
-											audioFile={audioFile}
-											annotations={getAnnotationsForFile(audioFile.id)}
-											blob={blobsByAudioId[audioFile.id]}
-											currentTimeMs={
-												playback.currentTimeByFileId[audioFile.id] ??
-												workspace.playheadMsByFileId[audioFile.id] ??
-												0
-											}
-											isPlaying={
-												playback.activeFileId === audioFile.id &&
-												playback.isPlaying
-											}
-											isSelected={selectedFileId === audioFile.id}
-											activeAnnotationId={workspace.activeAnnotationId}
-											onSelectFile={(fileId) =>
-												void updateWorkspaceState(songId, {
-													selectedFileId: fileId,
-													activeAnnotationId: undefined,
-												})
-											}
-											onSelectAnnotation={(annotationId) =>
-												void updateWorkspaceState(songId, {
-													selectedFileId: audioFile.id,
-													activeAnnotationId: annotationId,
-												})
-											}
-											onCreateAnnotation={(annotationInput) =>
-												handleCreateAnnotation(audioFile.id, {
-													...annotationInput,
-													songId,
-													audioFileId: audioFile.id,
-												})
-											}
-											onSeek={(timeMs, autoplay) =>
-												seekFile(audioFile.id, timeMs, autoplay)
-											}
-											onTogglePlayback={() => togglePlayback(audioFile.id)}
-											onRegisterAudioElement={(element) =>
-												registerAudioElement(audioFile.id, element)
-											}
-											onReportPlayback={(patch) =>
-												reportPlaybackState(audioFile.id, patch)
-											}
-											onStepVolume={(deltaDb) =>
-												updateAudioFile(audioFile.id, {
-													volumeDb: normalizeVolumeDb(
-														audioFile.volumeDb + deltaDb,
-													),
-												})
-											}
-											onDragStart={() => setDraggingFileId(audioFile.id)}
-											onDragEnd={() => setDraggingFileId(null)}
-											onDrop={() => {
-												if (
-													!draggingFileId ||
-													draggingFileId === audioFile.id
-												) {
-													return;
-												}
-
-												const orderedIds = [...audioFiles].map(
-													(entry) => entry.id,
-												);
-												const fromIndex = orderedIds.indexOf(draggingFileId);
-												const toIndex = orderedIds.indexOf(audioFile.id);
-												if (fromIndex === -1 || toIndex === -1) {
-													return;
-												}
-
-												orderedIds.splice(fromIndex, 1);
-												orderedIds.splice(toIndex, 0, draggingFileId);
-												setDraggingFileId(null);
-												void reorderAudioFiles(songId, orderedIds);
-											}}
-										/>
-									</div>
-								))
-							)}
-						</div>
+									/>
+								</div>
+							))
+						)}
 					</div>
 
 					<div className="panel-shell p-4 sm:p-5">

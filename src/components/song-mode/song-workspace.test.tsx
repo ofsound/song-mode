@@ -211,6 +211,10 @@ describe("SongWorkspace", () => {
 		expect(
 			screen.getByText(/Add audio to start the stacked waveform review/i),
 		).toBeTruthy();
+		expect(screen.queryByText(/waveform stack/i)).toBeNull();
+		expect(
+			screen.queryByText(/Shift\+↑ \/ Shift\+↓ jumps markers/i),
+		).toBeNull();
 
 		currentAudioFiles = [createAudioFile()];
 		currentBlobsByAudioId = {
@@ -224,6 +228,10 @@ describe("SongWorkspace", () => {
 				"Mix v1:true",
 			);
 		});
+		expect(screen.queryByText(/waveform stack/i)).toBeNull();
+		expect(
+			screen.queryByText(/Shift\+↑ \/ Shift\+↓ jumps markers/i),
+		).toBeNull();
 
 		await waitFor(() => {
 			expect(updateWorkspaceStateMock).toHaveBeenCalledWith(baseSong.id, {
