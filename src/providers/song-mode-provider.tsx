@@ -22,11 +22,7 @@ import {
 	saveSettings,
 	saveSong,
 } from "#/lib/song-mode/db";
-import {
-	EMPTY_RICH_TEXT,
-	hasRichTextContent,
-	normalizeRichText,
-} from "#/lib/song-mode/rich-text";
+import { EMPTY_RICH_TEXT, normalizeRichText } from "#/lib/song-mode/rich-text";
 import { searchSongMode } from "#/lib/song-mode/search";
 import {
 	type AddAudioFileInput,
@@ -35,30 +31,23 @@ import {
 	type CreateAnnotationInput,
 	type CreateSongInput,
 	createDefaultWorkspaceState,
-	createEmptySettings,
-	type RichTextDoc,
 	type SearchResult,
 	type Song,
 	type SongModeSnapshot,
 	type WorkspaceState,
 } from "#/lib/song-mode/types";
 import {
-	clampTime,
 	generateWaveformFromFile,
-	hasRenderableWaveform,
 	normalizeVolumeDb,
-	normalizeWaveformData,
 } from "#/lib/song-mode/waveform";
-
-interface PlaybackState {
-	activeFileId?: string;
-	isPlaying: boolean;
-	currentTimeByFileId: Record<string, number>;
-}
-
-type LegacyAudioFileRecord = AudioFileRecord & {
-	masteringNote?: RichTextDoc | null;
-};
+import {
+	EMPTY_SNAPSHOT,
+	normalizeLoadedSnapshot,
+} from "./song-mode-provider-hydration";
+import {
+	type PlaybackState,
+	useSongModePlayback,
+} from "./use-song-mode-playback";
 
 interface SongModeContextValue extends SongModeSnapshot {
 	ready: boolean;
@@ -121,36 +110,19 @@ interface SongModeContextValue extends SongModeSnapshot {
 	) => Promise<Annotation | null>;
 }
 
-const EMPTY_SNAPSHOT: SongModeSnapshot = {
-	songs: [],
-	audioFiles: [],
-	annotations: [],
-	blobsByAudioId: {},
-	settings: createEmptySettings(),
-};
-
 const SongModeContext = createContext<SongModeContextValue | null>(null);
 
 export function SongModeProvider({ children }: { children: ReactNode }) {
 	const [snapshot, setSnapshot] = useState<SongModeSnapshot>(EMPTY_SNAPSHOT);
 	const [ready, setReady] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [playback, setPlayback] = useState<PlaybackState>({
-		isPlaying: false,
-		currentTimeByFileId: {},
-	});
 
 	const snapshotRef = useRef(snapshot);
-	const playbackRef = useRef(playback);
-	const audioRefs = useRef(new Map<string, HTMLAudioElement>());
+	const persistQueueRef = useRef<Promise<void>>(Promise.resolve());
 
 	useEffect(() => {
 		snapshotRef.current = snapshot;
 	}, [snapshot]);
-
-	useEffect(() => {
-		playbackRef.current = playback;
-	}, [playback]);
 
 	useEffect(() => {
 		if (typeof window === "undefined") {
@@ -164,51 +136,8 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 					return;
 				}
 
-				const audioFilesToPersist: AudioFileRecord[] = [];
-				const audioFiles = await Promise.all(
-					loadedSnapshot.audioFiles.map(async (audioFile) => {
-						const legacyAudioFile = audioFile as LegacyAudioFileRecord;
-						const { masteringNote, ...restAudioFile } = legacyAudioFile;
-						const normalizedAudioFile: AudioFileRecord = {
-							...restAudioFile,
-							notes: mergeAudioFileNotes(legacyAudioFile.notes, masteringNote),
-							volumeDb: normalizeVolumeDb(audioFile.volumeDb),
-							waveform: normalizeWaveformData(
-								audioFile.waveform,
-								audioFile.durationMs,
-							),
-						};
-						const hadLegacyMasteringNote = typeof masteringNote !== "undefined";
-
-						if (hasRenderableWaveform(audioFile.waveform)) {
-							if (hadLegacyMasteringNote) {
-								audioFilesToPersist.push(normalizedAudioFile);
-							}
-							return normalizedAudioFile;
-						}
-
-						const blob = loadedSnapshot.blobsByAudioId[audioFile.id];
-						if (!(blob instanceof Blob)) {
-							if (hadLegacyMasteringNote) {
-								audioFilesToPersist.push(normalizedAudioFile);
-							}
-							return normalizedAudioFile;
-						}
-
-						try {
-							const repairedWaveform = await generateWaveformFromFile(blob);
-							const repairedAudioFile: AudioFileRecord = {
-								...normalizedAudioFile,
-								durationMs: repairedWaveform.durationMs,
-								waveform: repairedWaveform,
-							};
-							audioFilesToPersist.push(repairedAudioFile);
-							return repairedAudioFile;
-						} catch {
-							return normalizedAudioFile;
-						}
-					}),
-				);
+				const { audioFilesToPersist, normalizedSnapshot } =
+					await normalizeLoadedSnapshot(loadedSnapshot);
 
 				if (audioFilesToPersist.length > 0) {
 					await Promise.all(
@@ -220,29 +149,9 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 					return;
 				}
 
-				const normalized: SongModeSnapshot = {
-					...loadedSnapshot,
-					songs: loadedSnapshot.songs.map((song) => ({
-						id: song.id,
-						title: song.title,
-						artist: song.artist,
-						project: song.project,
-						generalNotes: normalizeRichText(song.generalNotes),
-						audioFileOrder: song.audioFileOrder,
-						createdAt: song.createdAt,
-						updatedAt: song.updatedAt,
-					})),
-					audioFiles,
-					annotations: loadedSnapshot.annotations.map((annotation) => ({
-						...annotation,
-						body: normalizeRichText(annotation.body),
-					})),
-					settings: loadedSnapshot.settings ?? createEmptySettings(),
-				};
-
-				snapshotRef.current = normalized;
+				snapshotRef.current = normalizedSnapshot;
 				startTransition(() => {
-					setSnapshot(normalized);
+					setSnapshot(normalizedSnapshot);
 					setReady(true);
 				});
 			})
@@ -271,10 +180,31 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 		) => {
 			const current = snapshotRef.current;
 			const next = updater(current);
-			await persist(next);
 			snapshotRef.current = next;
 			setSnapshot(next);
-			return next;
+
+			const persistTask = persistQueueRef.current
+				.catch(() => undefined)
+				.then(async () => {
+					await persist(next);
+				});
+
+			persistQueueRef.current = persistTask.then(
+				() => undefined,
+				() => undefined,
+			);
+
+			try {
+				await persistTask;
+				return next;
+			} catch (persistError) {
+				setError(
+					persistError instanceof Error
+						? persistError.message
+						: "Song Mode could not save the latest changes.",
+				);
+				throw persistError;
+			}
 		},
 		[],
 	);
@@ -329,6 +259,22 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 			createDefaultWorkspaceState()
 		);
 	}, []);
+
+	const {
+		audioRefs,
+		jumpBetweenAnnotations,
+		playback,
+		registerAudioElement,
+		reportPlaybackState,
+		seekActiveBy,
+		seekFile,
+		setPlayback,
+		togglePlayback,
+	} = useSongModePlayback({
+		getAnnotationsForFile,
+		getWorkspaceState,
+		snapshotRef,
+	});
 
 	const search = useCallback(
 		(query: string) =>
@@ -415,6 +361,38 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 		[commitSnapshot],
 	);
 
+	const removeRegisteredAudio = useCallback(
+		(audioFileIds: string[]) => {
+			for (const fileId of audioFileIds) {
+				audioRefs.current.delete(fileId);
+			}
+		},
+		[audioRefs],
+	);
+
+	const prunePlaybackState = useCallback(
+		(audioFileIds: string[]) => {
+			setPlayback((current) => {
+				const nextCurrentTimeByFileId = { ...current.currentTimeByFileId };
+				let activeDeleted = false;
+
+				for (const fileId of audioFileIds) {
+					delete nextCurrentTimeByFileId[fileId];
+					if (current.activeFileId === fileId) {
+						activeDeleted = true;
+					}
+				}
+
+				return {
+					activeFileId: activeDeleted ? undefined : current.activeFileId,
+					isPlaying: activeDeleted ? false : current.isPlaying,
+					currentTimeByFileId: nextCurrentTimeByFileId,
+				};
+			});
+		},
+		[setPlayback],
+	);
+
 	const deleteSong = useCallback(
 		async (songId: string) => {
 			let deletedAudioFileIds: string[] = [];
@@ -479,29 +457,10 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 				return;
 			}
 
-			for (const fileId of deletedAudioFileIds) {
-				audioRefs.current.delete(fileId);
-			}
-
-			setPlayback((current) => {
-				const nextCurrentTimeByFileId = { ...current.currentTimeByFileId };
-				let activeDeleted = false;
-
-				for (const fileId of deletedAudioFileIds) {
-					delete nextCurrentTimeByFileId[fileId];
-					if (current.activeFileId === fileId) {
-						activeDeleted = true;
-					}
-				}
-
-				return {
-					activeFileId: activeDeleted ? undefined : current.activeFileId,
-					isPlaying: activeDeleted ? false : current.isPlaying,
-					currentTimeByFileId: nextCurrentTimeByFileId,
-				};
-			});
+			removeRegisteredAudio(deletedAudioFileIds);
+			prunePlaybackState(deletedAudioFileIds);
 		},
-		[commitSnapshot],
+		[commitSnapshot, prunePlaybackState, removeRegisteredAudio],
 	);
 
 	const addAudioFile = useCallback(
@@ -690,20 +649,10 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 				return;
 			}
 
-			audioRefs.current.delete(audioFileId);
-			setPlayback((current) => {
-				const nextCurrentTimeByFileId = { ...current.currentTimeByFileId };
-				delete nextCurrentTimeByFileId[audioFileId];
-				const activeDeleted = current.activeFileId === audioFileId;
-
-				return {
-					activeFileId: activeDeleted ? undefined : current.activeFileId,
-					isPlaying: activeDeleted ? false : current.isPlaying,
-					currentTimeByFileId: nextCurrentTimeByFileId,
-				};
-			});
+			removeRegisteredAudio([audioFileId]);
+			prunePlaybackState([audioFileId]);
 		},
-		[commitSnapshot],
+		[commitSnapshot, prunePlaybackState, removeRegisteredAudio],
 	);
 
 	const reorderAudioFiles = useCallback(
@@ -880,168 +829,6 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 		[commitSnapshot],
 	);
 
-	const pauseOtherAudio = useCallback((currentFileId?: string) => {
-		for (const [fileId, element] of audioRefs.current.entries()) {
-			if (fileId !== currentFileId && !element.paused) {
-				element.pause();
-			}
-		}
-	}, []);
-
-	const registerAudioElement = useCallback(
-		(fileId: string, element: HTMLAudioElement | null) => {
-			if (element) {
-				audioRefs.current.set(fileId, element);
-			} else {
-				audioRefs.current.delete(fileId);
-			}
-		},
-		[],
-	);
-
-	const reportPlaybackState = useCallback(
-		(
-			fileId: string,
-			patch: {
-				isPlaying?: boolean;
-				currentTimeMs?: number;
-			},
-		) => {
-			setPlayback((current) => ({
-				activeFileId:
-					patch.isPlaying || current.activeFileId === fileId
-						? fileId
-						: current.activeFileId,
-				isPlaying:
-					typeof patch.isPlaying === "boolean"
-						? patch.isPlaying
-						: current.activeFileId === fileId
-							? current.isPlaying
-							: false,
-				currentTimeByFileId:
-					typeof patch.currentTimeMs === "number"
-						? {
-								...current.currentTimeByFileId,
-								[fileId]: patch.currentTimeMs,
-							}
-						: current.currentTimeByFileId,
-			}));
-		},
-		[],
-	);
-
-	const togglePlayback = useCallback(
-		async (fileId: string) => {
-			const element = audioRefs.current.get(fileId);
-			if (!element) {
-				return;
-			}
-
-			if (!element.paused) {
-				element.pause();
-				reportPlaybackState(fileId, {
-					isPlaying: false,
-					currentTimeMs: element.currentTime * 1000,
-				});
-				return;
-			}
-
-			pauseOtherAudio(fileId);
-			await element.play().catch(() => undefined);
-			reportPlaybackState(fileId, {
-				isPlaying: true,
-				currentTimeMs: element.currentTime * 1000,
-			});
-		},
-		[pauseOtherAudio, reportPlaybackState],
-	);
-
-	const seekFile = useCallback(
-		async (fileId: string, timeMs: number, autoplay = false) => {
-			const element = audioRefs.current.get(fileId);
-			const audioFile = snapshotRef.current.audioFiles.find(
-				(entry) => entry.id === fileId,
-			);
-			if (!element || !audioFile) {
-				return;
-			}
-
-			const boundedTime = clampTime(timeMs, audioFile.durationMs);
-			element.currentTime = boundedTime / 1000;
-			reportPlaybackState(fileId, {
-				currentTimeMs: boundedTime,
-			});
-
-			if (autoplay) {
-				pauseOtherAudio(fileId);
-				await element.play().catch(() => undefined);
-				reportPlaybackState(fileId, {
-					isPlaying: true,
-					currentTimeMs: boundedTime,
-				});
-			}
-		},
-		[pauseOtherAudio, reportPlaybackState],
-	);
-
-	const seekActiveBy = useCallback(
-		async (deltaMs: number) => {
-			const activeFileId = playbackRef.current.activeFileId;
-			if (!activeFileId) {
-				return;
-			}
-
-			const currentTime =
-				playbackRef.current.currentTimeByFileId[activeFileId] ?? 0;
-			await seekFile(
-				activeFileId,
-				currentTime + deltaMs,
-				playbackRef.current.isPlaying,
-			);
-		},
-		[seekFile],
-	);
-
-	const jumpBetweenAnnotations = useCallback(
-		async (
-			songId: string,
-			audioFileId: string,
-			direction: "previous" | "next",
-		) => {
-			const annotations = getAnnotationsForFile(audioFileId);
-			if (!annotations.length) {
-				return null;
-			}
-
-			const workspace = getWorkspaceState(songId);
-			const currentTime =
-				playbackRef.current.currentTimeByFileId[audioFileId] ??
-				workspace.playheadMsByFileId[audioFileId] ??
-				0;
-
-			let target: Annotation | undefined;
-			if (direction === "next") {
-				target = annotations.find(
-					(annotation) => annotation.startMs > currentTime + 200,
-				);
-				target ??= annotations[0];
-			} else {
-				target = [...annotations]
-					.reverse()
-					.find((annotation) => annotation.startMs < currentTime - 200);
-				target ??= annotations.at(-1);
-			}
-
-			if (!target) {
-				return null;
-			}
-
-			await seekFile(audioFileId, target.startMs, true);
-			return target;
-		},
-		[getAnnotationsForFile, getWorkspaceState, seekFile],
-	);
-
 	const value = useMemo<SongModeContextValue>(
 		() => ({
 			...snapshot,
@@ -1134,28 +921,4 @@ export function useSongModeError() {
 
 export function useSongModeRichTextFallback() {
 	return EMPTY_RICH_TEXT;
-}
-
-function mergeAudioFileNotes(
-	notes?: RichTextDoc | null,
-	legacyMasteringNote?: RichTextDoc | null,
-): RichTextDoc {
-	const normalizedNotes = normalizeRichText(notes);
-	const normalizedLegacyMastering = normalizeRichText(legacyMasteringNote);
-
-	if (!hasRichTextContent(normalizedNotes)) {
-		return normalizedLegacyMastering;
-	}
-
-	if (!hasRichTextContent(normalizedLegacyMastering)) {
-		return normalizedNotes;
-	}
-
-	return {
-		type: "doc",
-		content: [
-			...(normalizedNotes.content ?? []),
-			...(normalizedLegacyMastering.content ?? []),
-		],
-	};
 }

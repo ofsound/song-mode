@@ -1,0 +1,14 @@
+---
+description: Tailwind and theme tokens for Song Mode UI
+globs: "**/*.{tsx,css}"
+alwaysApply: false
+---
+
+# Tailwind
+
+- Use Tailwind CSS in JSX; avoid large one-off `<style>` blocks unless necessary—prefer utilities and `src/styles.css` theme tokens.
+- Do **not** use `space-y-*` or `space-x-*`; use flex or grid with `gap-*` instead.
+- Avoid arbitrary values when an existing utility class is close to the desired value.
+- Use the **semantic color system** in `src/styles.css` (`@theme`, `light-dark(...)`, CSS variables such as `--color-surface`, `--color-text`, etc.).
+- Do **not** introduce new colors that break the existing light/dark semantic system—extend `styles.css` coherently if new tokens are required.
+- Reuse existing component patterns in `src/components/song-mode/` for buttons, cards, and chrome instead of inventing divergent styles.

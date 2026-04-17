@@ -141,7 +141,9 @@ describe("RichTextEditor", () => {
 
 		const journalEditor = await screen.findByTestId("rich-text-editor-journal");
 		const toolbar = journalEditor.querySelector("[data-song-mode-toolbar]");
-		const scrollRegion = journalEditor.querySelector(".song-editor-scroll-region");
+		const scrollRegion = journalEditor.querySelector(
+			".song-editor-scroll-region",
+		);
 		const editorBody = journalEditor.querySelector(".song-editor");
 
 		expect(toolbar).toBeTruthy();
@@ -165,7 +167,9 @@ describe("RichTextEditor", () => {
 			/>,
 		);
 
-		fireEvent.click(await screen.findByRole("link", { name: "Marker shortcut" }));
+		fireEvent.click(
+			await screen.findByRole("link", { name: "Marker shortcut" }),
+		);
 
 		expect(onInternalLink).toHaveBeenCalledWith({
 			songId: "song-1",
@@ -214,7 +218,9 @@ describe("RichTextEditor", () => {
 			/>,
 		);
 
-		fireEvent.click(await screen.findByRole("link", { name: "Absolute marker" }));
+		fireEvent.click(
+			await screen.findByRole("link", { name: "Absolute marker" }),
+		);
 
 		expect(onInternalLink).toHaveBeenCalledWith({
 			songId: "song-1",

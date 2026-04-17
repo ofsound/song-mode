@@ -1,0 +1,15 @@
+---
+description: Run Biome check and Vitest after code edits; fix issues before finishing
+alwaysApply: true
+---
+
+# Post-Edit Verification
+
+After editing any `.ts` or `.tsx` file in `src/`:
+
+1. Run **`pnpm check`** (Biome: `biome check`)
+2. Run **`pnpm test`** (Vitest)
+
+Fix any reported issues — do not consider the task complete until both pass for the touched areas.
+
+For DOM/component tests, use `// @vitest-environment jsdom` at the top of the file when the test needs a browser-like environment (see existing `*.test.tsx` files).

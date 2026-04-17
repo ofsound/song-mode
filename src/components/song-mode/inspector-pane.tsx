@@ -153,15 +153,31 @@ export function InspectorPane({
 							}
 
 							return (
+								/* biome-ignore lint/a11y/useSemanticElements: marker cards contain nested inputs and editors, so a semantic button wrapper is not valid */
 								<div
 									key={annotation.id}
 									data-testid={`marker-card-${annotation.id}`}
+									role="button"
+									tabIndex={0}
+									aria-pressed={activeAnnotation?.id === annotation.id}
 									className={`marker-card border text-left transition-[border-color,background-color,box-shadow] duration-150 ${
 										activeAnnotation?.id === annotation.id
 											? "marker-card--selected border-[var(--color-border-strong)] bg-[var(--color-surface-selected)]"
 											: "border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)]"
 									}`}
 									onClick={handleMarkerCardClick}
+									onKeyDown={(event) => {
+										if (event.target !== event.currentTarget) {
+											return;
+										}
+
+										if (event.key !== "Enter" && event.key !== " ") {
+											return;
+										}
+
+										event.preventDefault();
+										activateAnnotation();
+									}}
 								>
 									<div className="marker-play-cell" aria-hidden="true" />
 									<div className="marker-row">
@@ -214,28 +230,28 @@ export function InspectorPane({
 											placeholder="Untitled marker"
 											aria-label="Title"
 										/>
-											<button
-												type="button"
-												onClick={(event) => {
-													event.stopPropagation();
-													const fileLabel =
-														selectedFile?.title.trim() || "Untitled file";
-													const markerLabel =
-														annotation.title.trim() ||
-														(annotation.type === "range"
-															? "Untitled range"
-															: "Untitled marker");
-													void copyLink(
-														{
-															songId: song.id,
-															fileId: annotation.audioFileId,
-															annotationId: annotation.id,
-															timeMs: annotation.startMs,
-															autoplay: true,
-														},
-														`${fileLabel} - ${markerLabel}`,
-													);
-												}}
+										<button
+											type="button"
+											onClick={(event) => {
+												event.stopPropagation();
+												const fileLabel =
+													selectedFile?.title.trim() || "Untitled file";
+												const markerLabel =
+													annotation.title.trim() ||
+													(annotation.type === "range"
+														? "Untitled range"
+														: "Untitled marker");
+												void copyLink(
+													{
+														songId: song.id,
+														fileId: annotation.audioFileId,
+														annotationId: annotation.id,
+														timeMs: annotation.startMs,
+														autoplay: true,
+													},
+													`${fileLabel} - ${markerLabel}`,
+												);
+											}}
 											className="icon-button icon-button--sm shrink-0"
 											title="Copy link"
 										>

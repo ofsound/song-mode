@@ -1,9 +1,8 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ChevronLeft, Save, Upload, X } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { isoDateInLocalCalendar } from "#/lib/song-mode/dates";
-import { isEditableElement } from "#/lib/song-mode/dom";
 import { targetToRouteSearch } from "#/lib/song-mode/links";
 import { findCrossedAnnotation } from "#/lib/song-mode/playback";
 import { plainTextToRichText } from "#/lib/song-mode/rich-text";
@@ -13,6 +12,9 @@ import { useSongMode } from "#/providers/song-mode-provider";
 import { useSongRouteHeaderSlot } from "./app-chrome";
 import { InspectorPane } from "./inspector-pane";
 import { RichTextEditor, type RichTextToolbarAction } from "./rich-text-editor";
+import { SongWorkspaceHeaderControls } from "./song-workspace-header-controls";
+import { useSongWorkspaceShortcuts } from "./song-workspace-shortcuts";
+import { SongWorkspaceUploadDialog } from "./song-workspace-upload-dialog";
 import { WaveformCard } from "./waveform-card";
 
 export function SongWorkspace({
@@ -92,6 +94,7 @@ export function SongWorkspace({
 		fileId?: string;
 		timeMs?: number;
 	}>({});
+	const rememberedSongIdRef = useRef<string | null>(null);
 
 	const patchRouteSelection = useCallback(
 		(options: {
@@ -136,6 +139,11 @@ export function SongWorkspace({
 			return;
 		}
 
+		if (rememberedSongIdRef.current === songId) {
+			return;
+		}
+
+		rememberedSongIdRef.current = songId;
 		void rememberSongOpened(songId);
 	}, [ready, rememberSongOpened, song, songId]);
 
@@ -229,7 +237,10 @@ export function SongWorkspace({
 		}
 
 		const previous = lastPlaybackPositionRef.current;
-		if (previous.fileId !== activeFileId || typeof previous.timeMs !== "number") {
+		if (
+			previous.fileId !== activeFileId ||
+			typeof previous.timeMs !== "number"
+		) {
 			lastPlaybackPositionRef.current = {
 				fileId: activeFileId,
 				timeMs: nextTimeMs,
@@ -337,109 +348,17 @@ export function SongWorkspace({
 		};
 	}, [isUploadOpen]);
 
-	useEffect(() => {
-		const handleKeyDown = (event: KeyboardEvent) => {
-			if (isUploadOpen) {
-				if (event.key === "Escape") {
-					event.preventDefault();
-					setIsUploadOpen(false);
-				}
-				return;
-			}
-
-			if (isEditableElement(event.target)) {
-				return;
-			}
-
-			if (!selectedFileId) {
-				return;
-			}
-
-			if (event.key === " ") {
-				event.preventDefault();
-				void togglePlayback(selectedFileId);
-			}
-
-			if (
-				event.key === "ArrowLeft" ||
-				event.key === "," ||
-				event.code === "Comma"
-			) {
-				event.preventDefault();
-				void seekActiveBy(-5000);
-			}
-
-			if (
-				event.key === "ArrowRight" ||
-				event.key === "." ||
-				event.code === "Period"
-			) {
-				event.preventDefault();
-				void seekActiveBy(5000);
-			}
-
-			if (event.shiftKey && event.key === "ArrowUp") {
-				event.preventDefault();
-				void jumpBetweenAnnotations(songId, selectedFileId, "previous").then(
-					(annotation) => {
-						if (annotation) {
-							void updateWorkspaceState(songId, {
-								activeAnnotationId: annotation.id,
-							});
-							patchRouteSelection({
-								fileId: selectedFileId,
-								annotationId: annotation.id,
-								clearPlaybackParams: true,
-							});
-						}
-					},
-				);
-			}
-
-			if (event.shiftKey && event.key === "ArrowDown") {
-				event.preventDefault();
-				void jumpBetweenAnnotations(songId, selectedFileId, "next").then(
-					(annotation) => {
-						if (annotation) {
-							void updateWorkspaceState(songId, {
-								activeAnnotationId: annotation.id,
-							});
-							patchRouteSelection({
-								fileId: selectedFileId,
-								annotationId: annotation.id,
-								clearPlaybackParams: true,
-							});
-						}
-					},
-				);
-			}
-
-			if (event.shiftKey && event.key.toLowerCase() === "j") {
-				event.preventDefault();
-				const journalNode = document.querySelector(
-					'[data-song-mode-editor="journal"] .ProseMirror',
-				);
-
-				if (journalNode instanceof HTMLElement) {
-					journalNode.focus();
-				}
-			}
-		};
-
-		window.addEventListener("keydown", handleKeyDown);
-		return () => {
-			window.removeEventListener("keydown", handleKeyDown);
-		};
-	}, [
+	useSongWorkspaceShortcuts({
 		isUploadOpen,
 		jumpBetweenAnnotations,
+		onCloseUpload: () => setIsUploadOpen(false),
 		patchRouteSelection,
 		seekActiveBy,
 		selectedFileId,
 		songId,
 		togglePlayback,
 		updateWorkspaceState,
-	]);
+	});
 
 	async function openTarget(target: SongLinkTarget) {
 		if (target.songId !== songId) {
@@ -565,7 +484,7 @@ export function SongWorkspace({
 
 	if (!ready) {
 		return (
-			<main className="w-full px-3 py-8">
+			<main className="song-mode-main">
 				<section className="panel-shell px-6 py-8 text-sm text-[var(--color-text-muted)]">
 					Loading song workspace...
 				</section>
@@ -575,7 +494,7 @@ export function SongWorkspace({
 
 	if (!song) {
 		return (
-			<main className="w-full px-3 py-8">
+			<main className="song-mode-main">
 				<section className="panel-shell px-6 py-8">
 					<p className="eyebrow mb-3">Missing song</p>
 					<h1 className="text-3xl font-semibold text-[var(--color-text)]">
@@ -594,60 +513,11 @@ export function SongWorkspace({
 	}
 
 	const songHeaderControls = (
-		<div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-center xl:justify-start">
-			<div className="min-w-0 max-w-[450px] xl:min-w-[18rem] xl:flex-[1.35]">
-				<input
-					value={song.title}
-					onChange={(event) =>
-						void updateSong(song.id, {
-							title: event.target.value,
-						})
-					}
-					className="field-input h-12 px-3 py-0 text-lg font-bold leading-none text-[var(--color-text)]"
-					placeholder="Song title"
-					aria-label="Song title"
-				/>
-			</div>
-
-			<div className="min-w-0 xl:w-[10rem] xl:shrink-0">
-				<input
-					value={song.artist}
-					onChange={(event) =>
-						void updateSong(song.id, {
-							artist: event.target.value,
-						})
-					}
-					className="field-input h-12 px-3 py-0 text-sm font-bold leading-none"
-					placeholder="Artist"
-					aria-label="Artist"
-				/>
-			</div>
-
-			<div className="min-w-0 xl:w-[10rem] xl:shrink-0">
-				<input
-					value={song.project}
-					onChange={(event) =>
-						void updateSong(song.id, {
-							project: event.target.value,
-						})
-					}
-					className="field-input h-12 px-3 py-0 text-sm font-bold leading-none"
-					placeholder="Project"
-					aria-label="Project"
-				/>
-			</div>
-
-			<div className="flex shrink-0 flex-wrap items-center gap-3">
-				<button
-					type="button"
-					onClick={() => setIsUploadOpen(true)}
-					className="action-primary inline-flex h-12 shrink-0 items-center justify-center gap-2 px-5 text-sm font-semibold leading-none"
-				>
-					<Upload size={16} />
-					Add file
-				</button>
-			</div>
-		</div>
+		<SongWorkspaceHeaderControls
+			song={song}
+			onOpenUpload={() => setIsUploadOpen(true)}
+			onUpdateSong={(patch) => updateSong(song.id, patch)}
+		/>
 	);
 
 	const renderedSongHeaderControls = songRouteHeaderSlot?.slot ? (
@@ -660,7 +530,7 @@ export function SongWorkspace({
 		<>
 			{renderedSongHeaderControls}
 			<main
-				className={`flex min-h-0 w-full flex-1 flex-col gap-6 overflow-y-auto px-3 py-8 transition-[filter,opacity] duration-200 xl:overflow-hidden ${
+				className={`song-workspace-main ${
 					isUploadOpen ? "pointer-events-none blur-[3px] opacity-45" : ""
 				}`}
 				aria-hidden={isUploadOpen}
@@ -827,105 +697,25 @@ export function SongWorkspace({
 			</main>
 
 			{isUploadOpen && (
-				<div className="song-modal">
-					<button
-						type="button"
-						aria-label="Dismiss upload dialog"
-						onClick={() => setIsUploadOpen(false)}
-						className="song-modal__backdrop"
-					/>
-					<div
-						role="dialog"
-						aria-modal="true"
-						aria-labelledby="upload-audio-title"
-						className="song-modal__panel rise-in w-full max-w-[min(96rem,calc(100vw-2rem))]"
-					>
-						<div className="flex items-start justify-between gap-4 border-b border-[var(--color-border-subtle)] px-5 py-4 sm:px-6">
-							<div className="min-w-0">
-								<p className="eyebrow mb-2">Audio import</p>
-								<h2
-									id="upload-audio-title"
-									className="text-2xl font-semibold text-[var(--color-text)]"
-								>
-									Add file
-								</h2>
-							</div>
-							<button
-								type="button"
-								aria-label="Close upload dialog"
-								onClick={() => setIsUploadOpen(false)}
-								className="icon-button shrink-0"
-							>
-								<X size={16} />
-							</button>
-						</div>
-
-						<form className="grid gap-4 p-5 sm:p-6" onSubmit={handleUpload}>
-							<label className="grid gap-2">
-								<span className="field-label">Audio file</span>
-								<input
-									type="file"
-									accept="audio/*"
-									onChange={(event) => {
-										const nextFile = event.target.files?.[0] ?? null;
-										setUploadFile(nextFile);
-										if (nextFile && !uploadTitle) {
-											setUploadTitle(nextFile.name.replace(/\.[^.]+$/, ""));
-										}
-									}}
-									className="field-input py-3"
-								/>
-							</label>
-							<label className="grid gap-2">
-								<span className="field-label">Display title</span>
-								<input
-									value={uploadTitle}
-									onChange={(event) => setUploadTitle(event.target.value)}
-									placeholder="Mix v3, ref print, master candidate..."
-									className="field-input"
-								/>
-							</label>
-							<label className="grid gap-2">
-								<span className="field-label">Notes</span>
-								<textarea
-									value={uploadNotes}
-									onChange={(event) => setUploadNotes(event.target.value)}
-									rows={3}
-									placeholder="Context for this file"
-									className="field-input resize-y"
-								/>
-							</label>
-							<label className="grid gap-2">
-								<span className="field-label">Date</span>
-								<input
-									type="date"
-									value={uploadSessionDate}
-									onChange={(event) => setUploadSessionDate(event.target.value)}
-									className="field-input"
-								/>
-							</label>
-							<div className="flex flex-wrap items-center justify-between gap-3">
-								<div className="text-sm text-[var(--color-text-muted)]">
-									Large files decode in-browser, and peak data is cached locally
-									in IndexedDB for future visits.
-								</div>
-								<button
-									type="submit"
-									disabled={uploading || !uploadFile}
-									className="action-primary inline-flex items-center gap-2 px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-55"
-								>
-									<Save size={15} />
-									{uploading ? "Importing audio..." : "Import into song"}
-								</button>
-							</div>
-							{uploadError && (
-								<div className="callout-danger px-4 py-3 text-sm">
-									{uploadError}
-								</div>
-							)}
-						</form>
-					</div>
-				</div>
+				<SongWorkspaceUploadDialog
+					uploadFile={uploadFile}
+					uploadTitle={uploadTitle}
+					uploadNotes={uploadNotes}
+					uploadSessionDate={uploadSessionDate}
+					uploading={uploading}
+					uploadError={uploadError}
+					onClose={() => setIsUploadOpen(false)}
+					onSubmit={handleUpload}
+					onFileChange={(nextFile) => {
+						setUploadFile(nextFile);
+						if (nextFile && !uploadTitle) {
+							setUploadTitle(nextFile.name.replace(/\.[^.]+$/, ""));
+						}
+					}}
+					onUploadTitleChange={setUploadTitle}
+					onUploadNotesChange={setUploadNotes}
+					onUploadSessionDateChange={setUploadSessionDate}
+				/>
 			)}
 		</>
 	);

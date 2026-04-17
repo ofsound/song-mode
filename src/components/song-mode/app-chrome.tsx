@@ -85,8 +85,8 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 		songTitle,
 	});
 	const shellClassName = isSongRoute
-		? "flex h-[100dvh] min-h-screen flex-col overflow-hidden bg-[var(--color-app)] text-[var(--color-text)]"
-		: "min-h-screen bg-[var(--color-app)] text-[var(--color-text)]";
+		? "song-mode-shell song-mode-shell--workspace"
+		: "song-mode-shell";
 	const headerClassName = isSongRoute
 		? "header-shell z-30 shrink-0"
 		: "header-shell sticky top-0 z-30";

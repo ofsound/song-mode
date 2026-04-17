@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_RICH_TEXT } from "#/lib/song-mode/rich-text";
 import type { Annotation, AudioFileRecord, Song } from "#/lib/song-mode/types";
@@ -245,6 +251,23 @@ describe("InspectorPane", () => {
 		fireEvent.click(screen.getByDisplayValue("Marker 0:54"));
 		expect(onOpenTarget).not.toHaveBeenCalled();
 		expect(onSelectAnnotation).not.toHaveBeenCalled();
+	});
+
+	it("supports keyboard activation from the marker card itself", () => {
+		const { onOpenTarget, onSelectAnnotation } = renderInspector();
+
+		const markerCard = screen.getByTestId("marker-card-annotation-1");
+		markerCard.focus();
+		fireEvent.keyDown(markerCard, { key: "Enter" });
+
+		expect(onSelectAnnotation).toHaveBeenCalledWith("annotation-1");
+		expect(onOpenTarget).toHaveBeenCalledWith({
+			songId: "song-1",
+			fileId: "file-1",
+			annotationId: "annotation-1",
+			timeMs: 54000,
+			autoplay: true,
+		});
 	});
 
 	it("copies a rich hyperlink payload with a clean marker label", async () => {

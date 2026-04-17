@@ -1,0 +1,147 @@
+import { type MutableRefObject, useEffect } from "react";
+import type { WaveformData } from "#/lib/song-mode/types";
+
+interface UseWaveformCanvasOptions {
+	canvasRef: MutableRefObject<HTMLCanvasElement | null>;
+	surfaceRef: MutableRefObject<HTMLDivElement | null>;
+	waveform: WaveformData;
+	currentTimeMs: number;
+	isSelected: boolean;
+	mode: "seek" | "point" | "range";
+	rangeAnchorMs: number | null;
+	theme: string;
+}
+
+export function useWaveformCanvas({
+	canvasRef,
+	surfaceRef,
+	waveform,
+	currentTimeMs,
+	isSelected,
+	mode,
+	rangeAnchorMs,
+	theme,
+}: UseWaveformCanvasOptions) {
+	useEffect(() => {
+		const canvas = canvasRef.current;
+		const surface = surfaceRef.current;
+		void theme;
+		if (!canvas || !surface) {
+			return;
+		}
+
+		const context = canvas.getContext("2d");
+		if (!context) {
+			return;
+		}
+
+		const draw = () => {
+			const width = Math.round(surface.clientWidth);
+			const height = 164;
+			if (width <= 0) {
+				return false;
+			}
+
+			const ratio = window.devicePixelRatio || 1;
+			const styles = window.getComputedStyle(surface);
+			const readColor = (name: string) =>
+				styles.getPropertyValue(name).trim() || "transparent";
+			canvas.width = width * ratio;
+			canvas.height = height * ratio;
+			canvas.style.width = `${width}px`;
+			canvas.style.height = `${height}px`;
+
+			context.setTransform(ratio, 0, 0, ratio, 0, 0);
+			context.clearRect(0, 0, width, height);
+
+			context.fillStyle = readColor("--canvas-waveform-surface");
+			context.fillRect(0, 0, width, height);
+
+			context.strokeStyle = readColor("--canvas-waveform-grid");
+			context.lineWidth = 1;
+			context.beginPath();
+			context.moveTo(0, height / 2);
+			context.lineTo(width, height / 2);
+			context.stroke();
+
+			const peaks = waveform.peaks;
+			const step = width / Math.max(peaks.length, 1);
+			const middle = height / 2;
+
+			for (let index = 0; index < peaks.length; index += 1) {
+				const peak = peaks[index] ?? 0;
+				const x = index * step;
+				const y = Math.max(2, peak * (height * 0.42));
+
+				context.strokeStyle = isSelected
+					? readColor("--canvas-waveform-selected")
+					: readColor("--canvas-waveform-base");
+				context.lineWidth = Math.max(1, step * 0.68);
+				context.beginPath();
+				context.moveTo(x, middle - y);
+				context.lineTo(x, middle + y);
+				context.stroke();
+			}
+
+			const progressX =
+				width * (currentTimeMs / Math.max(waveform.durationMs, 1));
+			context.fillStyle = readColor("--canvas-waveform-progress");
+			context.fillRect(0, 0, progressX, height);
+			context.strokeStyle = readColor("--canvas-waveform-progress-line");
+			context.lineWidth = 2;
+			context.beginPath();
+			context.moveTo(progressX, 0);
+			context.lineTo(progressX, height);
+			context.stroke();
+
+			if (mode === "range" && rangeAnchorMs !== null) {
+				const anchorX =
+					width * (rangeAnchorMs / Math.max(waveform.durationMs, 1));
+				context.strokeStyle = readColor("--canvas-waveform-range");
+				context.setLineDash([7, 5]);
+				context.beginPath();
+				context.moveTo(anchorX, 0);
+				context.lineTo(anchorX, height);
+				context.stroke();
+				context.setLineDash([]);
+			}
+			return true;
+		};
+
+		let frameId = 0;
+		const scheduleDraw = () => {
+			if (frameId) {
+				window.cancelAnimationFrame(frameId);
+			}
+
+			frameId = window.requestAnimationFrame(() => {
+				if (!draw()) {
+					frameId = window.requestAnimationFrame(() => {
+						draw();
+					});
+				}
+			});
+		};
+
+		const observer = new ResizeObserver(scheduleDraw);
+		observer.observe(surface);
+		scheduleDraw();
+
+		return () => {
+			observer.disconnect();
+			if (frameId) {
+				window.cancelAnimationFrame(frameId);
+			}
+		};
+	}, [
+		canvasRef,
+		currentTimeMs,
+		isSelected,
+		mode,
+		rangeAnchorMs,
+		surfaceRef,
+		theme,
+		waveform.durationMs,
+		waveform.peaks,
+	]);
+}

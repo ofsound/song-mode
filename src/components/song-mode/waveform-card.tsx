@@ -9,7 +9,7 @@ import {
 	SquareStack,
 	TimerReset,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { resolveAudioFileSessionDateLabel } from "#/lib/song-mode/dates";
 import { EMPTY_RICH_TEXT, richTextPreview } from "#/lib/song-mode/rich-text";
 import type {
@@ -22,25 +22,18 @@ import {
 	MAX_VOLUME_DB,
 	MIN_VOLUME_DB,
 	normalizeWaveformData,
-	volumeDbToGain,
 } from "#/lib/song-mode/waveform";
 import { useTheme } from "#/providers/theme-provider";
+import { useWaveformAudioGraph } from "./use-waveform-audio-graph";
+import { useWaveformCanvas } from "./use-waveform-canvas";
 
 type WaveformMode = "seek" | "point" | "range";
-
-interface AudioGraph {
-	context: AudioContext;
-	sourceNode: MediaElementAudioSourceNode;
-	gainNode: GainNode;
-}
 
 interface HoveredAnnotationState {
 	annotationId: string;
 	x: number;
 	y: number;
 }
-
-const audioGraphByElement = new WeakMap<HTMLAudioElement, AudioGraph>();
 
 interface WaveformCardProps {
 	audioFile: AudioFileRecord;
@@ -101,9 +94,6 @@ export function WaveformCard({
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const surfaceRef = useRef<HTMLDivElement | null>(null);
 	const audioRef = useRef<HTMLAudioElement | null>(null);
-	const audioContextRef = useRef<AudioContext | null>(null);
-	const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
-	const gainNodeRef = useRef<GainNode | null>(null);
 	const isDragArmedRef = useRef(false);
 	const markerDragStateRef = useRef<{
 		annotationId: string;
@@ -183,218 +173,22 @@ export function WaveformCard({
 		}
 	}, [currentTimeMs]);
 
-	const ensureAudioGraph = useCallback(() => {
-		if (typeof window === "undefined") {
-			return null;
-		}
+	useWaveformAudioGraph({
+		audioRef,
+		isPlaying,
+		volumeDb: audioFile.volumeDb,
+	});
 
-		if (
-			audioContextRef.current &&
-			sourceNodeRef.current &&
-			gainNodeRef.current
-		) {
-			return audioContextRef.current;
-		}
-
-		const element = audioRef.current;
-		if (!element) {
-			return null;
-		}
-
-		const existingGraph = audioGraphByElement.get(element);
-		if (existingGraph) {
-			audioContextRef.current = existingGraph.context;
-			sourceNodeRef.current = existingGraph.sourceNode;
-			gainNodeRef.current = existingGraph.gainNode;
-			element.volume = 1;
-			return existingGraph.context;
-		}
-
-		const AudioContextCtor =
-			window.AudioContext ||
-			(window as Window & { webkitAudioContext?: typeof AudioContext })
-				.webkitAudioContext;
-
-		if (!AudioContextCtor) {
-			return null;
-		}
-
-		const context = new AudioContextCtor();
-		const source = context.createMediaElementSource(element);
-		const gainNode = context.createGain();
-
-		source.connect(gainNode);
-		gainNode.connect(context.destination);
-
-		audioGraphByElement.set(element, {
-			context,
-			sourceNode: source,
-			gainNode,
-		});
-		audioContextRef.current = context;
-		sourceNodeRef.current = source;
-		gainNodeRef.current = gainNode;
-		element.volume = 1;
-
-		return context;
-	}, []);
-
-	useEffect(() => {
-		const context = ensureAudioGraph();
-		const gainNode = gainNodeRef.current;
-		const nextGain = volumeDbToGain(audioFile.volumeDb);
-
-		if (context && gainNode) {
-			gainNode.gain.value = nextGain;
-			return;
-		}
-
-		if (audioRef.current) {
-			audioRef.current.volume = Math.min(1, nextGain);
-		}
-	}, [audioFile.volumeDb, ensureAudioGraph]);
-
-	useEffect(() => {
-		if (!isPlaying) {
-			return;
-		}
-
-		const context = ensureAudioGraph();
-		if (!context || context.state !== "suspended") {
-			return;
-		}
-
-		void context.resume().catch(() => undefined);
-	}, [ensureAudioGraph, isPlaying]);
-
-	useEffect(() => {
-		return () => {
-			audioContextRef.current = null;
-			sourceNodeRef.current = null;
-			gainNodeRef.current = null;
-		};
-	}, []);
-
-	useEffect(() => {
-		const canvas = canvasRef.current;
-		const surface = surfaceRef.current;
-		void theme;
-		if (!canvas || !surface) {
-			return;
-		}
-
-		const context = canvas.getContext("2d");
-		if (!context) {
-			return;
-		}
-
-		const draw = () => {
-			const width = Math.round(surface.clientWidth);
-			const height = 164;
-			if (width <= 0) {
-				return false;
-			}
-
-			const ratio = window.devicePixelRatio || 1;
-			const styles = window.getComputedStyle(surface);
-			const readColor = (name: string) =>
-				styles.getPropertyValue(name).trim() || "transparent";
-			canvas.width = width * ratio;
-			canvas.height = height * ratio;
-			canvas.style.width = `${width}px`;
-			canvas.style.height = `${height}px`;
-
-			context.setTransform(ratio, 0, 0, ratio, 0, 0);
-			context.clearRect(0, 0, width, height);
-
-			context.fillStyle = readColor("--canvas-waveform-surface");
-			context.fillRect(0, 0, width, height);
-
-			context.strokeStyle = readColor("--canvas-waveform-grid");
-			context.lineWidth = 1;
-			context.beginPath();
-			context.moveTo(0, height / 2);
-			context.lineTo(width, height / 2);
-			context.stroke();
-
-			const peaks = waveform.peaks;
-			const step = width / Math.max(peaks.length, 1);
-			const middle = height / 2;
-
-			for (let index = 0; index < peaks.length; index += 1) {
-				const peak = peaks[index] ?? 0;
-				const x = index * step;
-				const y = Math.max(2, peak * (height * 0.42));
-
-				context.strokeStyle = isSelected
-					? readColor("--canvas-waveform-selected")
-					: readColor("--canvas-waveform-base");
-				context.lineWidth = Math.max(1, step * 0.68);
-				context.beginPath();
-				context.moveTo(x, middle - y);
-				context.lineTo(x, middle + y);
-				context.stroke();
-			}
-
-			const progressX =
-				width * (currentTimeMs / Math.max(waveform.durationMs, 1));
-			context.fillStyle = readColor("--canvas-waveform-progress");
-			context.fillRect(0, 0, progressX, height);
-			context.strokeStyle = readColor("--canvas-waveform-progress-line");
-			context.lineWidth = 2;
-			context.beginPath();
-			context.moveTo(progressX, 0);
-			context.lineTo(progressX, height);
-			context.stroke();
-
-			if (mode === "range" && rangeAnchorMs !== null) {
-				const anchorX =
-					width * (rangeAnchorMs / Math.max(waveform.durationMs, 1));
-				context.strokeStyle = readColor("--canvas-waveform-range");
-				context.setLineDash([7, 5]);
-				context.beginPath();
-				context.moveTo(anchorX, 0);
-				context.lineTo(anchorX, height);
-				context.stroke();
-				context.setLineDash([]);
-			}
-			return true;
-		};
-
-		let frameId = 0;
-		const scheduleDraw = () => {
-			if (frameId) {
-				window.cancelAnimationFrame(frameId);
-			}
-
-			frameId = window.requestAnimationFrame(() => {
-				if (!draw()) {
-					frameId = window.requestAnimationFrame(() => {
-						draw();
-					});
-				}
-			});
-		};
-
-		const observer = new ResizeObserver(scheduleDraw);
-		observer.observe(surface);
-		scheduleDraw();
-
-		return () => {
-			observer.disconnect();
-			if (frameId) {
-				window.cancelAnimationFrame(frameId);
-			}
-		};
-	}, [
+	useWaveformCanvas({
+		canvasRef,
 		currentTimeMs,
 		isSelected,
 		mode,
 		rangeAnchorMs,
+		surfaceRef,
 		theme,
-		waveform.durationMs,
-		waveform.peaks,
-	]);
+		waveform,
+	});
 
 	function getWaveformTimeMs(clientX: number): number | null {
 		if (!surfaceRef.current) {
@@ -886,7 +680,7 @@ export function WaveformCard({
 										)
 									}
 									onPointerLeave={() => setHoveredAnnotation(null)}
-										className="absolute left-1/2 top-4 h-3 w-3 -translate-x-1/2 cursor-pointer border border-[var(--color-waveform-marker-dot-border)]"
+									className="absolute left-1/2 top-4 h-3 w-3 -translate-x-1/2 cursor-pointer border border-[var(--color-waveform-marker-dot-border)]"
 									style={{
 										backgroundColor:
 											annotation.color ?? "var(--color-annotation-4)",

@@ -291,6 +291,28 @@ describe("SongWorkspace", () => {
 		});
 	});
 
+	it("remembers the song on route entry without re-running on plain rerenders", async () => {
+		currentAudioFiles = [createAudioFile()];
+
+		const { rerender } = render(
+			<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />,
+		);
+
+		await waitFor(() => {
+			expect(rememberSongOpened).toHaveBeenCalledWith(baseSong.id);
+		});
+
+		rememberSongOpened.mockClear();
+		rerender(
+			<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />,
+		);
+
+		await waitFor(() => {
+			expect(screen.getByText("Mix v1:true")).toBeTruthy();
+		});
+		expect(rememberSongOpened).not.toHaveBeenCalled();
+	});
+
 	it("does not reset selection to a stale ?fileId= when picking another waveform", async () => {
 		const search: SongRouteSearch = {
 			fileId: "file-1",
@@ -646,7 +668,9 @@ describe("SongWorkspace", () => {
 				"file-1": 1000,
 			},
 		};
-		rerender(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+		rerender(
+			<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />,
+		);
 
 		await waitFor(() => {
 			expect(updateWorkspaceStateMock).toHaveBeenCalledWith(baseSong.id, {
@@ -702,7 +726,9 @@ describe("SongWorkspace", () => {
 				"file-1": 2500,
 			},
 		};
-		rerender(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+		rerender(
+			<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />,
+		);
 
 		await waitFor(() => {
 			expect(updateWorkspaceStateMock).toHaveBeenCalledWith(baseSong.id, {
@@ -752,7 +778,9 @@ describe("SongWorkspace", () => {
 				"file-2": 1500,
 			},
 		};
-		rerender(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+		rerender(
+			<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />,
+		);
 
 		await waitFor(() => {
 			expect(updateWorkspaceStateMock).not.toHaveBeenCalledWith(baseSong.id, {
@@ -809,7 +837,9 @@ describe("SongWorkspace", () => {
 				"file-1": 1200,
 			},
 		};
-		rerender(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+		rerender(
+			<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />,
+		);
 
 		await waitFor(() => {
 			expect(updateWorkspaceStateMock).toHaveBeenCalledWith(baseSong.id, {

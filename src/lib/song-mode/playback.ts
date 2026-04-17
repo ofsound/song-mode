@@ -23,7 +23,10 @@ export function findCrossedAnnotation(
 	}
 
 	for (const annotation of annotations) {
-		if (nextTimeMs <= annotation.startMs && annotation.startMs < previousTimeMs) {
+		if (
+			nextTimeMs <= annotation.startMs &&
+			annotation.startMs < previousTimeMs
+		) {
 			return annotation;
 		}
 	}
