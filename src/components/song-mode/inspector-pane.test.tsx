@@ -71,6 +71,7 @@ function renderInspector(
 	const onOpenTarget = vi.fn();
 	const onUpdateAnnotation = vi.fn().mockResolvedValue(undefined);
 	const onDeleteAnnotation = vi.fn().mockResolvedValue(undefined);
+	const onDeleteFile = vi.fn().mockResolvedValue(undefined);
 	const onSelectAnnotation = vi.fn();
 	const onUpdateFile = vi.fn().mockResolvedValue(undefined);
 
@@ -83,6 +84,7 @@ function renderInspector(
 			onUpdateFile={onUpdateFile}
 			onUpdateAnnotation={onUpdateAnnotation}
 			onDeleteAnnotation={onDeleteAnnotation}
+			onDeleteFile={onDeleteFile}
 			onSelectAnnotation={onSelectAnnotation}
 			{...overrides}
 		/>,
@@ -92,6 +94,7 @@ function renderInspector(
 		onOpenTarget,
 		onUpdateAnnotation,
 		onDeleteAnnotation,
+		onDeleteFile,
 		onSelectAnnotation,
 		onUpdateFile,
 	};
@@ -192,7 +195,7 @@ describe("InspectorPane", () => {
 		expect(startInput.value).toBe("0:54.25");
 	});
 
-	it("keeps form controls from seeking while the play button activates the marker", () => {
+	it("keeps form controls from seeking while the marker card background activates the marker", () => {
 		const { onOpenTarget, onSelectAnnotation, onUpdateAnnotation } =
 			renderInspector();
 
@@ -211,7 +214,22 @@ describe("InspectorPane", () => {
 		expect(onSelectAnnotation).not.toHaveBeenCalled();
 		expect(onUpdateAnnotation).not.toHaveBeenCalled();
 
-		fireEvent.click(screen.getByRole("button", { name: /play marker/i }));
+		const markerCard = screen.getByTestId("marker-card-annotation-1");
+		fireEvent.click(markerCard);
+
+		expect(
+			markerCard.classList.contains("border-[var(--color-border-strong)]"),
+		).toBe(true);
+		expect(
+			markerCard.classList.contains("bg-[var(--color-surface-selected)]"),
+		).toBe(true);
+		expect(markerCard.classList.contains("marker-card--selected")).toBe(true);
+		expect(
+			markerCard.classList.contains("border-[var(--color-accent-strong)]"),
+		).toBe(false);
+		expect(
+			markerCard.classList.contains("bg-[var(--color-accent-surface)]"),
+		).toBe(false);
 
 		expect(onSelectAnnotation).toHaveBeenCalledWith("annotation-1");
 		expect(onOpenTarget).toHaveBeenCalledWith({
@@ -224,7 +242,7 @@ describe("InspectorPane", () => {
 
 		onOpenTarget.mockClear();
 		onSelectAnnotation.mockClear();
-		fireEvent.click(screen.getByTestId("marker-card-annotation-1"));
+		fireEvent.click(screen.getByDisplayValue("Marker 0:54"));
 		expect(onOpenTarget).not.toHaveBeenCalled();
 		expect(onSelectAnnotation).not.toHaveBeenCalled();
 	});
@@ -295,5 +313,32 @@ describe("InspectorPane", () => {
 		expect(screen.getByText(/^notes$/i)).toBeTruthy();
 		expect(screen.queryByText(/mastering note/i)).toBeNull();
 		expect(screen.getAllByTestId("rich-text-editor")).toHaveLength(2);
+	});
+
+	it("renders the delete-file control below the Date field", () => {
+		renderInspector({
+			selectedFile: baseAudioFile,
+		});
+
+		const dateLabel = screen.getByText(/^date$/i);
+		const deleteButton = screen.getByTitle("Delete file");
+		const relation = dateLabel.compareDocumentPosition(deleteButton);
+		expect(relation & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+	});
+
+	it("confirms before deleting the selected file from the details panel", () => {
+		const confirmSpy = vi.fn(() => false);
+		vi.stubGlobal("confirm", confirmSpy);
+		const { onDeleteFile } = renderInspector({
+			selectedFile: baseAudioFile,
+		});
+
+		fireEvent.click(screen.getByTitle("Delete file"));
+		expect(confirmSpy).toHaveBeenCalledWith("Delete this file?");
+		expect(onDeleteFile).not.toHaveBeenCalled();
+
+		confirmSpy.mockReturnValue(true);
+		fireEvent.click(screen.getByTitle("Delete file"));
+		expect(onDeleteFile).toHaveBeenCalledTimes(1);
 	});
 });

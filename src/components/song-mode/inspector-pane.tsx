@@ -1,5 +1,6 @@
-import { Copy, Play, Trash2 } from "lucide-react";
+import { Copy, Trash2 } from "lucide-react";
 import {
+	type MouseEvent as ReactMouseEvent,
 	type PointerEvent as ReactPointerEvent,
 	useEffect,
 	useRef,
@@ -39,6 +40,9 @@ interface InspectorPaneProps {
 		patch: Partial<Annotation>,
 	) => Promise<void>;
 	onDeleteAnnotation: (annotationId: string) => Promise<void>;
+	onDeleteFile: () => Promise<void> | void;
+	deletingFile?: boolean;
+	confirmFileDelete?: boolean;
 	onSelectAnnotation: (annotationId: string) => void;
 }
 
@@ -51,6 +55,9 @@ export function InspectorPane({
 	onUpdateFile,
 	onUpdateAnnotation,
 	onDeleteAnnotation,
+	onDeleteFile,
+	deletingFile = false,
+	confirmFileDelete = true,
 	onSelectAnnotation,
 }: InspectorPaneProps) {
 	const [copiedMessage, setCopiedMessage] = useState<string | null>(null);
@@ -105,29 +112,32 @@ export function InspectorPane({
 								});
 							}
 
+							function handleMarkerCardClick(
+								event: ReactMouseEvent<HTMLDivElement>,
+							) {
+								const node = event.target as HTMLElement | null;
+								if (
+									node?.closest(".marker-row") ||
+									node?.closest(".marker-editor")
+								) {
+									return;
+								}
+
+								activateAnnotation();
+							}
+
 							return (
 								<div
 									key={annotation.id}
 									data-testid={`marker-card-${annotation.id}`}
-									className={`marker-card border text-left transition-[border-color,background-color] duration-150 ${
+									className={`marker-card border text-left transition-[border-color,background-color,box-shadow] duration-150 ${
 										activeAnnotation?.id === annotation.id
-											? "border-[var(--color-accent-strong)] bg-[var(--color-accent-surface)]"
+											? "marker-card--selected border-[var(--color-border-strong)] bg-[var(--color-surface-selected)]"
 											: "border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)]"
 									}`}
+									onClick={handleMarkerCardClick}
 								>
-									<div className="marker-play-cell">
-										<button
-											type="button"
-											onClick={() => {
-												activateAnnotation();
-											}}
-											className="icon-button icon-button--sm marker-play-button"
-											title="Play marker"
-											aria-label="Play marker"
-										>
-											<Play size={12} />
-										</button>
-									</div>
+									<div className="marker-play-cell" aria-hidden="true" />
 									<div className="marker-row">
 										<MmSsField
 											ariaLabel="Start time"
@@ -271,12 +281,33 @@ export function InspectorPane({
 									className="field-input"
 								/>
 							</label>
+							<div className="flex justify-end">
+								<button
+									type="button"
+									onClick={() => {
+										if (
+											confirmFileDelete &&
+											!window.confirm("Delete this file?")
+										) {
+											return;
+										}
+
+										void onDeleteFile();
+									}}
+									disabled={deletingFile}
+									className="icon-button icon-button--sm shrink-0 text-[var(--color-danger)] disabled:cursor-not-allowed disabled:opacity-55"
+									title="Delete file"
+									aria-label={`Delete ${selectedFile.title}`}
+								>
+									<Trash2 size={12} />
+								</button>
+							</div>
 						</div>
 					</div>
 				) : (
 					<p className="text-sm leading-7 text-[var(--color-text-muted)]">
-						Pick an audio lane to edit notes, inspect time-based annotations, and
-						copy deep links back into the song journal.
+						Pick an audio lane to edit notes, inspect time-based annotations,
+						and copy deep links back into the song journal.
 					</p>
 				)}
 			</section>

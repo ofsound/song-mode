@@ -2,9 +2,10 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, Save, Upload, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { isoDateInLocalCalendar } from "#/lib/song-mode/dates";
 import { isEditableElement } from "#/lib/song-mode/dom";
 import { targetToRouteSearch } from "#/lib/song-mode/links";
-import { isoDateInLocalCalendar } from "#/lib/song-mode/dates";
+import { findCrossedAnnotation } from "#/lib/song-mode/playback";
 import { plainTextToRichText } from "#/lib/song-mode/rich-text";
 import type { SongLinkTarget, SongRouteSearch } from "#/lib/song-mode/types";
 import { normalizeVolumeDb } from "#/lib/song-mode/waveform";
@@ -35,6 +36,7 @@ export function SongWorkspace({
 		updateSong,
 		addAudioFile,
 		updateAudioFile,
+		deleteAudioFile,
 		reorderAudioFiles,
 		createAnnotation,
 		updateAnnotation,
@@ -82,13 +84,18 @@ export function SongWorkspace({
 		isoDateInLocalCalendar(),
 	);
 	const [draggingFileId, setDraggingFileId] = useState<string | null>(null);
+	const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
 
 	const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
 	const appliedSearchRef = useRef<string>("");
+	const lastPlaybackPositionRef = useRef<{
+		fileId?: string;
+		timeMs?: number;
+	}>({});
 
 	const patchRouteSelection = useCallback(
 		(options: {
-			fileId: string;
+			fileId?: string;
 			annotationId?: string;
 			clearPlaybackParams?: boolean;
 		}) => {
@@ -98,7 +105,13 @@ export function SongWorkspace({
 				params: { songId },
 				replace: true,
 				search: (prev: SongRouteSearch) => {
-					const next: SongRouteSearch = { ...prev, fileId };
+					const next: SongRouteSearch = { ...prev };
+
+					if (fileId !== undefined) {
+						next.fileId = fileId;
+					} else {
+						delete next.fileId;
+					}
 
 					if (annotationId !== undefined) {
 						next.annotationId = annotationId;
@@ -201,6 +214,54 @@ export function SongWorkspace({
 			block: "center",
 		});
 	}, [selectedFileId]);
+
+	useEffect(() => {
+		const activeFileId = playback.activeFileId;
+		if (!activeFileId) {
+			lastPlaybackPositionRef.current = {};
+			return;
+		}
+
+		const nextTimeMs = playback.currentTimeByFileId[activeFileId];
+		if (typeof nextTimeMs !== "number") {
+			lastPlaybackPositionRef.current = { fileId: activeFileId };
+			return;
+		}
+
+		const previous = lastPlaybackPositionRef.current;
+		if (previous.fileId !== activeFileId || typeof previous.timeMs !== "number") {
+			lastPlaybackPositionRef.current = {
+				fileId: activeFileId,
+				timeMs: nextTimeMs,
+			};
+			return;
+		}
+
+		const crossed = findCrossedAnnotation(
+			getAnnotationsForFile(activeFileId),
+			previous.timeMs,
+			nextTimeMs,
+		);
+		lastPlaybackPositionRef.current = {
+			fileId: activeFileId,
+			timeMs: nextTimeMs,
+		};
+
+		if (!crossed || workspace.activeAnnotationId === crossed.id) {
+			return;
+		}
+
+		void updateWorkspaceState(songId, {
+			activeAnnotationId: crossed.id,
+		});
+	}, [
+		getAnnotationsForFile,
+		playback.activeFileId,
+		playback.currentTimeByFileId,
+		songId,
+		updateWorkspaceState,
+		workspace.activeAnnotationId,
+	]);
 
 	const currentTimeMs =
 		(selectedFileId
@@ -428,6 +489,39 @@ export function SongWorkspace({
 			clearPlaybackParams: true,
 		});
 		return annotation;
+	}
+
+	async function handleDeleteSelectedFile() {
+		if (!selectedFileId) {
+			return;
+		}
+
+		if (!window.confirm("Delete this file?")) {
+			return;
+		}
+
+		const selectedIndex = audioFiles.findIndex(
+			(audioFile) => audioFile.id === selectedFileId,
+		);
+		const fallbackFileId =
+			audioFiles[selectedIndex + 1]?.id ?? audioFiles[selectedIndex - 1]?.id;
+
+		setDeletingFileId(selectedFileId);
+		try {
+			await deleteAudioFile(selectedFileId);
+			await updateWorkspaceState(songId, {
+				selectedFileId: fallbackFileId,
+				activeAnnotationId: undefined,
+			});
+			patchRouteSelection({
+				fileId: fallbackFileId,
+				clearPlaybackParams: true,
+			});
+		} finally {
+			setDeletingFileId((current) =>
+				current === selectedFileId ? null : current,
+			);
+		}
 	}
 
 	async function handleUpload(event: React.FormEvent<HTMLFormElement>) {
@@ -690,6 +784,11 @@ export function SongWorkspace({
 								}
 								onUpdateAnnotation={updateAnnotation}
 								onDeleteAnnotation={deleteAnnotation}
+								onDeleteFile={handleDeleteSelectedFile}
+								deletingFile={
+									Boolean(selectedFileId) && deletingFileId === selectedFileId
+								}
+								confirmFileDelete={false}
 								onSelectAnnotation={(annotationId) => {
 									if (!selectedFileId) {
 										return;
@@ -801,9 +900,7 @@ export function SongWorkspace({
 								<input
 									type="date"
 									value={uploadSessionDate}
-									onChange={(event) =>
-										setUploadSessionDate(event.target.value)
-									}
+									onChange={(event) => setUploadSessionDate(event.target.value)}
 									className="field-input"
 								/>
 							</label>

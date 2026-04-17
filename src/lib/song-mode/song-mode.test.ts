@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildSongTargetPath, parseSongTarget } from "./links";
+import { findCrossedAnnotation } from "./playback";
 import {
 	EMPTY_RICH_TEXT,
 	plainTextToRichText,
@@ -43,6 +44,78 @@ describe("song mode links", () => {
 			timeMs: 42500,
 			autoplay: true,
 		});
+	});
+});
+
+describe("song mode playback marker crossing", () => {
+	const annotations: Annotation[] = [
+		{
+			id: "annotation-1",
+			songId: "song-1",
+			audioFileId: "file-1",
+			type: "point",
+			startMs: 1000,
+			title: "Intro",
+			body: EMPTY_RICH_TEXT,
+			createdAt: "2026-04-15T00:00:00.000Z",
+			updatedAt: "2026-04-15T00:00:00.000Z",
+		},
+		{
+			id: "annotation-2",
+			songId: "song-1",
+			audioFileId: "file-1",
+			type: "range",
+			startMs: 3000,
+			endMs: 5000,
+			title: "Verse",
+			body: EMPTY_RICH_TEXT,
+			createdAt: "2026-04-15T00:00:00.000Z",
+			updatedAt: "2026-04-15T00:00:00.000Z",
+		},
+		{
+			id: "annotation-3",
+			songId: "song-1",
+			audioFileId: "file-1",
+			type: "point",
+			startMs: 6000,
+			title: "Hook",
+			body: EMPTY_RICH_TEXT,
+			createdAt: "2026-04-15T00:00:00.000Z",
+			updatedAt: "2026-04-15T00:00:00.000Z",
+		},
+	];
+
+	it("detects a forward crossing when the playhead lands on a marker", () => {
+		expect(findCrossedAnnotation(annotations, 500, 1000)?.id).toBe(
+			"annotation-1",
+		);
+	});
+
+	it("detects a backward crossing when the playhead lands on a marker", () => {
+		expect(findCrossedAnnotation(annotations, 6500, 6000)?.id).toBe(
+			"annotation-3",
+		);
+	});
+
+	it("does not report a crossing when the playhead stays within the same interval", () => {
+		expect(findCrossedAnnotation(annotations, 1100, 2900)).toBeUndefined();
+		expect(findCrossedAnnotation(annotations, 2900, 1100)).toBeUndefined();
+	});
+
+	it("chooses the most recently crossed marker in the direction of travel", () => {
+		expect(findCrossedAnnotation(annotations, 500, 6100)?.id).toBe(
+			"annotation-3",
+		);
+		expect(findCrossedAnnotation(annotations, 6500, 900)?.id).toBe(
+			"annotation-1",
+		);
+	});
+
+	it("uses the range start instead of the range end for crossings", () => {
+		expect(findCrossedAnnotation(annotations, 2500, 3200)?.id).toBe(
+			"annotation-2",
+		);
+		expect(findCrossedAnnotation(annotations, 5001, 4500)).toBeUndefined();
 	});
 });
 

@@ -81,6 +81,7 @@ interface SongModeContextValue extends SongModeSnapshot {
 		audioFileId: string,
 		patch: Partial<AudioFileRecord>,
 	) => Promise<void>;
+	deleteAudioFile: (audioFileId: string) => Promise<void>;
 	reorderAudioFiles: (songId: string, orderedIds: string[]) => Promise<void>;
 	createAnnotation: (input: CreateAnnotationInput) => Promise<Annotation>;
 	updateAnnotation: (
@@ -595,6 +596,116 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 		[commitSnapshot],
 	);
 
+	const deleteAudioFile = useCallback(
+		async (audioFileId: string) => {
+			let didDeleteFile = false;
+			let deletedAnnotationIds: string[] = [];
+			let updatedSongId: string | undefined;
+
+			await commitSnapshot(
+				(current) => {
+					const targetFile = current.audioFiles.find(
+						(audioFile) => audioFile.id === audioFileId,
+					);
+					if (!targetFile) {
+						return current;
+					}
+
+					didDeleteFile = true;
+					updatedSongId = targetFile.songId;
+					deletedAnnotationIds = current.annotations
+						.filter((annotation) => annotation.audioFileId === audioFileId)
+						.map((annotation) => annotation.id);
+					const deletedAnnotationIdSet = new Set(deletedAnnotationIds);
+					const songs = current.songs.map((song) =>
+						song.id === targetFile.songId
+							? {
+									...song,
+									audioFileOrder: song.audioFileOrder.filter(
+										(fileId) => fileId !== audioFileId,
+									),
+									updatedAt: new Date().toISOString(),
+								}
+							: song,
+					);
+					const blobsByAudioId = { ...current.blobsByAudioId };
+					delete blobsByAudioId[audioFileId];
+
+					const workspaceBySongId = { ...current.settings.workspaceBySongId };
+					const songWorkspace = workspaceBySongId[targetFile.songId];
+					if (songWorkspace) {
+						const playheadMsByFileId = { ...songWorkspace.playheadMsByFileId };
+						delete playheadMsByFileId[audioFileId];
+
+						workspaceBySongId[targetFile.songId] = {
+							...songWorkspace,
+							selectedFileId:
+								songWorkspace.selectedFileId === audioFileId
+									? undefined
+									: songWorkspace.selectedFileId,
+							activeAnnotationId:
+								songWorkspace.activeAnnotationId &&
+								deletedAnnotationIdSet.has(songWorkspace.activeAnnotationId)
+									? undefined
+									: songWorkspace.activeAnnotationId,
+							playheadMsByFileId,
+						};
+					}
+
+					return {
+						...current,
+						songs,
+						audioFiles: current.audioFiles.filter(
+							(audioFile) => audioFile.id !== audioFileId,
+						),
+						annotations: current.annotations.filter(
+							(annotation) => annotation.audioFileId !== audioFileId,
+						),
+						blobsByAudioId,
+						settings: {
+							...current.settings,
+							workspaceBySongId,
+						},
+					};
+				},
+				async (nextSnapshot) => {
+					if (!didDeleteFile) {
+						return;
+					}
+
+					const updatedSong = updatedSongId
+						? nextSnapshot.songs.find((song) => song.id === updatedSongId)
+						: undefined;
+					await Promise.all([
+						deleteAudioFileRecord(audioFileId),
+						deleteAudioBlobRecord(audioFileId),
+						...deletedAnnotationIds.map((id) => deleteAnnotationRecord(id)),
+						updatedSong ? saveSong(updatedSong) : Promise.resolve(),
+						saveSettings(nextSnapshot.settings),
+					]);
+				},
+			);
+
+			if (!didDeleteFile) {
+				return;
+			}
+
+			audioRefs.current.delete(audioFileId);
+			setPlayback((current) => {
+				const nextCurrentTimeByFileId = { ...current.currentTimeByFileId };
+				delete nextCurrentTimeByFileId[audioFileId];
+				const activeDeleted = current.activeFileId === audioFileId;
+
+				return {
+					activeFileId: activeDeleted ? undefined : current.activeFileId,
+					isPlaying: activeDeleted ? false : current.isPlaying,
+					currentTimeByFileId: nextCurrentTimeByFileId,
+				};
+			});
+		},
+		[commitSnapshot],
+	);
+
 	const reorderAudioFiles = useCallback(
 		async (songId: string, orderedIds: string[]) => {
 			await commitSnapshot(
@@ -948,6 +1059,7 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 			deleteSong,
 			addAudioFile,
 			updateAudioFile,
+			deleteAudioFile,
 			reorderAudioFiles,
 			createAnnotation,
 			updateAnnotation,
@@ -967,6 +1079,7 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 			createSong,
 			deleteSong,
 			deleteAnnotation,
+			deleteAudioFile,
 			error,
 			getAnnotationsForFile,
 			getAudioFileById,

@@ -11,6 +11,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_RICH_TEXT } from "#/lib/song-mode/rich-text";
 import type {
+	Annotation,
 	AudioFileRecord,
 	Song,
 	SongRouteSearch,
@@ -33,7 +34,28 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 vi.mock("./inspector-pane", () => ({
-	InspectorPane: () => <div data-testid="inspector-pane" />,
+	InspectorPane: ({
+		selectedFile,
+		onDeleteFile,
+		deletingFile,
+	}: {
+		selectedFile?: AudioFileRecord;
+		onDeleteFile: () => Promise<void> | void;
+		deletingFile?: boolean;
+	}) => (
+		<div data-testid="inspector-pane">
+			<div data-testid="inspector-selected-file">
+				{selectedFile?.id ?? "none"}
+			</div>
+			<button
+				type="button"
+				onClick={() => void onDeleteFile()}
+				disabled={!selectedFile || deletingFile}
+			>
+				Delete file
+			</button>
+		</div>
+	),
 }));
 
 vi.mock("./rich-text-editor", () => ({
@@ -110,6 +132,7 @@ let currentPlayback = {
 	isPlaying: false,
 	currentTimeByFileId: {} as Record<string, number>,
 };
+let currentAnnotationsByFileId: Record<string, Annotation[]> = {};
 
 const getSongById = vi.fn((songId: string) =>
 	songId === baseSong.id
@@ -122,10 +145,13 @@ const getSongById = vi.fn((songId: string) =>
 const getSongAudioFiles = vi.fn((songId: string) =>
 	songId === baseSong.id ? currentAudioFiles : [],
 );
-const getAnnotationsForFile = vi.fn(() => []);
+const getAnnotationsForFile = vi.fn((fileId: string) => {
+	return currentAnnotationsByFileId[fileId] ?? [];
+});
 const getWorkspaceState = vi.fn(() => currentWorkspace);
 const addAudioFile = vi.fn();
 const createAnnotation = vi.fn();
+const deleteAudioFile = vi.fn();
 const deleteAnnotation = vi.fn();
 const jumpBetweenAnnotations = vi.fn();
 const registerAudioElement = vi.fn();
@@ -174,6 +200,7 @@ vi.mock("#/providers/song-mode-provider", () => ({
 		updateSong,
 		addAudioFile,
 		updateAudioFile,
+		deleteAudioFile,
 		reorderAudioFiles,
 		createAnnotation,
 		updateAnnotation,
@@ -191,6 +218,7 @@ vi.mock("#/providers/song-mode-provider", () => ({
 describe("SongWorkspace", () => {
 	beforeEach(() => {
 		currentAudioFiles = [];
+		currentAnnotationsByFileId = {};
 		currentWorkspace = {
 			playheadMsByFileId: {},
 			inspectorRatio: 0.56,
@@ -210,6 +238,8 @@ describe("SongWorkspace", () => {
 		getAnnotationsForFile.mockClear();
 		getWorkspaceState.mockClear();
 		rememberSongOpened.mockClear();
+		deleteAudioFile.mockReset();
+		deleteAudioFile.mockResolvedValue(undefined);
 		updateAudioFile.mockReset();
 		Element.prototype.scrollIntoView = vi.fn();
 	});
@@ -342,6 +372,192 @@ describe("SongWorkspace", () => {
 		).toBe(false);
 	});
 
+	it("deletes the selected file, falls forward to the next file, and clears stale playback search params", async () => {
+		currentAudioFiles = [
+			createAudioFile({ id: "file-1", title: "Mix A" }),
+			createAudioFile({ id: "file-2", title: "Mix B" }),
+			createAudioFile({ id: "file-3", title: "Mix C" }),
+		];
+		currentWorkspace = {
+			playheadMsByFileId: {},
+			selectedFileId: "file-2",
+			activeAnnotationId: "annotation-2",
+			inspectorRatio: 0.56,
+			lastVisitedAt: null,
+		};
+		const confirmSpy = vi.fn(() => true);
+		vi.stubGlobal("confirm", confirmSpy);
+
+		render(
+			<SongWorkspace
+				songId={baseSong.id}
+				search={{
+					fileId: "file-2",
+					annotationId: "annotation-2",
+					timeMs: 91000,
+					autoplay: true,
+				}}
+			/>,
+		);
+
+		deleteAudioFile.mockClear();
+		updateWorkspaceStateMock.mockClear();
+		navigateMock.mockClear();
+
+		fireEvent.click(screen.getByRole("button", { name: /^delete file$/i }));
+
+		await waitFor(() => {
+			expect(confirmSpy).toHaveBeenCalledWith("Delete this file?");
+			expect(deleteAudioFile).toHaveBeenCalledWith("file-2");
+		});
+		await waitFor(() => {
+			expect(updateWorkspaceStateMock).toHaveBeenCalledWith(baseSong.id, {
+				selectedFileId: "file-3",
+				activeAnnotationId: undefined,
+			});
+		});
+		await waitFor(() => {
+			expect(navigateMock).toHaveBeenCalled();
+		});
+
+		const navigateArg = navigateMock.mock.calls.find(
+			(call) =>
+				call[0] &&
+				typeof call[0] === "object" &&
+				"search" in call[0] &&
+				typeof (call[0] as { search?: unknown }).search === "function",
+		)?.[0] as {
+			replace?: boolean;
+			search: (prev: SongRouteSearch) => SongRouteSearch;
+		};
+		expect(navigateArg?.replace).toBe(true);
+		const nextSearch = navigateArg.search({
+			fileId: "file-2",
+			annotationId: "annotation-2",
+			timeMs: 91000,
+			autoplay: true,
+		});
+		expect(nextSearch.fileId).toBe("file-3");
+		expect(nextSearch.annotationId).toBeUndefined();
+		expect(nextSearch.timeMs).toBeUndefined();
+		expect(nextSearch.autoplay).toBe(false);
+	});
+
+	it("falls back to the previous file when deleting the last file", async () => {
+		currentAudioFiles = [
+			createAudioFile({ id: "file-1", title: "Mix A" }),
+			createAudioFile({ id: "file-2", title: "Mix B" }),
+		];
+		currentWorkspace = {
+			playheadMsByFileId: {},
+			selectedFileId: "file-2",
+			inspectorRatio: 0.56,
+			lastVisitedAt: null,
+		};
+		vi.stubGlobal(
+			"confirm",
+			vi.fn(() => true),
+		);
+
+		render(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+
+		deleteAudioFile.mockClear();
+		updateWorkspaceStateMock.mockClear();
+		navigateMock.mockClear();
+
+		fireEvent.click(screen.getByRole("button", { name: /^delete file$/i }));
+
+		await waitFor(() => {
+			expect(deleteAudioFile).toHaveBeenCalledWith("file-2");
+			expect(updateWorkspaceStateMock).toHaveBeenCalledWith(baseSong.id, {
+				selectedFileId: "file-1",
+				activeAnnotationId: undefined,
+			});
+		});
+	});
+
+	it("clears file selection in route and workspace when deleting the only file", async () => {
+		currentAudioFiles = [createAudioFile({ id: "file-1", title: "Only Mix" })];
+		currentWorkspace = {
+			playheadMsByFileId: {},
+			selectedFileId: "file-1",
+			inspectorRatio: 0.56,
+			lastVisitedAt: null,
+		};
+		vi.stubGlobal(
+			"confirm",
+			vi.fn(() => true),
+		);
+
+		render(
+			<SongWorkspace
+				songId={baseSong.id}
+				search={{ fileId: "file-1", timeMs: 5000, autoplay: true }}
+			/>,
+		);
+
+		deleteAudioFile.mockClear();
+		updateWorkspaceStateMock.mockClear();
+		navigateMock.mockClear();
+
+		fireEvent.click(screen.getByRole("button", { name: /^delete file$/i }));
+
+		await waitFor(() => {
+			expect(deleteAudioFile).toHaveBeenCalledWith("file-1");
+			expect(updateWorkspaceStateMock).toHaveBeenCalledWith(baseSong.id, {
+				selectedFileId: undefined,
+				activeAnnotationId: undefined,
+			});
+		});
+
+		const navigateArg = navigateMock.mock.calls.find(
+			(call) =>
+				call[0] &&
+				typeof call[0] === "object" &&
+				"search" in call[0] &&
+				typeof (call[0] as { search?: unknown }).search === "function",
+		)?.[0] as {
+			search: (prev: SongRouteSearch) => SongRouteSearch;
+		};
+		const nextSearch = navigateArg.search({
+			fileId: "file-1",
+			annotationId: "annotation-1",
+			timeMs: 5000,
+			autoplay: true,
+		});
+		expect(nextSearch.fileId).toBeUndefined();
+		expect(nextSearch.annotationId).toBeUndefined();
+		expect(nextSearch.timeMs).toBeUndefined();
+		expect(nextSearch.autoplay).toBe(false);
+	});
+
+	it("does not delete when file deletion is canceled", async () => {
+		currentAudioFiles = [createAudioFile({ id: "file-1", title: "Mix A" })];
+		currentWorkspace = {
+			playheadMsByFileId: {},
+			selectedFileId: "file-1",
+			inspectorRatio: 0.56,
+			lastVisitedAt: null,
+		};
+		const confirmSpy = vi.fn(() => false);
+		vi.stubGlobal("confirm", confirmSpy);
+
+		render(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+
+		deleteAudioFile.mockClear();
+		updateWorkspaceStateMock.mockClear();
+		navigateMock.mockClear();
+
+		fireEvent.click(screen.getByRole("button", { name: /^delete file$/i }));
+
+		await waitFor(() => {
+			expect(confirmSpy).toHaveBeenCalledWith("Delete this file?");
+		});
+		expect(deleteAudioFile).not.toHaveBeenCalled();
+		expect(updateWorkspaceStateMock).not.toHaveBeenCalled();
+		expect(navigateMock).not.toHaveBeenCalled();
+	});
+
 	it("steps file volume by 1 dB through the persisted audio update path", async () => {
 		currentAudioFiles = [createAudioFile()];
 		updateAudioFile.mockResolvedValue(undefined);
@@ -392,6 +608,216 @@ describe("SongWorkspace", () => {
 		render(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
 
 		expect(screen.getByText("0 ms")).toBeTruthy();
+	});
+
+	it("activates the crossed marker when live playback moves forward past it", async () => {
+		currentAudioFiles = [createAudioFile()];
+		currentAnnotationsByFileId = {
+			"file-1": [
+				{
+					id: "annotation-1",
+					songId: baseSong.id,
+					audioFileId: "file-1",
+					type: "point",
+					startMs: 1000,
+					title: "Intro",
+					body: EMPTY_RICH_TEXT,
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+		};
+		currentPlayback = {
+			activeFileId: "file-1",
+			isPlaying: true,
+			currentTimeByFileId: {
+				"file-1": 500,
+			},
+		};
+
+		const { rerender } = render(
+			<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />,
+		);
+
+		updateWorkspaceStateMock.mockClear();
+		currentPlayback = {
+			...currentPlayback,
+			currentTimeByFileId: {
+				"file-1": 1000,
+			},
+		};
+		rerender(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+
+		await waitFor(() => {
+			expect(updateWorkspaceStateMock).toHaveBeenCalledWith(baseSong.id, {
+				activeAnnotationId: "annotation-1",
+			});
+		});
+	});
+
+	it("activates the crossed marker when playback moves backward across it", async () => {
+		currentAudioFiles = [createAudioFile()];
+		currentAnnotationsByFileId = {
+			"file-1": [
+				{
+					id: "annotation-1",
+					songId: baseSong.id,
+					audioFileId: "file-1",
+					type: "point",
+					startMs: 1000,
+					title: "Intro",
+					body: EMPTY_RICH_TEXT,
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+				{
+					id: "annotation-2",
+					songId: baseSong.id,
+					audioFileId: "file-1",
+					type: "point",
+					startMs: 2500,
+					title: "Verse",
+					body: EMPTY_RICH_TEXT,
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+		};
+		currentPlayback = {
+			activeFileId: "file-1",
+			isPlaying: true,
+			currentTimeByFileId: {
+				"file-1": 3000,
+			},
+		};
+
+		const { rerender } = render(
+			<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />,
+		);
+
+		updateWorkspaceStateMock.mockClear();
+		currentPlayback = {
+			...currentPlayback,
+			currentTimeByFileId: {
+				"file-1": 2500,
+			},
+		};
+		rerender(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+
+		await waitFor(() => {
+			expect(updateWorkspaceStateMock).toHaveBeenCalledWith(baseSong.id, {
+				activeAnnotationId: "annotation-2",
+			});
+		});
+	});
+
+	it("resets the crossing baseline when the active playback file changes", async () => {
+		currentAudioFiles = [
+			createAudioFile({ id: "file-1", title: "Mix A" }),
+			createAudioFile({ id: "file-2", title: "Mix B" }),
+		];
+		currentAnnotationsByFileId = {
+			"file-2": [
+				{
+					id: "annotation-2",
+					songId: baseSong.id,
+					audioFileId: "file-2",
+					type: "point",
+					startMs: 1000,
+					title: "Intro",
+					body: EMPTY_RICH_TEXT,
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+		};
+		currentPlayback = {
+			activeFileId: "file-1",
+			isPlaying: true,
+			currentTimeByFileId: {
+				"file-1": 500,
+			},
+		};
+
+		const { rerender } = render(
+			<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />,
+		);
+
+		updateWorkspaceStateMock.mockClear();
+		currentPlayback = {
+			activeFileId: "file-2",
+			isPlaying: true,
+			currentTimeByFileId: {
+				"file-1": 500,
+				"file-2": 1500,
+			},
+		};
+		rerender(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+
+		await waitFor(() => {
+			expect(updateWorkspaceStateMock).not.toHaveBeenCalledWith(baseSong.id, {
+				activeAnnotationId: "annotation-2",
+			});
+		});
+	});
+
+	it("does not switch the selected file when another playing file crosses a marker", async () => {
+		currentAudioFiles = [
+			createAudioFile({ id: "file-1", title: "Mix A" }),
+			createAudioFile({ id: "file-2", title: "Mix B" }),
+		];
+		currentWorkspace = {
+			playheadMsByFileId: {},
+			selectedFileId: "file-2",
+			inspectorRatio: 0.56,
+			lastVisitedAt: null,
+		};
+		currentAnnotationsByFileId = {
+			"file-1": [
+				{
+					id: "annotation-1",
+					songId: baseSong.id,
+					audioFileId: "file-1",
+					type: "point",
+					startMs: 1000,
+					title: "Intro",
+					body: EMPTY_RICH_TEXT,
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+		};
+		currentPlayback = {
+			activeFileId: "file-1",
+			isPlaying: true,
+			currentTimeByFileId: {
+				"file-1": 500,
+			},
+		};
+
+		const { rerender } = render(
+			<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />,
+		);
+
+		expect(screen.getByText("Mix A:false")).toBeTruthy();
+		expect(screen.getByText("Mix B:true")).toBeTruthy();
+
+		updateWorkspaceStateMock.mockClear();
+		currentPlayback = {
+			...currentPlayback,
+			currentTimeByFileId: {
+				"file-1": 1200,
+			},
+		};
+		rerender(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+
+		await waitFor(() => {
+			expect(updateWorkspaceStateMock).toHaveBeenCalledWith(baseSong.id, {
+				activeAnnotationId: "annotation-1",
+			});
+		});
+		expect(screen.getByText("Mix A:false")).toBeTruthy();
+		expect(screen.getByText("Mix B:true")).toBeTruthy();
 	});
 
 	it("opens the upload form inside a modal when add file is clicked", () => {
