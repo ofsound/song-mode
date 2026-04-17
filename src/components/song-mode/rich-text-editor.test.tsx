@@ -16,6 +16,24 @@ import {
 import type { RichTextDoc } from "#/lib/song-mode/types";
 import { RichTextEditor, type RichTextToolbarAction } from "./rich-text-editor";
 
+function buildLinkedDoc(label: string, href: string): RichTextDoc {
+	return {
+		type: "doc",
+		content: [
+			{
+				type: "paragraph",
+				content: [
+					{
+						type: "text",
+						text: label,
+						marks: [{ type: "link", attrs: { href } }],
+					},
+				],
+			},
+		],
+	};
+}
+
 afterEach(() => {
 	cleanup();
 	vi.unstubAllGlobals();
@@ -131,5 +149,80 @@ describe("RichTextEditor", () => {
 		expect(editorBody).toBeTruthy();
 		expect(scrollRegion?.contains(toolbar as Node)).toBe(false);
 		expect(scrollRegion?.contains(editorBody as Node)).toBe(true);
+	});
+
+	it("opens internal Song Mode links in-app instead of a new tab", async () => {
+		const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+		const onInternalLink = vi.fn();
+		const href =
+			"/songs/song-1?fileId=file-1&annotationId=annotation-1&timeMs=54000&autoplay=1";
+
+		render(
+			<RichTextEditor
+				value={buildLinkedDoc("Marker shortcut", href)}
+				onChange={() => {}}
+				onInternalLink={onInternalLink}
+			/>,
+		);
+
+		fireEvent.click(await screen.findByRole("link", { name: "Marker shortcut" }));
+
+		expect(onInternalLink).toHaveBeenCalledWith({
+			songId: "song-1",
+			fileId: "file-1",
+			annotationId: "annotation-1",
+			timeMs: 54000,
+			autoplay: true,
+		});
+		expect(openSpy).not.toHaveBeenCalled();
+	});
+
+	it("opens external links in a new tab", async () => {
+		const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+		const onInternalLink = vi.fn();
+		const href = "https://example.com/docs";
+
+		render(
+			<RichTextEditor
+				value={buildLinkedDoc("External docs", href)}
+				onChange={() => {}}
+				onInternalLink={onInternalLink}
+			/>,
+		);
+
+		fireEvent.click(await screen.findByRole("link", { name: "External docs" }));
+
+		expect(onInternalLink).not.toHaveBeenCalled();
+		expect(openSpy).toHaveBeenCalledWith(
+			"https://example.com/docs",
+			"_blank",
+			"noopener,noreferrer",
+		);
+	});
+
+	it("treats absolute Song Mode URLs as internal links", async () => {
+		const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+		const onInternalLink = vi.fn();
+		const href =
+			"http://localhost:3000/songs/song-1?fileId=file-1&annotationId=annotation-1&timeMs=54000&autoplay=1";
+
+		render(
+			<RichTextEditor
+				value={buildLinkedDoc("Absolute marker", href)}
+				onChange={() => {}}
+				onInternalLink={onInternalLink}
+			/>,
+		);
+
+		fireEvent.click(await screen.findByRole("link", { name: "Absolute marker" }));
+
+		expect(onInternalLink).toHaveBeenCalledWith({
+			songId: "song-1",
+			fileId: "file-1",
+			annotationId: "annotation-1",
+			timeMs: 54000,
+			autoplay: true,
+		});
+		expect(openSpy).not.toHaveBeenCalled();
 	});
 });

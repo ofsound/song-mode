@@ -27,8 +27,8 @@
     color-mix(in srgb, var(--color-zinc-950) 78%, transparent)
   );
   --color-header-surface: light-dark(
-    color-mix(in srgb, var(--color-white) 84%, transparent),
-    color-mix(in srgb, var(--color-zinc-950) 74%, transparent)
+    color-mix(in srgb, var(--color-slate-100) 58%, var(--color-white)),
+    color-mix(in srgb, var(--color-slate-900) 66%, var(--color-zinc-950))
   );
   --color-header-icon-surface: light-dark(
     color-mix(in srgb, var(--color-white) 92%, var(--color-slate-50)),
@@ -411,8 +411,9 @@ pre code {
 }
 
 .header-shell {
-  border-bottom: 1px solid var(--color-border-subtle);
-  background: var(--color-header-surface);
+  background:
+    var(--background-image-panel),
+    var(--color-header-surface);
   backdrop-filter: blur(20px);
 }
 

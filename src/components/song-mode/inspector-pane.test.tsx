@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_RICH_TEXT } from "#/lib/song-mode/rich-text";
 import type { Annotation, AudioFileRecord, Song } from "#/lib/song-mode/types";
@@ -245,6 +245,72 @@ describe("InspectorPane", () => {
 		fireEvent.click(screen.getByDisplayValue("Marker 0:54"));
 		expect(onOpenTarget).not.toHaveBeenCalled();
 		expect(onSelectAnnotation).not.toHaveBeenCalled();
+	});
+
+	it("copies a rich hyperlink payload with a clean marker label", async () => {
+		class FakeClipboardItem {
+			constructor(readonly items: Record<string, Blob>) {}
+		}
+
+		const write = vi.fn().mockResolvedValue(undefined);
+		const writeText = vi.fn().mockResolvedValue(undefined);
+		vi.stubGlobal("ClipboardItem", FakeClipboardItem);
+		Object.defineProperty(window.navigator, "clipboard", {
+			configurable: true,
+			value: {
+				write,
+				writeText,
+			},
+		});
+
+		renderInspector({
+			selectedFile: baseAudioFile,
+		});
+
+		fireEvent.click(screen.getByTitle("Copy link"));
+
+		await waitFor(() => {
+			expect(write).toHaveBeenCalledTimes(1);
+		});
+
+		const expectedLabel = "Mix v1 - Marker 0:54";
+		const expectedUrl =
+			"http://localhost:3000/songs/song-1?fileId=file-1&annotationId=annotation-1&timeMs=54000&autoplay=1";
+		const expectedHtmlUrl = expectedUrl.replaceAll("&", "&amp;");
+		const richItem = (write.mock.calls[0]?.[0] as FakeClipboardItem[])[0];
+		const htmlPayload = await richItem.items["text/html"].text();
+		const plainPayload = await richItem.items["text/plain"].text();
+
+		expect(htmlPayload).toBe(
+			`<a href="${expectedHtmlUrl}">${expectedLabel}</a>`,
+		);
+		expect(plainPayload).toBe(`${expectedLabel}\n${expectedUrl}`);
+		expect(writeText).not.toHaveBeenCalled();
+	});
+
+	it("falls back to plain text clipboard payload when rich clipboard is unavailable", async () => {
+		const writeText = vi.fn().mockResolvedValue(undefined);
+		vi.stubGlobal("ClipboardItem", undefined);
+		Object.defineProperty(window.navigator, "clipboard", {
+			configurable: true,
+			value: {
+				writeText,
+			},
+		});
+
+		renderInspector({
+			selectedFile: baseAudioFile,
+		});
+
+		fireEvent.click(screen.getByTitle("Copy link"));
+
+		await waitFor(() => {
+			expect(writeText).toHaveBeenCalledTimes(1);
+		});
+
+		expect(writeText).toHaveBeenCalledWith(
+			"Mix v1 - Marker 0:54\nhttp://localhost:3000/songs/song-1?fileId=file-1&annotationId=annotation-1&timeMs=54000&autoplay=1",
+		);
 	});
 
 	it("confirms before deleting a marker from the inline card", () => {

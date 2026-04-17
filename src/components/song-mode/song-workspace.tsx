@@ -603,7 +603,7 @@ export function SongWorkspace({
 							title: event.target.value,
 						})
 					}
-					className="field-input h-12 px-3 py-0 text-lg font-semibold leading-none text-[var(--color-text)]"
+					className="field-input h-12 px-3 py-0 text-lg font-bold leading-none text-[var(--color-text)]"
 					placeholder="Song title"
 					aria-label="Song title"
 				/>
@@ -617,7 +617,7 @@ export function SongWorkspace({
 							artist: event.target.value,
 						})
 					}
-					className="field-input h-12 px-3 py-0 text-sm leading-none"
+					className="field-input h-12 px-3 py-0 text-sm font-bold leading-none"
 					placeholder="Artist"
 					aria-label="Artist"
 				/>
@@ -631,7 +631,7 @@ export function SongWorkspace({
 							project: event.target.value,
 						})
 					}
-					className="field-input h-12 px-3 py-0 text-sm leading-none"
+					className="field-input h-12 px-3 py-0 text-sm font-bold leading-none"
 					placeholder="Project"
 					aria-label="Project"
 				/>

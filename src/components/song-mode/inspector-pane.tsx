@@ -28,6 +28,15 @@ function formatMarkerCount(count: number) {
 	return `${count} markers`;
 }
 
+function escapeHtml(value: string): string {
+	return value
+		.replaceAll("&", "&amp;")
+		.replaceAll("<", "&lt;")
+		.replaceAll(">", "&gt;")
+		.replaceAll('"', "&quot;")
+		.replaceAll("'", "&#39;");
+}
+
 interface InspectorPaneProps {
 	song: Song;
 	selectedFile?: AudioFileRecord;
@@ -68,8 +77,25 @@ export function InspectorPane({
 			typeof window !== "undefined"
 				? `${window.location.origin}${relativePath}`
 				: relativePath;
+		const plainTextPayload = `${label}\n${absoluteUrl}`;
+		const htmlPayload = `<a href="${escapeHtml(absoluteUrl)}">${escapeHtml(label)}</a>`;
 
-		await navigator.clipboard.writeText(absoluteUrl);
+		const clipboardItemCtor = (
+			globalThis as {
+				ClipboardItem?: new (items: Record<string, Blob>) => ClipboardItem;
+			}
+		).ClipboardItem;
+
+		if (navigator.clipboard?.write && clipboardItemCtor) {
+			await navigator.clipboard.write([
+				new clipboardItemCtor({
+					"text/html": new Blob([htmlPayload], { type: "text/html" }),
+					"text/plain": new Blob([plainTextPayload], { type: "text/plain" }),
+				}),
+			]);
+		} else {
+			await navigator.clipboard.writeText(plainTextPayload);
+		}
 		setCopiedMessage(`${label} link copied`);
 		window.setTimeout(() => setCopiedMessage(null), 1400);
 	}
@@ -188,21 +214,28 @@ export function InspectorPane({
 											placeholder="Untitled marker"
 											aria-label="Title"
 										/>
-										<button
-											type="button"
-											onClick={(event) => {
-												event.stopPropagation();
-												void copyLink(
-													{
-														songId: song.id,
-														fileId: annotation.audioFileId,
-														annotationId: annotation.id,
-														timeMs: annotation.startMs,
-														autoplay: true,
-													},
-													annotation.title || "Marker",
-												);
-											}}
+											<button
+												type="button"
+												onClick={(event) => {
+													event.stopPropagation();
+													const fileLabel =
+														selectedFile?.title.trim() || "Untitled file";
+													const markerLabel =
+														annotation.title.trim() ||
+														(annotation.type === "range"
+															? "Untitled range"
+															: "Untitled marker");
+													void copyLink(
+														{
+															songId: song.id,
+															fileId: annotation.audioFileId,
+															annotationId: annotation.id,
+															timeMs: annotation.startMs,
+															autoplay: true,
+														},
+														`${fileLabel} - ${markerLabel}`,
+													);
+												}}
 											className="icon-button icon-button--sm shrink-0"
 											title="Copy link"
 										>

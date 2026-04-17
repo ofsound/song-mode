@@ -54,16 +54,17 @@ export function RichTextEditor({
 
 	const editor = useEditor({
 		immediatelyRender: false,
-		extensions: [
-			StarterKit.configure({
-				heading: false,
-			}),
-			Link.configure({
-				openOnClick: true,
-				autolink: true,
-				HTMLAttributes: {
-					class: "song-link",
-				},
+			extensions: [
+				StarterKit.configure({
+					heading: false,
+					link: false,
+				}),
+				Link.configure({
+					openOnClick: false,
+					autolink: true,
+					HTMLAttributes: {
+						class: "song-link",
+					},
 			}),
 		],
 		content: value ?? EMPTY_RICH_TEXT,
@@ -113,7 +114,7 @@ export function RichTextEditor({
 	}, [editor, serializedValue, value]);
 
 	useEffect(() => {
-		if (!editor || !wrapperRef.current || !onInternalLink) {
+		if (!editor || !wrapperRef.current) {
 			return;
 		}
 
@@ -129,12 +130,14 @@ export function RichTextEditor({
 			}
 
 			const internalTarget = parseSongTarget(anchor.getAttribute("href"));
-			if (!internalTarget) {
+			if (internalTarget && onInternalLink) {
+				event.preventDefault();
+				onInternalLink(internalTarget);
 				return;
 			}
 
 			event.preventDefault();
-			onInternalLink(internalTarget);
+			window.open(anchor.href, "_blank", "noopener,noreferrer");
 		};
 
 		const node = wrapperRef.current;
