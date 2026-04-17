@@ -107,8 +107,9 @@ export function RichTextEditor({
 
 		const nextSerialized = JSON.stringify(editor.getJSON());
 		if (nextSerialized !== serializedValue) {
-			editor.commands.setContent(value ?? EMPTY_RICH_TEXT, false, {
-				preserveWhitespace: "full",
+			editor.commands.setContent(value ?? EMPTY_RICH_TEXT, {
+				emitUpdate: false,
+				parseOptions: { preserveWhitespace: "full" },
 			});
 		}
 	}, [editor, serializedValue, value]);

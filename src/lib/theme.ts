@@ -14,11 +14,6 @@ export function getSystemTheme(windowObject: Window): Theme {
 		: "light";
 }
 
-export function resolveTheme(windowObject: Window): Theme {
-	const storedTheme = windowObject.localStorage.getItem(THEME_STORAGE_KEY);
-	return isTheme(storedTheme) ? storedTheme : getSystemTheme(windowObject);
-}
-
 export function applyTheme(theme: Theme, root: HTMLElement) {
 	root.classList.remove(...THEMES);
 	root.classList.add(theme);

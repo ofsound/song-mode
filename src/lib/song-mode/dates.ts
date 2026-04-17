@@ -23,7 +23,7 @@ function parseIsoDateParts(
 	};
 }
 
-export function formatIsoDateForDisplay(isoDate: string): string {
+function formatIsoDateForDisplay(isoDate: string): string {
 	const parts = parseIsoDateParts(isoDate);
 	if (!parts) {
 		return isoDate;
@@ -37,7 +37,7 @@ export function formatIsoDateForDisplay(isoDate: string): string {
 }
 
 /** Resolved `YYYY-MM-DD` from stored session date or `createdAt` (UTC date part). */
-export function resolveAudioFileSessionDateIso(
+function resolveAudioFileSessionDateIso(
 	audioFile: AudioFileRecord,
 ): string | null {
 	const explicit = audioFile.sessionDate?.trim();

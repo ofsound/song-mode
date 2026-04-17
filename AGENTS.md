@@ -4,7 +4,7 @@
 
 - **Scan:** Read all `.cursor/rules/*.mdc` before first output.
 - **Stack:** This repo is **React 19 + TanStack Router / TanStack Start** (no Svelte). Ignore Svelte-specific MCP tools and skills unless the codebase gains `.svelte` files.
-- **Validation:** After substantive edits, run **`pnpm check`** and **`pnpm test`** (see Post-Edit Verification rule). Do not block on tools that do not apply here (e.g. `svelte-autofixer`).
+- **Validation:** After substantive edits, run the full gate: **`pnpm verify`** — Biome **`check`**, **`typecheck`** (`tsc --noEmit`), Vitest **`test`**, then **Knip**. Equivalent: `pnpm check && pnpm typecheck && pnpm test && pnpm knip`. Do not block on tools that do not apply here (e.g. `svelte-autofixer`). **Knip** enforces lean `package.json` dependencies and reachable exports/files—fix unused dependency/export findings or justify with Knip config/JSDoc `@public` per [Knip docs](https://knip.dev).
 
 ---
 

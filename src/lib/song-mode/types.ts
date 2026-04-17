@@ -139,14 +139,6 @@ export interface CreateAnnotationInput {
 	color?: string;
 }
 
-export const ANNOTATION_COLORS = [
-	"var(--color-annotation-1)",
-	"var(--color-annotation-2)",
-	"var(--color-annotation-3)",
-	"var(--color-annotation-4)",
-	"var(--color-annotation-5)",
-] as const;
-
 export function createDefaultWorkspaceState(): WorkspaceState {
 	return {
 		playheadMsByFileId: {},

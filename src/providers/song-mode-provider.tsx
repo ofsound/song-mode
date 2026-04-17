@@ -22,7 +22,7 @@ import {
 	saveSettings,
 	saveSong,
 } from "#/lib/song-mode/db";
-import { EMPTY_RICH_TEXT, normalizeRichText } from "#/lib/song-mode/rich-text";
+import { normalizeRichText } from "#/lib/song-mode/rich-text";
 import { searchSongMode } from "#/lib/song-mode/search";
 import {
 	type AddAudioFileInput,
@@ -907,18 +907,4 @@ export function useSongMode() {
 	}
 
 	return context;
-}
-
-export function useSongModeReady() {
-	const { ready } = useSongMode();
-	return ready;
-}
-
-export function useSongModeError() {
-	const { error } = useSongMode();
-	return error;
-}
-
-export function useSongModeRichTextFallback() {
-	return EMPTY_RICH_TEXT;
 }

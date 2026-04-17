@@ -24,3 +24,8 @@ alwaysApply: false
 - Tests live next to code: **`src/**/*.test.ts`** / **`src/**/*.test.tsx`** (see `vitest.config.ts`).
 - Default Vitest environment is **node**; for components that need DOM APIs, add **`// @vitest-environment jsdom`** as the first line (matches existing song-mode tests).
 - Mock router hooks when asserting navigation or route-dependent UI; keep mocks minimal and aligned with `@testing-library/react` usage elsewhere in the repo.
+
+## Knip (dead code & dependencies)
+
+- Run **`pnpm knip`** (or **`pnpm verify`**) after dependency or export changes. Vite + Vitest plugins supply entry patterns; [`knip.json`](knip.json) aligns **`#/*`** with `./src/*` so alias imports resolve.
+- Prefer **fixing** unused exports and dependencies over suppressing. Use **`/** @public */`** on intentional library exports when Knip should ignore them (see [Knip JSDoc tags](https://knip.dev/reference/jsdoc-tsdoc-tags)).

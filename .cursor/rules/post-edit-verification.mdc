@@ -1,15 +1,22 @@
 ---
-description: Run Biome check and Vitest after code edits; fix issues before finishing
+description: Run Biome, Vitest, and Knip after code edits; fix issues before finishing
 alwaysApply: true
 ---
 
 # Post-Edit Verification
 
-After editing any `.ts` or `.tsx` file in `src/`:
+After editing any `.ts` or `.tsx` file in `src/`, or changing **`package.json`** / **[`knip.json`](knip.json)** / **[`vite.config.ts`](vite.config.ts)** / **[`vitest.config.ts`](vitest.config.ts)** / **[`tsconfig.json`](tsconfig.json)**:
 
-1. Run **`pnpm check`** (Biome: `biome check`)
-2. Run **`pnpm test`** (Vitest)
+1. Run **`pnpm verify`** — runs, in order:
+   - **`pnpm check`** — Biome (`biome check`: format + lint)
+   - **`pnpm typecheck`** — TypeScript (`tsc --noEmit` using [`tsconfig.json`](tsconfig.json))
+   - **`pnpm test`** — Vitest
+   - **`pnpm knip`** — unused dependencies, unused exports, unreachable files ([`knip.json`](knip.json) maps `#/*` to `./src/*` for path-alias resolution)
 
-Fix any reported issues — do not consider the task complete until both pass for the touched areas.
+2. Fix any reported issues — do not consider the task complete until **`verify`** passes.
 
-For DOM/component tests, use `// @vitest-environment jsdom` at the top of the file when the test needs a browser-like environment (see existing `*.test.tsx` files).
+**Notes:**
+
+- **Biome** covers format + lint; **`typecheck`** is the compiler pass (types, overloads, and strictness Biome does not enforce).
+- **TanStack Router** codegen: keep **`src/routeTree.gen.ts`** in sync with the router CLI; do not add it to Knip `ignore` unless you have a documented false positive (Knip uses it to reach `src/routes/*`).
+- For DOM/component tests, use `// @vitest-environment jsdom` at the top of the file when the test needs a browser-like environment (see existing `*.test.tsx` files).
