@@ -1,21 +1,30 @@
 import { useNavigate } from "@tanstack/react-router";
-import { FolderOpenDot, Sparkles, Waves } from "lucide-react";
+import { FolderOpenDot, Plus, Sparkles, Trash2, Waves, X } from "lucide-react";
 import { useMemo, useState } from "react";
-import {
-	plainTextToRichText,
-	richTextPreview,
-} from "#/lib/song-mode/rich-text";
+import { createPortal } from "react-dom";
+import { EMPTY_RICH_TEXT, richTextPreview } from "#/lib/song-mode/rich-text";
 import { useSongMode } from "#/providers/song-mode-provider";
+import { useLibraryHeaderActionSlot } from "./app-chrome";
 
 export function LibraryView() {
 	const navigate = useNavigate();
-	const { ready, error, songs, audioFiles, annotations, settings, createSong } =
-		useSongMode();
+	const libraryHeaderActionSlot = useLibraryHeaderActionSlot();
+	const {
+		ready,
+		error,
+		songs,
+		audioFiles,
+		annotations,
+		settings,
+		createSong,
+		deleteSong,
+	} = useSongMode();
 	const [title, setTitle] = useState("");
 	const [artist, setArtist] = useState("");
 	const [project, setProject] = useState("");
-	const [journalSeed, setJournalSeed] = useState("");
 	const [submitting, setSubmitting] = useState(false);
+	const [deletingSongId, setDeletingSongId] = useState<string | null>(null);
+	const [isCreateSongOpen, setIsCreateSongOpen] = useState(false);
 
 	const recentSongIds = settings.recents;
 	const orderedSongs = useMemo(() => {
@@ -53,13 +62,13 @@ export function LibraryView() {
 				title,
 				artist,
 				project,
-				generalNotes: plainTextToRichText(journalSeed),
+				generalNotes: EMPTY_RICH_TEXT,
 			});
 
 			setTitle("");
 			setArtist("");
 			setProject("");
-			setJournalSeed("");
+			setIsCreateSongOpen(false);
 			navigate({
 				to: "/songs/$songId",
 				params: {
@@ -71,60 +80,44 @@ export function LibraryView() {
 		}
 	}
 
-	const newSongForm = (
-		<aside className="panel-shell p-6 sm:p-7 xl:sticky xl:top-8 xl:self-start">
-			<p className="eyebrow">New song</p>
-			<form className="mt-5 grid gap-4" onSubmit={handleSubmit}>
-				<Field label="Song title">
-					<input
-						value={title}
-						onChange={(event) => setTitle(event.target.value)}
-						placeholder="Song title"
-						className="field-input"
-					/>
-				</Field>
-				<div className="grid gap-4">
-					<Field label="Artist">
-						<input
-							value={artist}
-							onChange={(event) => setArtist(event.target.value)}
-							placeholder="Artist or primary act"
-							className="field-input"
-						/>
-					</Field>
-					<Field label="Project">
-						<input
-							value={project}
-							onChange={(event) => setProject(event.target.value)}
-							placeholder="Album, campaign, or client"
-							className="field-input"
-						/>
-					</Field>
-				</div>
-				<Field label="Journal seed">
-					<textarea
-						value={journalSeed}
-						onChange={(event) => setJournalSeed(event.target.value)}
-						rows={4}
-						placeholder="Drop the first thoughts, goals, or revision context here."
-						className="field-input resize-y"
-					/>
-				</Field>
-				<button
-					type="submit"
-					disabled={submitting || !title.trim()}
-					className="action-primary inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-55"
-				>
-					<FolderOpenDot size={16} />
-					{submitting ? "Creating song..." : "Create song workspace"}
-				</button>
-			</form>
-		</aside>
+	async function handleDeleteSong(songId: string) {
+		if (!window.confirm("Delete this song?")) {
+			return;
+		}
+
+		setDeletingSongId(songId);
+		try {
+			await deleteSong(songId);
+		} finally {
+			setDeletingSongId((current) => (current === songId ? null : current));
+		}
+	}
+
+	const createSongTrigger = (
+		<button
+			type="button"
+			onClick={() => setIsCreateSongOpen(true)}
+			className="action-primary inline-flex h-12 shrink-0 items-center justify-center gap-2 px-4 text-sm font-semibold leading-none"
+		>
+			<Plus size={18} />
+			Create song
+		</button>
 	);
+	const renderedCreateSongTrigger = libraryHeaderActionSlot?.slot
+		? createPortal(createSongTrigger, libraryHeaderActionSlot.slot)
+		: libraryHeaderActionSlot?.enabled
+			? null
+			: createSongTrigger;
 
 	return (
-		<main className="flex w-full flex-col gap-8 px-3 py-8">
-			<div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_min(22rem,34vw)] xl:items-start">
+		<>
+			{renderedCreateSongTrigger}
+			<main
+				className={`flex w-full flex-col gap-8 px-3 py-8 transition-[filter,opacity] duration-200 ${
+					isCreateSongOpen ? "pointer-events-none blur-[3px] opacity-45" : ""
+				}`}
+				aria-hidden={isCreateSongOpen}
+			>
 				<div className="flex min-w-0 flex-col gap-8">
 					{error && (
 						<div className="callout-danger px-5 py-4 text-sm">{error}</div>
@@ -172,36 +165,40 @@ export function LibraryView() {
 									(annotation) => annotation.songId === song.id,
 								);
 								return (
-									<button
+									<div
 										key={song.id}
-										type="button"
-										onClick={() =>
-											navigate({
-												to: "/songs/$songId",
-												params: {
-													songId: song.id,
-												},
-											})
-										}
-										className="panel-shell panel-shell-action h-full w-full p-6 text-left"
+										className="panel-shell panel-shell--plain panel-shell-action h-full w-full p-6 text-left"
 									>
-										<div>
-											<h2 className="text-2xl font-semibold text-[var(--color-text)]">
-												{song.title}
-											</h2>
-											<p className="mt-2 text-sm text-[var(--color-text-subtle)]">
-												{song.artist || "No artist set"}
+										<button
+											type="button"
+											onClick={() =>
+												navigate({
+													to: "/songs/$songId",
+													params: {
+														songId: song.id,
+													},
+												})
+											}
+											className="block w-full text-left"
+										>
+											<div>
+												<h2 className="text-2xl font-semibold text-[var(--color-text)]">
+													{song.title}
+												</h2>
+												<p className="mt-2 text-sm text-[var(--color-text-subtle)]">
+													{song.artist || "No artist set"}
+												</p>
+											</div>
+
+											<p className="mt-5 text-sm leading-7 text-[var(--color-text-muted)]">
+												{richTextPreview(
+													song.generalNotes,
+													"Journal is ready for the first pass.",
+												)}
 											</p>
-										</div>
+										</button>
 
-										<p className="mt-5 text-sm leading-7 text-[var(--color-text-muted)]">
-											{richTextPreview(
-												song.generalNotes,
-												"Journal is ready for the first pass.",
-											)}
-										</p>
-
-										<div className="mt-6 flex flex-wrap gap-2">
+										<div className="mt-6 flex items-center gap-2">
 											<StatChip
 												icon={<Waves size={14} />}
 												label={`${songAudioFiles.length} files`}
@@ -210,34 +207,102 @@ export function LibraryView() {
 												icon={<Sparkles size={14} />}
 												label={`${songAnnotations.length} markers`}
 											/>
+											<button
+												type="button"
+												onClick={() => void handleDeleteSong(song.id)}
+												disabled={deletingSongId === song.id}
+												className="icon-button icon-button--sm ml-auto shrink-0 text-[var(--color-danger)] disabled:cursor-not-allowed disabled:opacity-55"
+												title="Delete song"
+												aria-label={`Delete ${song.title}`}
+											>
+												<Trash2 size={12} />
+											</button>
 										</div>
-									</button>
+									</div>
 								);
 							})}
 						</section>
 					)}
 				</div>
+			</main>
 
-				{newSongForm}
-			</div>
-		</main>
-	);
-}
+			{isCreateSongOpen && (
+				<div className="song-modal">
+					<button
+						type="button"
+						aria-label="Dismiss create song dialog"
+						onClick={() => setIsCreateSongOpen(false)}
+						className="song-modal__backdrop"
+					/>
+					<div
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="create-song-title"
+						className="song-modal__panel rise-in w-full max-w-[min(96rem,calc(100vw-2rem))]"
+					>
+						<div className="flex items-start justify-between gap-4 border-b border-[var(--color-border-subtle)] px-5 py-4 sm:px-6">
+							<div className="min-w-0">
+								<p className="eyebrow mb-2">Song setup</p>
+								<h2
+									id="create-song-title"
+									className="text-2xl font-semibold text-[var(--color-text)]"
+								>
+									Create song
+								</h2>
+							</div>
+							<button
+								type="button"
+								aria-label="Close create song dialog"
+								onClick={() => setIsCreateSongOpen(false)}
+								className="icon-button shrink-0"
+							>
+								<X size={16} />
+							</button>
+						</div>
 
-function Field({
-	label,
-	children,
-}: {
-	label: string;
-	children: React.ReactNode;
-}) {
-	return (
-		<div className="grid gap-2">
-			<span className="text-[11px] font-semibold tracking-[0.18em] text-[var(--color-text-subtle)] uppercase">
-				{label}
-			</span>
-			{children}
-		</div>
+						<form className="grid gap-4 p-5 sm:p-6" onSubmit={handleSubmit}>
+							<label className="grid gap-2">
+								<span className="field-label">Song title</span>
+								<input
+									value={title}
+									onChange={(event) => setTitle(event.target.value)}
+									placeholder="Song title"
+									className="field-input"
+								/>
+							</label>
+							<label className="grid gap-2">
+								<span className="field-label">Artist</span>
+								<input
+									value={artist}
+									onChange={(event) => setArtist(event.target.value)}
+									placeholder="Artist"
+									className="field-input"
+								/>
+							</label>
+							<label className="grid gap-2">
+								<span className="field-label">Project</span>
+								<input
+									value={project}
+									onChange={(event) => setProject(event.target.value)}
+									placeholder="Project"
+									className="field-input"
+								/>
+							</label>
+							<div className="flex justify-end">
+								<button
+									type="submit"
+									disabled={submitting || !title.trim()}
+									className="action-primary inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-55"
+								>
+									<FolderOpenDot size={16} />
+									{submitting ? "Creating song..." : "Create song"}
+								</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			)}
+		</>
 	);
 }
 

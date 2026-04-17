@@ -10,6 +10,7 @@ import {
 	TimerReset,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { resolveAudioFileSessionDateLabel } from "#/lib/song-mode/dates";
 import { EMPTY_RICH_TEXT, richTextPreview } from "#/lib/song-mode/rich-text";
 import type {
 	Annotation,
@@ -539,6 +540,8 @@ export function WaveformCard({
 		}
 	};
 
+	const sessionDateLabel = resolveAudioFileSessionDateLabel(audioFile);
+
 	return (
 		<article
 			ref={articleRef}
@@ -602,14 +605,19 @@ export function WaveformCard({
 					>
 						<GripVertical size={16} />
 					</button>
-					<div className="min-w-0">
+					<div className="flex min-w-0 flex-1 items-baseline gap-3">
 						<button
 							type="button"
 							onClick={() => onSelectFile(audioFile.id)}
-							className="block truncate text-left text-lg font-semibold text-[var(--color-text)]"
+							className="min-w-0 truncate text-left text-lg font-semibold text-[var(--color-text)]"
 						>
 							{audioFile.title}
 						</button>
+						{sessionDateLabel ? (
+							<span className="shrink-0 whitespace-nowrap text-sm tabular-nums text-[var(--color-text-muted)]">
+								{sessionDateLabel}
+							</span>
+						) : null}
 					</div>
 				</div>
 

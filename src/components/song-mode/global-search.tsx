@@ -46,8 +46,8 @@ export function GlobalSearch() {
 
 	return (
 		<div className="relative min-w-0 w-full max-w-[32rem]">
-			<label className="search-shell group flex items-center gap-3 px-4 py-3">
-				<Search size={16} className="text-[var(--color-text-muted)]" />
+			<label className="search-shell group flex h-12 min-h-12 items-center gap-3 px-4 py-0">
+				<Search size={16} className="shrink-0 text-[var(--color-text-muted)]" />
 				<input
 					ref={inputRef}
 					value={query}
@@ -62,11 +62,8 @@ export function GlobalSearch() {
 						}, 140);
 					}}
 					placeholder="Search songs, journals, file notes, and markers"
-					className="min-w-0 flex-1 border-0 bg-transparent text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)]"
+					className="min-h-0 min-w-0 flex-1 self-stretch border-0 bg-transparent py-0 text-sm leading-none text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-muted)]"
 				/>
-				<span className="surface-chip hidden px-2 py-1 text-[10px] font-semibold tracking-[0.16em] uppercase md:inline-flex">
-					Cmd/Ctrl+K
-				</span>
 			</label>
 
 			{open && (

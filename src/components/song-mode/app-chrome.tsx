@@ -14,11 +14,23 @@ interface SongRouteHeaderSlotValue {
 	slot: HTMLDivElement | null;
 }
 
+interface LibraryHeaderActionSlotValue {
+	enabled: boolean;
+	slot: HTMLDivElement | null;
+}
+
 export const SongRouteHeaderSlotContext =
 	createContext<SongRouteHeaderSlotValue | null>(null);
 
+export const LibraryHeaderActionSlotContext =
+	createContext<LibraryHeaderActionSlotValue | null>(null);
+
 export function useSongRouteHeaderSlot() {
 	return useContext(SongRouteHeaderSlotContext);
+}
+
+export function useLibraryHeaderActionSlot() {
+	return useContext(LibraryHeaderActionSlotContext);
 }
 
 export function getSongModeHeaderState({
@@ -65,6 +77,8 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 	const [songHeaderSlot, setSongHeaderSlot] = useState<HTMLDivElement | null>(
 		null,
 	);
+	const [libraryHeaderActionSlot, setLibraryHeaderActionSlot] =
+		useState<HTMLDivElement | null>(null);
 	const headerState = getSongModeHeaderState({
 		songId,
 		ready,
@@ -78,68 +92,80 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 		: "header-shell sticky top-0 z-30";
 
 	return (
-		<SongRouteHeaderSlotContext.Provider
-			value={{ enabled: isSongRoute, slot: songHeaderSlot }}
+		<LibraryHeaderActionSlotContext.Provider
+			value={{ enabled: !isSongRoute, slot: libraryHeaderActionSlot }}
 		>
-			<div className={shellClassName}>
-				<header className={headerClassName}>
-					<div className="flex w-full flex-col gap-4 px-3 py-4">
-						<div className="flex flex-col gap-4 xl:flex-row xl:items-end">
-							<div
-								className={
-									isSongRoute
-										? "flex min-w-0 items-center gap-4 xl:shrink-0"
-										: "flex min-w-0 flex-1 items-center gap-4"
-								}
-							>
-								{isSongRoute ? (
-									<Link
-										to="/"
-										aria-label="Go to library"
-										className="inline-flex items-center no-underline"
-									>
-										<span className="brand-mark inline-flex h-12 w-12 items-center justify-center border text-[var(--color-accent)]">
-											<Library size={22} />
-										</span>
-									</Link>
-								) : null}
-
-								{headerState.showLibraryLink && !isSongRoute ? (
-									<button
-										type="button"
-										onClick={() => navigate({ to: "/" })}
-										className="action-secondary hidden items-center gap-2 px-4 py-2 text-sm font-semibold md:inline-flex"
-									>
-										<Library size={15} />
-										Library
-									</button>
-								) : null}
-
-								{!isSongRoute ? <GlobalSearch /> : null}
-							</div>
-
-							{showSongHeaderSlot ? (
+			<SongRouteHeaderSlotContext.Provider
+				value={{ enabled: isSongRoute, slot: songHeaderSlot }}
+			>
+				<div className={shellClassName}>
+					<header className={headerClassName}>
+						<div className="flex w-full flex-col gap-4 px-3 py-4">
+							<div className="flex flex-col gap-4 xl:flex-row xl:items-end">
 								<div
-									ref={setSongHeaderSlot}
-									className="min-w-0 flex-1 xl:px-2"
-								/>
-							) : null}
+									className={
+										isSongRoute
+											? "flex min-w-0 items-center gap-4 xl:shrink-0"
+											: "flex min-w-0 flex-1 items-center gap-4"
+									}
+								>
+									{isSongRoute ? (
+										<Link
+											to="/"
+											aria-label="Go to library"
+											className="inline-flex items-center no-underline"
+										>
+											<span className="brand-mark inline-flex h-12 w-12 items-center justify-center border text-[var(--color-accent)]">
+												<Library size={22} />
+											</span>
+										</Link>
+									) : null}
 
-							<div className="flex w-full min-w-0 items-center justify-end gap-3 xl:ml-auto xl:w-auto xl:shrink-0">
-								<ThemeToggle />
+									{headerState.showLibraryLink && !isSongRoute ? (
+										<button
+											type="button"
+											onClick={() => navigate({ to: "/" })}
+											className="action-secondary hidden h-12 shrink-0 items-center justify-center gap-2 px-4 text-sm font-semibold leading-none md:inline-flex"
+										>
+											<Library size={15} />
+											Library
+										</button>
+									) : null}
+
+									{!isSongRoute ? (
+										<div className="flex min-w-0 flex-1 items-center gap-3">
+											<GlobalSearch />
+											<div
+												ref={setLibraryHeaderActionSlot}
+												className="shrink-0"
+											/>
+										</div>
+									) : null}
+								</div>
+
+								{showSongHeaderSlot ? (
+									<div
+										ref={setSongHeaderSlot}
+										className="min-w-0 flex-1 xl:px-2"
+									/>
+								) : null}
+
+								<div className="flex w-full min-w-0 items-center justify-end gap-3 xl:ml-auto xl:w-auto xl:shrink-0">
+									<ThemeToggle />
+								</div>
 							</div>
 						</div>
-					</div>
-				</header>
+					</header>
 
-				{isSongRoute ? (
-					<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-						{children}
-					</div>
-				) : (
-					children
-				)}
-			</div>
-		</SongRouteHeaderSlotContext.Provider>
+					{isSongRoute ? (
+						<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+							{children}
+						</div>
+					) : (
+						children
+					)}
+				</div>
+			</SongRouteHeaderSlotContext.Provider>
+		</LibraryHeaderActionSlotContext.Provider>
 	);
 }

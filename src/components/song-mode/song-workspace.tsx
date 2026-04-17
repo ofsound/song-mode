@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { isEditableElement } from "#/lib/song-mode/dom";
 import { targetToRouteSearch } from "#/lib/song-mode/links";
+import { isoDateInLocalCalendar } from "#/lib/song-mode/dates";
 import { plainTextToRichText } from "#/lib/song-mode/rich-text";
 import type { SongLinkTarget, SongRouteSearch } from "#/lib/song-mode/types";
 import { normalizeVolumeDb } from "#/lib/song-mode/waveform";
@@ -77,6 +78,9 @@ export function SongWorkspace({
 	const [uploadFile, setUploadFile] = useState<File | null>(null);
 	const [uploadTitle, setUploadTitle] = useState("");
 	const [uploadNotes, setUploadNotes] = useState("");
+	const [uploadSessionDate, setUploadSessionDate] = useState(() =>
+		isoDateInLocalCalendar(),
+	);
 	const [draggingFileId, setDraggingFileId] = useState<string | null>(null);
 
 	const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -121,6 +125,12 @@ export function SongWorkspace({
 
 		void rememberSongOpened(songId);
 	}, [ready, rememberSongOpened, song, songId]);
+
+	useEffect(() => {
+		if (isUploadOpen) {
+			setUploadSessionDate(isoDateInLocalCalendar());
+		}
+	}, [isUploadOpen]);
 
 	// Sync route search → workspace when the URL (or loaded files) change — not
 	// when workspace alone changes. Otherwise a stale ?fileId=… keeps winning
@@ -289,12 +299,20 @@ export function SongWorkspace({
 				void togglePlayback(selectedFileId);
 			}
 
-			if (event.key === "ArrowLeft") {
+			if (
+				event.key === "ArrowLeft" ||
+				event.key === "," ||
+				event.code === "Comma"
+			) {
 				event.preventDefault();
 				void seekActiveBy(-5000);
 			}
 
-			if (event.key === "ArrowRight") {
+			if (
+				event.key === "ArrowRight" ||
+				event.key === "." ||
+				event.code === "Period"
+			) {
 				event.preventDefault();
 				void seekActiveBy(5000);
 			}
@@ -424,6 +442,7 @@ export function SongWorkspace({
 			const audioFile = await addAudioFile(songId, {
 				file: uploadFile,
 				title: uploadTitle,
+				sessionDate: uploadSessionDate,
 				notes: plainTextToRichText(uploadNotes),
 			});
 			await updateWorkspaceState(songId, {
@@ -481,8 +500,8 @@ export function SongWorkspace({
 	}
 
 	const songHeaderControls = (
-		<div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-end xl:justify-start">
-			<div className="grid w-full min-w-0 max-w-[450px] gap-2 xl:min-w-[18rem] xl:flex-[1.35]">
+		<div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-center xl:justify-start">
+			<div className="min-w-0 max-w-[450px] xl:min-w-[18rem] xl:flex-[1.35]">
 				<input
 					value={song.title}
 					onChange={(event) =>
@@ -490,13 +509,13 @@ export function SongWorkspace({
 							title: event.target.value,
 						})
 					}
-					className="field-input px-3 py-2 text-lg leading-tight text-[var(--color-text)]"
+					className="field-input h-12 px-3 py-0 text-lg font-semibold leading-none text-[var(--color-text)]"
 					placeholder="Song title"
 					aria-label="Song title"
 				/>
 			</div>
 
-			<div className="grid min-w-0 gap-2 xl:w-[10rem] xl:shrink-0">
+			<div className="min-w-0 xl:w-[10rem] xl:shrink-0">
 				<input
 					value={song.artist}
 					onChange={(event) =>
@@ -504,13 +523,13 @@ export function SongWorkspace({
 							artist: event.target.value,
 						})
 					}
-					className="field-input px-3 py-2"
+					className="field-input h-12 px-3 py-0 text-sm leading-none"
 					placeholder="Artist"
 					aria-label="Artist"
 				/>
 			</div>
 
-			<div className="grid min-w-0 gap-2 xl:w-[10rem] xl:shrink-0">
+			<div className="min-w-0 xl:w-[10rem] xl:shrink-0">
 				<input
 					value={song.project}
 					onChange={(event) =>
@@ -518,20 +537,20 @@ export function SongWorkspace({
 							project: event.target.value,
 						})
 					}
-					className="field-input px-3 py-2"
+					className="field-input h-12 px-3 py-0 text-sm leading-none"
 					placeholder="Project"
 					aria-label="Project"
 				/>
 			</div>
 
-			<div className="flex shrink-0 flex-wrap items-center gap-3 xl:pb-[1px]">
+			<div className="flex shrink-0 flex-wrap items-center gap-3">
 				<button
 					type="button"
 					onClick={() => setIsUploadOpen(true)}
-					className="action-primary inline-flex items-center gap-3 px-5 py-3 text-sm font-semibold"
+					className="action-primary inline-flex h-12 shrink-0 items-center justify-center gap-2 px-5 text-sm font-semibold leading-none"
 				>
 					<Upload size={16} />
-					Add audio
+					Add file
 				</button>
 			</div>
 		</div>
@@ -729,7 +748,7 @@ export function SongWorkspace({
 									id="upload-audio-title"
 									className="text-2xl font-semibold text-[var(--color-text)]"
 								>
-									Add audio
+									Add file
 								</h2>
 							</div>
 							<button
@@ -742,10 +761,7 @@ export function SongWorkspace({
 							</button>
 						</div>
 
-						<form
-							className="grid gap-4 p-5 sm:p-6 xl:grid-cols-[1fr_1fr_auto]"
-							onSubmit={handleUpload}
-						>
+						<form className="grid gap-4 p-5 sm:p-6" onSubmit={handleUpload}>
 							<label className="grid gap-2">
 								<span className="field-label">Audio file</span>
 								<input
@@ -780,7 +796,18 @@ export function SongWorkspace({
 									className="field-input resize-y"
 								/>
 							</label>
-							<div className="xl:col-span-3 flex flex-wrap items-center justify-between gap-3">
+							<label className="grid gap-2">
+								<span className="field-label">Date</span>
+								<input
+									type="date"
+									value={uploadSessionDate}
+									onChange={(event) =>
+										setUploadSessionDate(event.target.value)
+									}
+									className="field-input"
+								/>
+							</label>
+							<div className="flex flex-wrap items-center justify-between gap-3">
 								<div className="text-sm text-[var(--color-text-muted)]">
 									Large files decode in-browser, and peak data is cached locally
 									in IndexedDB for future visits.
@@ -795,7 +822,7 @@ export function SongWorkspace({
 								</button>
 							</div>
 							{uploadError && (
-								<div className="callout-danger xl:col-span-3 px-4 py-3 text-sm">
+								<div className="callout-danger px-4 py-3 text-sm">
 									{uploadError}
 								</div>
 							)}

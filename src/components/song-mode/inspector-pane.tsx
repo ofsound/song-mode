@@ -5,6 +5,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { resolveAudioFileSessionDateInputValue } from "#/lib/song-mode/dates";
 import { buildSongTargetPath } from "#/lib/song-mode/links";
 import type {
 	Annotation,
@@ -20,6 +21,11 @@ const DRAG_STEP_PX = 8;
 const DRAG_THRESHOLD_PX = 4;
 const SCRUB_STEP_MS = 1000;
 const SCRUB_FINE_STEP_MS = 250;
+
+function formatMarkerCount(count: number) {
+	if (count === 1) return "1 marker";
+	return `${count} markers`;
+}
 
 interface InspectorPaneProps {
 	song: Song;
@@ -67,10 +73,15 @@ export function InspectorPane({
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0">
 						<h3 className="text-lg font-semibold text-[var(--color-text)]">
-							{annotations.length} markers in{" "}
 							<span className="inspector-echo-filename">
 								{selectedFile?.title ?? song.title}
 							</span>
+							{annotations.length > 0 && (
+								<span className="text-base">
+									{" — "}
+									{formatMarkerCount(annotations.length)}
+								</span>
+							)}
 						</h3>
 					</div>
 				</div>
@@ -101,7 +112,7 @@ export function InspectorPane({
 									className={`marker-card border text-left transition-[border-color,background-color] duration-150 ${
 										activeAnnotation?.id === annotation.id
 											? "border-[var(--color-accent-strong)] bg-[var(--color-accent-surface)]"
-											: "border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] hover:border-[var(--color-border-strong)]"
+											: "border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)]"
 									}`}
 								>
 									<div className="marker-play-cell">
@@ -222,39 +233,51 @@ export function InspectorPane({
 						})
 					)}
 				</div>
-			</section>
-
-			<section className="border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
 				{copiedMessage ? (
-					<div className="mb-3 flex justify-end">
+					<div className="mb-2 flex justify-end">
 						<span className="surface-chip px-3 py-1 text-xs">
 							{copiedMessage}
 						</span>
 					</div>
 				) : null}
 
-				{!selectedFile ? (
-					<p className="text-sm leading-7 text-[var(--color-text-muted)]">
-						Pick an audio lane to edit notes, inspect time-based annotations,
-						and copy deep links back into the song journal.
-					</p>
-				) : (
-					<div className="grid gap-4">
-						<div className="grid gap-2">
-							<span className="field-label">Notes</span>
-							<RichTextEditor
-								value={selectedFile.notes}
-								onChange={(nextValue) =>
-									void onUpdateFile({
-										notes: nextValue,
-									})
-								}
-								onInternalLink={onOpenTarget}
-								compact
-								showToolbar={false}
-							/>
+				{selectedFile ? (
+					<div className="mt-4 pt-4">
+						<div className="grid gap-4">
+							<div className="grid gap-2">
+								<span className="field-label">Notes</span>
+								<RichTextEditor
+									value={selectedFile.notes}
+									onChange={(nextValue) =>
+										void onUpdateFile({
+											notes: nextValue,
+										})
+									}
+									onInternalLink={onOpenTarget}
+									compact
+									showToolbar={false}
+								/>
+							</div>
+							<label className="grid gap-2">
+								<span className="field-label">Date</span>
+								<input
+									type="date"
+									value={resolveAudioFileSessionDateInputValue(selectedFile)}
+									onChange={(event) =>
+										void onUpdateFile({
+											sessionDate: event.target.value,
+										})
+									}
+									className="field-input"
+								/>
+							</label>
 						</div>
 					</div>
+				) : (
+					<p className="text-sm leading-7 text-[var(--color-text-muted)]">
+						Pick an audio lane to edit notes, inspect time-based annotations, and
+						copy deep links back into the song journal.
+					</p>
 				)}
 			</section>
 		</div>

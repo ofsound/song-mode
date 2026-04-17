@@ -15,6 +15,9 @@ const { loadSnapshotMock } = vi.hoisted(() => ({
 
 vi.mock("#/lib/song-mode/db", () => ({
 	loadSnapshot: loadSnapshotMock,
+	deleteAudioBlob: vi.fn(),
+	deleteAudioFile: vi.fn(),
+	deleteSong: vi.fn(),
 	saveAnnotation: vi.fn(),
 	saveAudioBlob: vi.fn(),
 	saveAudioFile: vi.fn(),

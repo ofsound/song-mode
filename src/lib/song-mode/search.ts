@@ -61,7 +61,7 @@ export function searchSongMode(
 		);
 
 		for (const audioFile of audioBySong[song.id] ?? []) {
-			const audioPlain = `${audioFile.title} ${richTextToPlainText(audioFile.notes)}`;
+			const audioPlain = `${audioFile.title} ${audioFile.sessionDate ?? ""} ${richTextToPlainText(audioFile.notes)}`;
 			pushMatch(
 				results,
 				buildScore(audioFile.title, audioPlain, terms, 1.9),

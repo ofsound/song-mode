@@ -9,8 +9,12 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { isoDateInLocalCalendar } from "#/lib/song-mode/dates";
 import {
 	deleteAnnotation as deleteAnnotationRecord,
+	deleteAudioBlob as deleteAudioBlobRecord,
+	deleteAudioFile as deleteAudioFileRecord,
+	deleteSong as deleteSongRecord,
 	loadSnapshot,
 	saveAnnotation,
 	saveAudioBlob,
@@ -68,6 +72,7 @@ interface SongModeContextValue extends SongModeSnapshot {
 	getWorkspaceState: (songId: string) => WorkspaceState;
 	createSong: (input: CreateSongInput) => Promise<Song>;
 	updateSong: (songId: string, patch: Partial<Song>) => Promise<void>;
+	deleteSong: (songId: string) => Promise<void>;
 	addAudioFile: (
 		songId: string,
 		input: AddAudioFileInput,
@@ -409,15 +414,106 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 		[commitSnapshot],
 	);
 
+	const deleteSong = useCallback(
+		async (songId: string) => {
+			let deletedAudioFileIds: string[] = [];
+			let deletedAnnotationIds: string[] = [];
+
+			await commitSnapshot(
+				(current) => {
+					deletedAudioFileIds = current.audioFiles
+						.filter((audioFile) => audioFile.songId === songId)
+						.map((audioFile) => audioFile.id);
+					deletedAnnotationIds = current.annotations
+						.filter((annotation) => annotation.songId === songId)
+						.map((annotation) => annotation.id);
+					const deletedAudioFileIdSet = new Set(deletedAudioFileIds);
+					const recents = current.settings.recents.filter(
+						(id) => id !== songId,
+					);
+					const workspaceBySongId = { ...current.settings.workspaceBySongId };
+					delete workspaceBySongId[songId];
+					const blobsByAudioId = { ...current.blobsByAudioId };
+					for (const fileId of deletedAudioFileIdSet) {
+						delete blobsByAudioId[fileId];
+					}
+
+					return {
+						...current,
+						songs: current.songs.filter((song) => song.id !== songId),
+						audioFiles: current.audioFiles.filter(
+							(audioFile) => audioFile.songId !== songId,
+						),
+						annotations: current.annotations.filter(
+							(annotation) => annotation.songId !== songId,
+						),
+						blobsByAudioId,
+						settings: {
+							...current.settings,
+							recents,
+							lastOpenSongId:
+								current.settings.lastOpenSongId === songId
+									? recents[0]
+									: current.settings.lastOpenSongId,
+							workspaceBySongId,
+						},
+					};
+				},
+				async (nextSnapshot) => {
+					await Promise.all([
+						deleteSongRecord(songId),
+						...deletedAudioFileIds.map((fileId) =>
+							deleteAudioFileRecord(fileId),
+						),
+						...deletedAudioFileIds.map((fileId) =>
+							deleteAudioBlobRecord(fileId),
+						),
+						...deletedAnnotationIds.map((id) => deleteAnnotationRecord(id)),
+						saveSettings(nextSnapshot.settings),
+					]);
+				},
+			);
+
+			if (deletedAudioFileIds.length === 0) {
+				return;
+			}
+
+			for (const fileId of deletedAudioFileIds) {
+				audioRefs.current.delete(fileId);
+			}
+
+			setPlayback((current) => {
+				const nextCurrentTimeByFileId = { ...current.currentTimeByFileId };
+				let activeDeleted = false;
+
+				for (const fileId of deletedAudioFileIds) {
+					delete nextCurrentTimeByFileId[fileId];
+					if (current.activeFileId === fileId) {
+						activeDeleted = true;
+					}
+				}
+
+				return {
+					activeFileId: activeDeleted ? undefined : current.activeFileId,
+					isPlaying: activeDeleted ? false : current.isPlaying,
+					currentTimeByFileId: nextCurrentTimeByFileId,
+				};
+			});
+		},
+		[commitSnapshot],
+	);
+
 	const addAudioFile = useCallback(
 		async (songId: string, input: AddAudioFileInput) => {
 			setError(null);
 			const waveform = await generateWaveformFromFile(input.file);
 			const now = new Date().toISOString();
+			const sessionDate = input.sessionDate.trim() || isoDateInLocalCalendar();
 			const audioFile: AudioFileRecord = {
 				id: crypto.randomUUID(),
 				songId,
 				title: input.title.trim() || input.file.name.replace(/\.[^.]+$/, ""),
+				sessionDate,
 				notes: normalizeRichText(input.notes),
 				volumeDb: 0,
 				durationMs: waveform.durationMs,
@@ -849,6 +945,7 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 			getWorkspaceState,
 			createSong,
 			updateSong,
+			deleteSong,
 			addAudioFile,
 			updateAudioFile,
 			reorderAudioFiles,
@@ -868,6 +965,7 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 			addAudioFile,
 			createAnnotation,
 			createSong,
+			deleteSong,
 			deleteAnnotation,
 			error,
 			getAnnotationsForFile,

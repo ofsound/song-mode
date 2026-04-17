@@ -40,6 +40,8 @@ export interface AudioFileRecord {
 	id: string;
 	songId: string;
 	title: string;
+	/** Local calendar session date `YYYY-MM-DD` (mix / ref date). */
+	sessionDate?: string;
 	notes: RichTextDoc;
 	volumeDb: number;
 	durationMs: number;
@@ -121,6 +123,8 @@ export interface CreateSongInput {
 export interface AddAudioFileInput {
 	file: File;
 	title: string;
+	/** `YYYY-MM-DD` from `<input type="date" />`. */
+	sessionDate: string;
 	notes: RichTextDoc;
 }
 

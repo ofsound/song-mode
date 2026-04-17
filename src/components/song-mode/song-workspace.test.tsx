@@ -357,6 +357,21 @@ describe("SongWorkspace", () => {
 		});
 	});
 
+	it("rewinds and fast-forwards 5 seconds with comma and period, including key repeat", () => {
+		currentAudioFiles = [createAudioFile()];
+		seekActiveBy.mockClear();
+
+		render(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+
+		fireEvent.keyDown(window, { key: ",", code: "Comma" });
+		fireEvent.keyDown(window, { key: ".", code: "Period" });
+		fireEvent.keyDown(window, { key: ",", code: "Comma", repeat: true });
+
+		expect(seekActiveBy).toHaveBeenNthCalledWith(1, -5000);
+		expect(seekActiveBy).toHaveBeenNthCalledWith(2, 5000);
+		expect(seekActiveBy).toHaveBeenNthCalledWith(3, -5000);
+	});
+
 	it("keeps a zero live playhead instead of falling back to workspace playhead", () => {
 		currentAudioFiles = [createAudioFile()];
 		currentWorkspace = {
@@ -379,18 +394,18 @@ describe("SongWorkspace", () => {
 		expect(screen.getByText("0 ms")).toBeTruthy();
 	});
 
-	it("opens the upload form inside a modal when add audio is clicked", () => {
+	it("opens the upload form inside a modal when add file is clicked", () => {
 		currentAudioFiles = [createAudioFile()];
 
 		render(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
 
 		expect(screen.queryByRole("dialog")).toBeNull();
 
-		fireEvent.click(screen.getByRole("button", { name: /add audio/i }));
+		fireEvent.click(screen.getByRole("button", { name: /add file/i }));
 
 		expect(
 			screen.getByRole("dialog", {
-				name: /add audio/i,
+				name: /add file/i,
 			}),
 		).toBeTruthy();
 		expect(screen.getByLabelText(/audio file/i)).toBeTruthy();
@@ -437,12 +452,12 @@ describe("SongWorkspace", () => {
 			within(headerSlot).getByRole("textbox", { name: /^project$/i }),
 		).toBeTruthy();
 		expect(
-			within(headerSlot).getByRole("button", { name: /add audio/i }),
+			within(headerSlot).getByRole("button", { name: /add file/i }),
 		).toBeTruthy();
 		expect(
 			within(container.querySelector("main") as HTMLElement).queryByRole(
 				"button",
-				{ name: /add audio/i },
+				{ name: /add file/i },
 			),
 		).toBeNull();
 

@@ -135,6 +135,21 @@ export async function deleteAnnotation(annotationId: string): Promise<void> {
 	await db.delete("annotations", annotationId);
 }
 
+export async function deleteSong(songId: string): Promise<void> {
+	const db = await getDb();
+	await db.delete("songs", songId);
+}
+
+export async function deleteAudioFile(audioFileId: string): Promise<void> {
+	const db = await getDb();
+	await db.delete("audioFiles", audioFileId);
+}
+
+export async function deleteAudioBlob(audioFileId: string): Promise<void> {
+	const db = await getDb();
+	await db.delete("blobs", audioFileId);
+}
+
 export async function saveSettings(settings: SongModeSettings): Promise<void> {
 	const db = await getDb();
 	await db.put("settings", settings, SETTINGS_KEY);
