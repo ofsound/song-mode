@@ -23,8 +23,6 @@ function WaveformCanvasHarness() {
 		waveform,
 		currentTimeMs: 0,
 		isSelected: false,
-		mode: "seek",
-		rangeAnchorMs: null,
 	});
 
 	return (

@@ -334,7 +334,7 @@ describe("WaveformCard", () => {
 		});
 	});
 
-	it("commits seek on pointer up and uses autoplay on double-click release", async () => {
+	it("commits seek on pointer up and uses autoplay on waveform double-click", async () => {
 		const onSeek = vi.fn().mockResolvedValue(undefined);
 		const onSelectFile = vi.fn();
 		const onReportPlayback = vi.fn();
@@ -388,16 +388,17 @@ describe("WaveformCard", () => {
 			button: 0,
 			pointerId: 4,
 			clientX: 160,
-			detail: 2,
 		});
 		fireEvent.pointerUp(waveformSurface, {
 			pointerId: 4,
 			clientX: 160,
-			detail: 2,
+		});
+		fireEvent.doubleClick(waveformSurface, {
+			clientX: 160,
 		});
 
 		await waitFor(() => {
-			expect(onSeek).toHaveBeenCalledWith(135000, true);
+			expect(onSeek).toHaveBeenNthCalledWith(3, 135000, true);
 		});
 	});
 
@@ -585,69 +586,36 @@ describe("WaveformCard", () => {
 		});
 	});
 
-	it("does not show the playhead hover actions in point or range mode", () => {
+	it("removes the waveform mode selectors and keeps the playhead hover actions", () => {
 		renderWaveformCard({
 			currentTimeMs: 45000,
 		});
 
 		expect(
-			screen.getByRole("button", {
-				name: /add marker at 0:45 for mix v1/i,
-			}),
-		).toBeTruthy();
-		expect(
-			screen.getByRole("button", {
-				name: /add range at 0:45 for mix v1/i,
-			}),
-		).toBeTruthy();
-
-		fireEvent.click(
-			screen.getByRole("button", {
-				name: /point/i,
-			}),
-		);
-		expect(
 			screen.queryByRole("button", {
-				name: /add marker at 0:45 for mix v1/i,
+				name: /^seek$/i,
 			}),
 		).toBeNull();
 		expect(
 			screen.queryByRole("button", {
-				name: /add range at 0:45 for mix v1/i,
+				name: /^point$/i,
 			}),
 		).toBeNull();
-
-		fireEvent.click(
-			screen.getByRole("button", {
-				name: /seek/i,
-			}),
-		);
 		expect(
-			screen.getByRole("button", {
-				name: /add marker at 0:45 for mix v1/i,
-			}),
-		).toBeTruthy();
-		expect(
-			screen.getByRole("button", {
-				name: /add range at 0:45 for mix v1/i,
-			}),
-		).toBeTruthy();
-
-		fireEvent.click(
-			screen.getByRole("button", {
+			screen.queryByRole("button", {
 				name: /^range$/i,
 			}),
-		);
+		).toBeNull();
 		expect(
-			screen.queryByRole("button", {
+			screen.getByRole("button", {
 				name: /add marker at 0:45 for mix v1/i,
 			}),
-		).toBeNull();
+		).toBeTruthy();
 		expect(
-			screen.queryByRole("button", {
+			screen.getByRole("button", {
 				name: /add range at 0:45 for mix v1/i,
 			}),
-		).toBeNull();
+		).toBeTruthy();
 	});
 
 	it("selects the file when clicking non-interactive row space", () => {
@@ -660,13 +628,6 @@ describe("WaveformCard", () => {
 		fireEvent.pointerDown(screen.getByRole("article"));
 		expect(onSelectFile).toHaveBeenCalledTimes(1);
 		expect(onSelectFile).toHaveBeenCalledWith("file-1");
-
-		fireEvent.click(
-			screen.getByRole("button", {
-				name: /seek/i,
-			}),
-		);
-		expect(onSelectFile).toHaveBeenCalledTimes(1);
 
 		fireEvent.click(
 			screen.getByRole("button", {

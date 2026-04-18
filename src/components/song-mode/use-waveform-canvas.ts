@@ -8,8 +8,6 @@ interface UseWaveformCanvasOptions {
 	waveform: WaveformData;
 	currentTimeMs: number;
 	isSelected: boolean;
-	mode: "seek" | "point" | "range";
-	rangeAnchorMs: number | null;
 }
 
 export function useWaveformCanvas({
@@ -18,8 +16,6 @@ export function useWaveformCanvas({
 	waveform,
 	currentTimeMs,
 	isSelected,
-	mode,
-	rangeAnchorMs,
 }: UseWaveformCanvasOptions) {
 	useEffect(() => {
 		const canvas = canvasRef.current;
@@ -98,17 +94,6 @@ export function useWaveformCanvas({
 			context.lineTo(progressX, height);
 			context.stroke();
 
-			if (mode === "range" && rangeAnchorMs !== null) {
-				const anchorX =
-					width * (rangeAnchorMs / Math.max(waveform.durationMs, 1));
-				context.strokeStyle = readColor("--canvas-waveform-range");
-				context.setLineDash([7, 5]);
-				context.beginPath();
-				context.moveTo(anchorX, 0);
-				context.lineTo(anchorX, height);
-				context.stroke();
-				context.setLineDash([]);
-			}
 			return true;
 		};
 
@@ -141,8 +126,6 @@ export function useWaveformCanvas({
 		canvasRef,
 		currentTimeMs,
 		isSelected,
-		mode,
-		rangeAnchorMs,
 		surfaceRef,
 		waveform.durationMs,
 		waveform.peaks,

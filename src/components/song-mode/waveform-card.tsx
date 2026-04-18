@@ -1,6 +1,4 @@
 import {
-	Bookmark,
-	BookmarkMinus,
 	GripVertical,
 	Minus,
 	Pause,
@@ -9,7 +7,7 @@ import {
 	RotateCcw,
 	UnfoldHorizontal,
 } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { resolveAudioFileSessionDateLabel } from "#/lib/song-mode/dates";
 import { EMPTY_RICH_TEXT } from "#/lib/song-mode/rich-text";
 import type {
@@ -27,7 +25,6 @@ import { useWaveformAudioGraph } from "./use-waveform-audio-graph";
 import { useWaveformCanvas } from "./use-waveform-canvas";
 import { WaveformCardAnnotationLayer } from "./waveform-card-annotation-layer";
 
-type WaveformMode = "seek" | "point" | "range";
 const PLAYHEAD_ADD_MARKER_HOTSPOT_HEIGHT_PX = 36;
 const DEFAULT_RANGE_ANNOTATION_DURATION_MS = 10_000;
 
@@ -39,6 +36,11 @@ interface HoveredAnnotationState {
 
 interface SeekDragState {
 	pointerId: number;
+	timeMs: number;
+}
+
+interface WaveformSeekClickState {
+	clientX: number;
 	timeMs: number;
 }
 
@@ -94,8 +96,6 @@ export function WaveformCard({
 	onDrop,
 }: WaveformCardProps) {
 	const [objectUrl, setObjectUrl] = useState<string | null>(null);
-	const [mode, setMode] = useState<WaveformMode>("seek");
-	const [rangeAnchorMs, setRangeAnchorMs] = useState<number | null>(null);
 	const [hoveredAnnotation, setHoveredAnnotation] =
 		useState<HoveredAnnotationState | null>(null);
 	const [isPlayheadAddMarkerVisible, setIsPlayheadAddMarkerVisible] =
@@ -106,6 +106,7 @@ export function WaveformCard({
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 	const isDragArmedRef = useRef(false);
 	const seekDragStateRef = useRef<SeekDragState | null>(null);
+	const lastSeekClickRef = useRef<WaveformSeekClickState | null>(null);
 
 	const sortedAnnotations = useMemo(
 		() => [...annotations].sort((left, right) => left.startMs - right.startMs),
@@ -179,12 +180,6 @@ export function WaveformCard({
 		}
 	}, [currentTimeMs]);
 
-	useEffect(() => {
-		if (mode !== "seek" && isPlayheadAddMarkerVisible) {
-			setIsPlayheadAddMarkerVisible(false);
-		}
-	}, [isPlayheadAddMarkerVisible, mode]);
-
 	useWaveformAudioGraph({
 		audioRef,
 		isPlaying,
@@ -195,8 +190,6 @@ export function WaveformCard({
 		canvasRef,
 		currentTimeMs,
 		isSelected,
-		mode,
-		rangeAnchorMs,
 		surfaceRef,
 		waveform,
 	});
@@ -269,50 +262,6 @@ export function WaveformCard({
 			color: "var(--color-annotation-2)",
 		});
 		onSelectAnnotation(annotation.id);
-	}
-
-	async function handleWaveformAction(clientX: number, autoplay?: boolean) {
-		const timeMs = getWaveformTimeMs(clientX);
-		if (timeMs === null) {
-			return;
-		}
-
-		onSelectFile(audioFile.id);
-
-		if (mode === "seek") {
-			if (typeof autoplay === "boolean") {
-				await onSeek(timeMs, autoplay);
-				return;
-			}
-
-			await onSeek(timeMs);
-			return;
-		}
-
-		if (mode === "point") {
-			await createPointAnnotationAtTime(timeMs);
-			setMode("seek");
-			return;
-		}
-
-		if (rangeAnchorMs === null) {
-			setRangeAnchorMs(timeMs);
-			return;
-		}
-
-		const startMs = Math.min(rangeAnchorMs, timeMs);
-		const endMs = Math.max(rangeAnchorMs, timeMs);
-		const annotation = await onCreateAnnotation({
-			type: "range",
-			startMs,
-			endMs,
-			title: `Range ${formatDuration(startMs)}`,
-			body: EMPTY_RICH_TEXT,
-			color: "var(--color-annotation-2)",
-		});
-		onSelectAnnotation(annotation.id);
-		setRangeAnchorMs(null);
-		setMode("seek");
 	}
 
 	function clearSeekDragState(
@@ -442,32 +391,6 @@ export function WaveformCard({
 				</div>
 
 				<div className="flex flex-wrap items-center gap-2">
-					<ModeButton
-						icon={<UnfoldHorizontal size={14} />}
-						active={mode === "seek"}
-						label="Seek"
-						onClick={() => {
-							setMode("seek");
-							setRangeAnchorMs(null);
-						}}
-					/>
-					<ModeButton
-						icon={<Bookmark size={14} />}
-						active={mode === "point"}
-						label="Point"
-						onClick={() => {
-							setMode("point");
-							setRangeAnchorMs(null);
-						}}
-					/>
-					<ModeButton
-						icon={<BookmarkMinus size={14} />}
-						active={mode === "range"}
-						label={rangeAnchorMs === null ? "Range" : "Finish range"}
-						onClick={() => {
-							setMode("range");
-						}}
-					/>
 					<button
 						type="button"
 						aria-label={isPlaying ? "Pause" : "Play"}
@@ -498,7 +421,6 @@ export function WaveformCard({
 					}}
 					onPointerDown={(event) => {
 						if (
-							mode !== "seek" ||
 							event.button !== 0 ||
 							(event.target as HTMLElement).closest(
 								"[data-annotation-hit], [data-playhead-add-marker-hit], [data-playhead-add-range-hit]",
@@ -526,11 +448,7 @@ export function WaveformCard({
 					}}
 					onPointerMove={(event) => {
 						const dragState = seekDragStateRef.current;
-						if (
-							mode !== "seek" ||
-							!dragState ||
-							dragState.pointerId !== event.pointerId
-						) {
+						if (!dragState || dragState.pointerId !== event.pointerId) {
 							return;
 						}
 
@@ -550,20 +468,20 @@ export function WaveformCard({
 							event.currentTarget,
 							event.pointerId,
 						);
-						if (mode !== "seek" || !dragState) {
+						if (!dragState) {
 							return;
 						}
 
-						void onSeek(dragState.timeMs, event.detail >= 2);
+						lastSeekClickRef.current = {
+							clientX: event.clientX,
+							timeMs: dragState.timeMs,
+						};
+						void onSeek(dragState.timeMs, false);
 					}}
 					onPointerCancel={(event) => {
 						clearSeekDragState(event.currentTarget, event.pointerId);
 					}}
-					onClick={(event) => {
-						if (mode === "seek") {
-							return;
-						}
-
+					onDoubleClick={(event) => {
 						if (
 							(event.target as HTMLElement).closest(
 								"[data-annotation-hit], [data-playhead-add-marker-hit], [data-playhead-add-range-hit]",
@@ -571,7 +489,19 @@ export function WaveformCard({
 						) {
 							return;
 						}
-						void handleWaveformAction(event.clientX);
+
+						const lastSeekClick = lastSeekClickRef.current;
+						const timeMs =
+							lastSeekClick &&
+							Math.abs(lastSeekClick.clientX - event.clientX) <= 1
+								? lastSeekClick.timeMs
+								: getWaveformTimeMs(event.clientX);
+						if (timeMs === null) {
+							return;
+						}
+
+						onSelectFile(audioFile.id);
+						void onSeek(timeMs, true);
 					}}
 					onKeyDown={(event) => {
 						if (event.key !== "Enter") {
@@ -584,7 +514,7 @@ export function WaveformCard({
 							return;
 						}
 
-						void handleWaveformAction(bounds.left + bounds.width / 2);
+						void onSeek(Math.round(audioFile.durationMs / 2));
 					}}
 				>
 					<button
@@ -601,108 +531,106 @@ export function WaveformCard({
 						<RotateCcw size={14} />
 					</button>
 					<canvas ref={canvasRef} className="block w-full" />
-					{mode === "seek" ? (
-						<div
-							className="pointer-events-none absolute bottom-0 top-0 z-10"
-							style={{ left: playheadLeft }}
-						>
-							<button
-								type="button"
-								data-playhead-add-marker-hit
-								data-testid="playhead-add-marker-button"
-								data-visible={isPlayheadAddMarkerVisible}
-								aria-label={`Add marker at ${formatDuration(playheadTimeMs)} for ${audioFile.title}`}
-								title="Add point marker at playhead"
-								onPointerDown={(event) => {
-									event.stopPropagation();
-								}}
-								onPointerEnter={() => setIsPlayheadAddMarkerVisible(true)}
-								onPointerLeave={() => setIsPlayheadAddMarkerVisible(false)}
-								onFocus={() => setIsPlayheadAddMarkerVisible(true)}
-								onBlur={(event) => {
-									if (
-										event.relatedTarget instanceof Node &&
-										event.currentTarget.contains(event.relatedTarget)
-									) {
-										return;
-									}
+					<div
+						className="pointer-events-none absolute bottom-0 top-0 z-10"
+						style={{ left: playheadLeft }}
+					>
+						<button
+							type="button"
+							data-playhead-add-marker-hit
+							data-testid="playhead-add-marker-button"
+							data-visible={isPlayheadAddMarkerVisible}
+							aria-label={`Add marker at ${formatDuration(playheadTimeMs)} for ${audioFile.title}`}
+							title="Add point marker at playhead"
+							onPointerDown={(event) => {
+								event.stopPropagation();
+							}}
+							onPointerEnter={() => setIsPlayheadAddMarkerVisible(true)}
+							onPointerLeave={() => setIsPlayheadAddMarkerVisible(false)}
+							onFocus={() => setIsPlayheadAddMarkerVisible(true)}
+							onBlur={(event) => {
+								if (
+									event.relatedTarget instanceof Node &&
+									event.currentTarget.contains(event.relatedTarget)
+								) {
+									return;
+								}
 
-									setIsPlayheadAddMarkerVisible(false);
-								}}
-								onKeyDown={(event) => {
-									event.stopPropagation();
-									if (event.key === "Enter") {
-										event.preventDefault();
-										void createPointAnnotationAtTime(playheadTimeMs);
-									}
-									if (event.key === " ") {
-										event.preventDefault();
-									}
-								}}
-								onKeyUp={(event) => {
-									event.stopPropagation();
-									if (event.key !== " ") {
-										return;
-									}
-
+								setIsPlayheadAddMarkerVisible(false);
+							}}
+							onKeyDown={(event) => {
+								event.stopPropagation();
+								if (event.key === "Enter") {
 									event.preventDefault();
 									void createPointAnnotationAtTime(playheadTimeMs);
-								}}
-								onClick={(event) => {
-									event.stopPropagation();
-									void createPointAnnotationAtTime(playheadTimeMs);
-								}}
-								className={`pointer-events-auto absolute left-1/2 top-1 inline-flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border shadow-sm transition-all duration-150 focus-visible:opacity-100 focus-visible:scale-100 ${
-									isPlayheadAddMarkerVisible
-										? "border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] text-[var(--color-text)] opacity-100 scale-100"
-										: "border-transparent bg-transparent text-[var(--color-text-muted)] opacity-0 scale-95"
-								}`}
-								style={{
-									height: `${PLAYHEAD_ADD_MARKER_HOTSPOT_HEIGHT_PX}px`,
-								}}
-							>
-								<Plus size={14} />
-							</button>
-							<button
-								type="button"
-								data-playhead-add-range-hit
-								data-testid="playhead-add-range-button"
-								data-visible={isPlayheadAddMarkerVisible}
-								aria-label={`Add range at ${formatDuration(playheadTimeMs)} for ${audioFile.title}`}
-								title="Add range at playhead"
-								onPointerDown={(event) => {
-									event.stopPropagation();
-								}}
-								onPointerEnter={() => setIsPlayheadAddMarkerVisible(true)}
-								onPointerLeave={() => setIsPlayheadAddMarkerVisible(false)}
-								onFocus={() => setIsPlayheadAddMarkerVisible(true)}
-								onBlur={(event) => {
-									if (
-										event.relatedTarget instanceof Node &&
-										event.currentTarget.contains(event.relatedTarget)
-									) {
-										return;
-									}
+								}
+								if (event.key === " ") {
+									event.preventDefault();
+								}
+							}}
+							onKeyUp={(event) => {
+								event.stopPropagation();
+								if (event.key !== " ") {
+									return;
+								}
 
-									setIsPlayheadAddMarkerVisible(false);
-								}}
-								onClick={(event) => {
-									event.stopPropagation();
-									void createRangeAnnotationAtTime(playheadTimeMs);
-								}}
-								className={`pointer-events-auto absolute bottom-1 left-1/2 inline-flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border shadow-sm transition-all duration-150 focus-visible:opacity-100 focus-visible:scale-100 ${
-									isPlayheadAddMarkerVisible
-										? "border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] text-[var(--color-text)] opacity-100 scale-100"
-										: "border-transparent bg-transparent text-[var(--color-text-muted)] opacity-0 scale-95"
-								}`}
-								style={{
-									height: `${PLAYHEAD_ADD_MARKER_HOTSPOT_HEIGHT_PX}px`,
-								}}
-							>
-								<UnfoldHorizontal size={14} />
-							</button>
-						</div>
-					) : null}
+								event.preventDefault();
+								void createPointAnnotationAtTime(playheadTimeMs);
+							}}
+							onClick={(event) => {
+								event.stopPropagation();
+								void createPointAnnotationAtTime(playheadTimeMs);
+							}}
+							className={`pointer-events-auto absolute left-1/2 top-1 inline-flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border shadow-sm transition-all duration-150 focus-visible:opacity-100 focus-visible:scale-100 ${
+								isPlayheadAddMarkerVisible
+									? "border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] text-[var(--color-text)] opacity-100 scale-100"
+									: "border-transparent bg-transparent text-[var(--color-text-muted)] opacity-0 scale-95"
+							}`}
+							style={{
+								height: `${PLAYHEAD_ADD_MARKER_HOTSPOT_HEIGHT_PX}px`,
+							}}
+						>
+							<Plus size={14} />
+						</button>
+						<button
+							type="button"
+							data-playhead-add-range-hit
+							data-testid="playhead-add-range-button"
+							data-visible={isPlayheadAddMarkerVisible}
+							aria-label={`Add range at ${formatDuration(playheadTimeMs)} for ${audioFile.title}`}
+							title="Add range at playhead"
+							onPointerDown={(event) => {
+								event.stopPropagation();
+							}}
+							onPointerEnter={() => setIsPlayheadAddMarkerVisible(true)}
+							onPointerLeave={() => setIsPlayheadAddMarkerVisible(false)}
+							onFocus={() => setIsPlayheadAddMarkerVisible(true)}
+							onBlur={(event) => {
+								if (
+									event.relatedTarget instanceof Node &&
+									event.currentTarget.contains(event.relatedTarget)
+								) {
+									return;
+								}
+
+								setIsPlayheadAddMarkerVisible(false);
+							}}
+							onClick={(event) => {
+								event.stopPropagation();
+								void createRangeAnnotationAtTime(playheadTimeMs);
+							}}
+							className={`pointer-events-auto absolute bottom-1 left-1/2 inline-flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border shadow-sm transition-all duration-150 focus-visible:opacity-100 focus-visible:scale-100 ${
+								isPlayheadAddMarkerVisible
+									? "border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] text-[var(--color-text)] opacity-100 scale-100"
+									: "border-transparent bg-transparent text-[var(--color-text-muted)] opacity-0 scale-95"
+							}`}
+							style={{
+								height: `${PLAYHEAD_ADD_MARKER_HOTSPOT_HEIGHT_PX}px`,
+							}}
+						>
+							<UnfoldHorizontal size={14} />
+						</button>
+					</div>
 					<WaveformCardAnnotationLayer
 						activeAnnotationId={activeAnnotationId}
 						audioFile={audioFile}
@@ -715,14 +643,9 @@ export function WaveformCard({
 						onUpdateAnnotation={onUpdateAnnotation}
 						getTimePerPixel={getTimePerPixel}
 						setHoveredAnnotation={setHoveredAnnotation}
-						showPointMarkerConvertControl={mode === "seek"}
+						showPointMarkerConvertControl
 						updateHoveredAnnotationPosition={updateHoveredAnnotationPosition}
 					/>
-					{mode === "range" && rangeAnchorMs !== null && (
-						<div className="range-hint-pill pointer-events-none absolute bottom-3 left-3 px-3 py-1 text-xs font-medium">
-							Pick the range end point
-						</div>
-					)}
 				</div>
 
 				<div className="flex min-w-[5.75rem] flex-col items-stretch justify-center bg-[var(--color-surface-elevated)] px-2 py-3">
@@ -762,13 +685,8 @@ export function WaveformCard({
 					{formatDuration(audioFile.durationMs)}
 				</span>
 				<span>
-					{mode === "seek"
-						? "Click and drag to seek · Double-click to play"
-						: mode === "point"
-							? "Click to add a point marker"
-							: rangeAnchorMs === null
-								? "Click to set a range start"
-								: "Click again to finish the range"}
+					Click and drag to seek · Double-click to play · Use hover controls to
+					add markers and ranges
 				</span>
 			</div>
 
@@ -823,31 +741,4 @@ function formatVolumeDb(volumeDb: number): string {
 	}
 
 	return `${volumeDb} dB`;
-}
-
-function ModeButton({
-	icon,
-	active,
-	label,
-	onClick,
-}: {
-	icon: ReactNode;
-	active: boolean;
-	label: string;
-	onClick: () => void;
-}) {
-	return (
-		<button
-			type="button"
-			onClick={onClick}
-			className={`inline-flex items-center gap-2 border px-3 py-2 text-sm font-medium ${
-				active
-					? "border-[var(--color-accent-strong)] bg-[var(--color-accent-surface)] text-[var(--color-text)]"
-					: "border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]"
-			}`}
-		>
-			{icon}
-			{label}
-		</button>
-	);
 }
