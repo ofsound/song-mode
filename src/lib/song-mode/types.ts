@@ -70,10 +70,25 @@ export interface WorkspaceState {
 	lastVisitedAt: string | null;
 }
 
+const WAVEFORM_HEIGHT_PRESETS = ["large", "medium", "small"] as const;
+
+export type WaveformHeightPreset = (typeof WAVEFORM_HEIGHT_PRESETS)[number];
+
+export interface SongModeUiSettings {
+	accentLightPrimary: string;
+	accentLightStrong: string;
+	accentDarkPrimary: string;
+	accentDarkStrong: string;
+	waveformHeight: WaveformHeightPreset;
+	showArtist: boolean;
+	showProject: boolean;
+}
+
 export interface SongModeSettings {
 	recents: string[];
 	lastOpenSongId?: string;
 	workspaceBySongId: Record<string, WorkspaceState>;
+	ui: SongModeUiSettings;
 }
 
 export interface SongModeSnapshot {
@@ -145,9 +160,76 @@ export function createDefaultWorkspaceState(): WorkspaceState {
 	};
 }
 
+export function createDefaultUiSettings(): SongModeUiSettings {
+	return {
+		accentLightPrimary: "#059669",
+		accentLightStrong: "#0284c7",
+		accentDarkPrimary: "#6ee7b7",
+		accentDarkStrong: "#38bdf8",
+		waveformHeight: "large",
+		showArtist: true,
+		showProject: true,
+	};
+}
+
 export function createEmptySettings(): SongModeSettings {
 	return {
 		recents: [],
 		workspaceBySongId: {},
+		ui: createDefaultUiSettings(),
+	};
+}
+
+function normalizeWaveformHeightPreset(
+	value: string | null | undefined,
+): WaveformHeightPreset {
+	return value === "medium" || value === "small" ? value : "large";
+}
+
+function normalizeHexColor(
+	value: string | null | undefined,
+	fallback: string,
+): string {
+	return /^#[0-9a-f]{6}$/i.test(value ?? "") ? (value ?? fallback) : fallback;
+}
+
+export function normalizeUiSettings(
+	value: Partial<SongModeUiSettings> | null | undefined,
+): SongModeUiSettings {
+	const defaults = createDefaultUiSettings();
+
+	return {
+		accentLightPrimary: normalizeHexColor(
+			value?.accentLightPrimary,
+			defaults.accentLightPrimary,
+		).toLowerCase(),
+		accentLightStrong: normalizeHexColor(
+			value?.accentLightStrong,
+			defaults.accentLightStrong,
+		).toLowerCase(),
+		accentDarkPrimary: normalizeHexColor(
+			value?.accentDarkPrimary,
+			defaults.accentDarkPrimary,
+		).toLowerCase(),
+		accentDarkStrong: normalizeHexColor(
+			value?.accentDarkStrong,
+			defaults.accentDarkStrong,
+		).toLowerCase(),
+		waveformHeight: normalizeWaveformHeightPreset(value?.waveformHeight),
+		showArtist: value?.showArtist ?? defaults.showArtist,
+		showProject: value?.showProject ?? defaults.showProject,
+	};
+}
+
+export function normalizeSongModeSettings(
+	value: Partial<SongModeSettings> | null | undefined,
+): SongModeSettings {
+	const defaults = createEmptySettings();
+
+	return {
+		recents: value?.recents ?? defaults.recents,
+		lastOpenSongId: value?.lastOpenSongId,
+		workspaceBySongId: value?.workspaceBySongId ?? defaults.workspaceBySongId,
+		ui: normalizeUiSettings(value?.ui),
 	};
 }

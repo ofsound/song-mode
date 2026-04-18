@@ -59,9 +59,11 @@ function Probe() {
 function MutationProbe() {
 	const {
 		ready,
+		settings,
 		getSongById,
 		getWorkspaceState,
 		updateSong,
+		updateUiSettings,
 		updateWorkspaceState,
 	} = useSongMode();
 	const song = getSongById("song-1");
@@ -74,6 +76,7 @@ function MutationProbe() {
 					? JSON.stringify({
 							title: song?.title,
 							playheadMs: workspace.playheadMsByFileId["file-2"] ?? null,
+							showArtist: settings.ui.showArtist,
 						})
 					: "loading"}
 			</div>
@@ -96,6 +99,12 @@ function MutationProbe() {
 				}
 			>
 				Update workspace
+			</button>
+			<button
+				type="button"
+				onClick={() => void updateUiSettings({ showArtist: false })}
+			>
+				Hide artist
 			</button>
 		</div>
 	);
@@ -219,7 +228,7 @@ describe("SongModeProvider", () => {
 			annotations: [],
 			blobsByAudioId: {},
 			settings: {
-				recents: [],
+				...createEmptySettings(),
 				workspaceBySongId: {
 					"song-1": {
 						playheadMsByFileId: {},
@@ -277,6 +286,60 @@ describe("SongModeProvider", () => {
 		);
 	});
 
+	it("normalizes missing ui settings and persists ui updates", async () => {
+		loadSnapshotMock.mockResolvedValue({
+			songs: [
+				{
+					id: "song-1",
+					title: "Initial title",
+					artist: "Tester",
+					project: "Album",
+					generalNotes: EMPTY_RICH_TEXT,
+					audioFileOrder: [],
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+			audioFiles: [],
+			annotations: [],
+			blobsByAudioId: {},
+			settings: {
+				recents: [],
+				workspaceBySongId: {},
+			},
+		});
+		saveSettingsMock.mockResolvedValue(undefined);
+
+		render(
+			<SongModeProvider>
+				<MutationProbe />
+			</SongModeProvider>,
+		);
+
+		await waitFor(() => {
+			expect(screen.getByTestId("mutation-state").textContent).toContain(
+				'"showArtist":true',
+			);
+		});
+
+		fireEvent.click(screen.getByRole("button", { name: "Hide artist" }));
+
+		await waitFor(() => {
+			expect(screen.getByTestId("mutation-state").textContent).toContain(
+				'"showArtist":false',
+			);
+		});
+		await waitFor(() => {
+			expect(saveSettingsMock).toHaveBeenCalledWith(
+				expect.objectContaining({
+					ui: expect.objectContaining({
+						showArtist: false,
+					}),
+				}),
+			);
+		});
+	});
+
 	it("persists audio-file deletes through the atomic cascade helper", async () => {
 		loadSnapshotMock.mockResolvedValue({
 			songs: [
@@ -326,6 +389,7 @@ describe("SongModeProvider", () => {
 				"file-1": new Blob(["wave"], { type: "audio/wav" }),
 			},
 			settings: {
+				...createEmptySettings(),
 				recents: [],
 				lastOpenSongId: "song-1",
 				workspaceBySongId: {
@@ -363,6 +427,7 @@ describe("SongModeProvider", () => {
 			audioFileId: "file-1",
 			annotationIds: ["annotation-1"],
 			settings: {
+				...createEmptySettings(),
 				recents: [],
 				lastOpenSongId: "song-1",
 				workspaceBySongId: {
@@ -436,6 +501,7 @@ describe("SongModeProvider", () => {
 				"file-1": new Blob(["wave"], { type: "audio/wav" }),
 			},
 			settings: {
+				...createEmptySettings(),
 				recents: ["song-1", "song-2"],
 				lastOpenSongId: "song-1",
 				workspaceBySongId: {
@@ -477,6 +543,7 @@ describe("SongModeProvider", () => {
 				recents: ["song-2"],
 				lastOpenSongId: "song-2",
 				workspaceBySongId: {},
+				ui: createEmptySettings().ui,
 			},
 		});
 

@@ -3,12 +3,16 @@ import type { Song } from "#/lib/song-mode/types";
 
 interface SongWorkspaceHeaderControlsProps {
 	song: Song;
+	showArtist: boolean;
+	showProject: boolean;
 	onOpenUpload: () => void;
 	onUpdateSong: (patch: Partial<Song>) => Promise<void>;
 }
 
 export function SongWorkspaceHeaderControls({
 	song,
+	showArtist,
+	showProject,
 	onOpenUpload,
 	onUpdateSong,
 }: SongWorkspaceHeaderControlsProps) {
@@ -28,33 +32,37 @@ export function SongWorkspaceHeaderControls({
 				/>
 			</div>
 
-			<div className="min-w-0 xl:w-40 xl:shrink-0">
-				<input
-					value={song.artist}
-					onChange={(event) =>
-						void onUpdateSong({
-							artist: event.target.value,
-						})
-					}
-					className="field-input h-12 px-3 py-0 text-sm font-bold leading-none"
-					placeholder="Artist"
-					aria-label="Artist"
-				/>
-			</div>
+			{showArtist ? (
+				<div className="min-w-0 xl:w-40 xl:shrink-0">
+					<input
+						value={song.artist}
+						onChange={(event) =>
+							void onUpdateSong({
+								artist: event.target.value,
+							})
+						}
+						className="field-input h-12 px-3 py-0 text-sm font-bold leading-none"
+						placeholder="Artist"
+						aria-label="Artist"
+					/>
+				</div>
+			) : null}
 
-			<div className="min-w-0 xl:w-40 xl:shrink-0">
-				<input
-					value={song.project}
-					onChange={(event) =>
-						void onUpdateSong({
-							project: event.target.value,
-						})
-					}
-					className="field-input h-12 px-3 py-0 text-sm font-bold leading-none"
-					placeholder="Project"
-					aria-label="Project"
-				/>
-			</div>
+			{showProject ? (
+				<div className="min-w-0 xl:w-40 xl:shrink-0">
+					<input
+						value={song.project}
+						onChange={(event) =>
+							void onUpdateSong({
+								project: event.target.value,
+							})
+						}
+						className="field-input h-12 px-3 py-0 text-sm font-bold leading-none"
+						placeholder="Project"
+						aria-label="Project"
+					/>
+				</div>
+			) : null}
 
 			<div className="flex shrink-0 flex-wrap items-center gap-3">
 				<button

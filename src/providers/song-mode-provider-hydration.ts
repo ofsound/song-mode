@@ -2,6 +2,7 @@ import { normalizeRichText } from "#/lib/song-mode/rich-text";
 import {
 	type AudioFileRecord,
 	createEmptySettings,
+	normalizeSongModeSettings,
 	type SongModeSnapshot,
 } from "#/lib/song-mode/types";
 import {
@@ -78,7 +79,9 @@ export async function normalizeLoadedSnapshot(
 				...annotation,
 				body: normalizeRichText(annotation.body),
 			})),
-			settings: loadedSnapshot.settings ?? createEmptySettings(),
+			settings: normalizeSongModeSettings(
+				loadedSnapshot.settings ?? createEmptySettings(),
+			),
 		},
 	};
 }

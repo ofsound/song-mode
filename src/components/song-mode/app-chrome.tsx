@@ -1,8 +1,9 @@
 import { Link, useMatchRoute, useNavigate } from "@tanstack/react-router";
-import { Library } from "lucide-react";
+import { Library, Settings } from "lucide-react";
 import { createContext, useContext, useState } from "react";
 import { useSongMode } from "#/providers/song-mode-provider";
 import { GlobalSearch } from "./global-search";
+import { SongModeSettingsDialog } from "./song-mode-settings-dialog";
 import { ThemeToggle } from "./theme-toggle";
 
 interface SongRouteHeaderSlotValue {
@@ -44,7 +45,7 @@ export function getSongModeHeaderState({
 export function SongModeChrome({ children }: { children: React.ReactNode }) {
 	const navigate = useNavigate();
 	const matchRoute = useMatchRoute();
-	const { ready, getSongById } = useSongMode();
+	const { ready, getSongById, settings, updateUiSettings } = useSongMode();
 	const songMatch = matchRoute({ to: "/songs/$songId" });
 	const songId = songMatch ? songMatch.songId : undefined;
 	const isSongRoute = Boolean(songId);
@@ -66,6 +67,7 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 	const headerClassName = isSongRoute
 		? "header-shell z-30 shrink-0"
 		: "header-shell sticky top-0 z-30";
+	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
 	return (
 		<LibraryHeaderActionSlotContext.Provider
@@ -127,6 +129,15 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 								) : null}
 
 								<div className="flex w-full min-w-0 items-center justify-end gap-3 xl:ml-auto xl:w-auto xl:shrink-0">
+									<button
+										type="button"
+										onClick={() => setIsSettingsOpen(true)}
+										className="theme-toggle-button h-12 w-12 shrink-0"
+										aria-label="Open settings"
+										title="Open settings"
+									>
+										<Settings size={18} />
+									</button>
 									<ThemeToggle />
 								</div>
 							</div>
@@ -134,12 +145,36 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 					</header>
 
 					{isSongRoute ? (
-						<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+						<div
+							className={`flex min-h-0 flex-1 flex-col overflow-hidden [transition:filter_200ms_ease,opacity_200ms_ease] ${
+								isSettingsOpen
+									? "pointer-events-none blur-[3px] opacity-45"
+									: ""
+							}`}
+							aria-hidden={isSettingsOpen}
+						>
 							{children}
 						</div>
 					) : (
-						children
+						<div
+							className={`[transition:filter_200ms_ease,opacity_200ms_ease] ${
+								isSettingsOpen
+									? "pointer-events-none blur-[3px] opacity-45"
+									: ""
+							}`}
+							aria-hidden={isSettingsOpen}
+						>
+							{children}
+						</div>
 					)}
+
+					{isSettingsOpen ? (
+						<SongModeSettingsDialog
+							uiSettings={settings.ui}
+							onClose={() => setIsSettingsOpen(false)}
+							onUpdateUiSettings={updateUiSettings}
+						/>
+					) : null}
 				</div>
 			</SongRouteHeaderSlotContext.Provider>
 		</LibraryHeaderActionSlotContext.Provider>

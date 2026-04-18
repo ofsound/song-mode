@@ -27,6 +27,7 @@ export function LibraryView() {
 	const [isCreateSongOpen, setIsCreateSongOpen] = useState(false);
 
 	const recentSongIds = settings.recents;
+	const { showArtist, showProject } = settings.ui;
 	const orderedSongs = useMemo(() => {
 		const recencyMap = new Map(recentSongIds.map((id, index) => [id, index]));
 
@@ -60,8 +61,8 @@ export function LibraryView() {
 		try {
 			const song = await createSong({
 				title,
-				artist,
-				project,
+				artist: showArtist ? artist : "",
+				project: showProject ? project : "",
 				generalNotes: EMPTY_RICH_TEXT,
 			});
 
@@ -185,9 +186,11 @@ export function LibraryView() {
 												<h2 className="text-2xl font-semibold text-[var(--color-text)]">
 													{song.title}
 												</h2>
-												<p className="mt-2 text-sm text-[var(--color-text-subtle)]">
-													{song.artist || "No artist set"}
-												</p>
+												{showArtist ? (
+													<p className="mt-2 text-sm text-[var(--color-text-subtle)]">
+														{song.artist || "No artist set"}
+													</p>
+												) : null}
 											</div>
 
 											<p className="mt-5 text-sm leading-7 text-[var(--color-text-muted)]">
@@ -270,24 +273,28 @@ export function LibraryView() {
 									className="field-input"
 								/>
 							</label>
-							<label className="grid gap-2">
-								<span className="field-label">Artist</span>
-								<input
-									value={artist}
-									onChange={(event) => setArtist(event.target.value)}
-									placeholder="Artist"
-									className="field-input"
-								/>
-							</label>
-							<label className="grid gap-2">
-								<span className="field-label">Project</span>
-								<input
-									value={project}
-									onChange={(event) => setProject(event.target.value)}
-									placeholder="Project"
-									className="field-input"
-								/>
-							</label>
+							{showArtist ? (
+								<label className="grid gap-2">
+									<span className="field-label">Artist</span>
+									<input
+										value={artist}
+										onChange={(event) => setArtist(event.target.value)}
+										placeholder="Artist"
+										className="field-input"
+									/>
+								</label>
+							) : null}
+							{showProject ? (
+								<label className="grid gap-2">
+									<span className="field-label">Project</span>
+									<input
+										value={project}
+										onChange={(event) => setProject(event.target.value)}
+										placeholder="Project"
+										className="field-input"
+									/>
+								</label>
+							) : null}
 							<div className="flex justify-end">
 								<button
 									type="submit"

@@ -17,6 +17,7 @@ import type {
 	SongRouteSearch,
 	WorkspaceState,
 } from "#/lib/song-mode/types";
+import { createDefaultUiSettings } from "#/lib/song-mode/types";
 import { SongRouteHeaderSlotContext } from "./app-chrome";
 import { SongWorkspace } from "./song-workspace";
 
@@ -133,6 +134,7 @@ let currentPlayback = {
 	currentTimeByFileId: {} as Record<string, number>,
 };
 let currentAnnotationsByFileId: Record<string, Annotation[]> = {};
+let currentUiSettings = createDefaultUiSettings();
 
 const getSongById = vi.fn((songId: string) =>
 	songId === baseSong.id
@@ -194,6 +196,9 @@ vi.mock("#/providers/song-mode-provider", () => ({
 		getSongAudioFiles,
 		getAnnotationsForFile,
 		getWorkspaceState,
+		settings: {
+			ui: currentUiSettings,
+		},
 		blobsByAudioId: currentBlobsByAudioId,
 		playback: currentPlayback,
 		rememberSongOpened,
@@ -230,6 +235,7 @@ describe("SongWorkspace", () => {
 			isPlaying: false,
 			currentTimeByFileId: {},
 		};
+		currentUiSettings = createDefaultUiSettings();
 		navigateMock.mockReset();
 		updateWorkspaceStateMock.mockReset();
 		updateWorkspaceStateMock.mockResolvedValue(undefined);
@@ -888,5 +894,32 @@ describe("SongWorkspace", () => {
 
 		unmount();
 		headerSlot.remove();
+	});
+
+	it("hides artist and project controls when metadata visibility is disabled", () => {
+		currentAudioFiles = [createAudioFile()];
+		currentUiSettings = {
+			...currentUiSettings,
+			showArtist: false,
+			showProject: false,
+		};
+
+		const headerSlot = document.createElement("div");
+		document.body.appendChild(headerSlot);
+
+		render(
+			<SongRouteHeaderSlotContext.Provider
+				value={{ enabled: true, slot: headerSlot }}
+			>
+				<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />
+			</SongRouteHeaderSlotContext.Provider>,
+		);
+
+		expect(
+			within(headerSlot).queryByRole("textbox", { name: /^artist$/i }),
+		).toBeNull();
+		expect(
+			within(headerSlot).queryByRole("textbox", { name: /^project$/i }),
+		).toBeNull();
 	});
 });

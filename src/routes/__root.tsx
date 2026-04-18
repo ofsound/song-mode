@@ -6,8 +6,10 @@ import {
 } from "@tanstack/react-router";
 import { SongModeChrome } from "#/components/song-mode/app-chrome";
 import { SongModeDevtools } from "#/components/song-mode/song-mode-devtools";
+import { UI_SETTINGS_STORAGE_KEY } from "#/lib/song-mode/ui-settings";
 import { THEME_STORAGE_KEY } from "#/lib/theme";
 import { SongModeProvider } from "#/providers/song-mode-provider";
+import { SongModeUiSettingsSync } from "#/providers/song-mode-ui-settings-sync";
 import { ThemeProvider } from "#/providers/theme-provider";
 
 import appCss from "#/styles.css?url";
@@ -23,6 +25,35 @@ const themeBootstrapScript = `(() => {
 					: "light";
 		document.documentElement.classList.remove("light", "dark");
 		document.documentElement.classList.add(resolvedTheme);
+
+		const storedUiSettings = window.localStorage.getItem("${UI_SETTINGS_STORAGE_KEY}");
+		if (!storedUiSettings) {
+			return;
+		}
+
+		const uiSettings = JSON.parse(storedUiSettings);
+		if (!uiSettings || typeof uiSettings !== "object") {
+			return;
+		}
+
+		const applySetting = (name, value) => {
+			if (typeof value === "string" && value.trim().length > 0) {
+				document.documentElement.style.setProperty(name, value);
+			}
+		};
+
+		applySetting("--accent-light-primary-base", uiSettings.accentLightPrimary);
+		applySetting("--accent-light-strong-base", uiSettings.accentLightStrong);
+		applySetting("--accent-dark-primary-base", uiSettings.accentDarkPrimary);
+		applySetting("--accent-dark-strong-base", uiSettings.accentDarkStrong);
+		document.documentElement.style.setProperty(
+			"--song-workspace-waveform-height",
+			uiSettings.waveformHeight === "medium"
+				? "128px"
+				: uiSettings.waveformHeight === "small"
+					? "92px"
+					: "164px",
+		);
 	} catch {}
 })()`;
 
@@ -60,6 +91,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 			<body>
 				<ThemeProvider>
 					<SongModeProvider>
+						<SongModeUiSettingsSync />
 						<SongModeChrome>{children}</SongModeChrome>
 						<SongModeDevtools />
 					</SongModeProvider>

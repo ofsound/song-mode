@@ -8,6 +8,7 @@ import {
 } from "./rich-text";
 import { searchSongMode } from "./search";
 import type { Annotation, AudioFileRecord, Song } from "./types";
+import { createDefaultUiSettings } from "./types";
 import {
 	hasRenderableWaveform,
 	normalizeVolumeDb,
@@ -171,10 +172,12 @@ describe("song mode search", () => {
 		const chorusResults = searchSongMode(
 			{ songs, audioFiles, annotations },
 			"chorus",
+			createDefaultUiSettings(),
 		);
 		const snareResults = searchSongMode(
 			{ songs, audioFiles, annotations },
 			"snare",
+			createDefaultUiSettings(),
 		);
 
 		expect(chorusResults.some((result) => result.type === "song")).toBe(true);

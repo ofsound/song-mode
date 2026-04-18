@@ -5,6 +5,7 @@ import type {
 	SearchResult,
 	Song,
 	SongLinkTarget,
+	SongModeUiSettings,
 } from "./types";
 
 interface SearchSnapshot {
@@ -16,6 +17,7 @@ interface SearchSnapshot {
 export function searchSongMode(
 	snapshot: SearchSnapshot,
 	query: string,
+	uiSettings: SongModeUiSettings,
 ): SearchResult[] {
 	const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
 	if (!terms.length) {
@@ -37,8 +39,10 @@ export function searchSongMode(
 		pushMatch(
 			results,
 			buildScore(song.title, songPlain, terms, 2.5),
-			`${song.title}${song.artist ? ` · ${song.artist}` : ""}`,
-			song.project || "Song",
+			[song.title, uiSettings.showArtist && song.artist ? song.artist : null]
+				.filter(Boolean)
+				.join(" · "),
+			uiSettings.showProject && song.project ? song.project : "Song",
 			richTextPreview(song.generalNotes, "Open song workspace"),
 			{
 				songId: song.id,
@@ -51,7 +55,7 @@ export function searchSongMode(
 			results,
 			buildScore("journal", richTextToPlainText(song.generalNotes), terms, 1.3),
 			`${song.title} journal`,
-			song.project || "Journal",
+			uiSettings.showProject && song.project ? song.project : "Journal",
 			richTextPreview(song.generalNotes),
 			{
 				songId: song.id,

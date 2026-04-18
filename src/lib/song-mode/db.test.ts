@@ -7,6 +7,7 @@ import type {
 	Song,
 	SongModeSettings,
 } from "./types";
+import { createEmptySettings } from "./types";
 
 const DB_NAME = "song-mode";
 
@@ -87,6 +88,7 @@ const baseSettings: SongModeSettings = {
 			lastVisitedAt: null,
 		},
 	},
+	ui: createEmptySettings().ui,
 };
 
 describe("song-mode db cascade helpers", () => {
@@ -172,6 +174,7 @@ describe("song-mode db cascade helpers", () => {
 				recents: [],
 				lastOpenSongId: undefined,
 				workspaceBySongId: {},
+				ui: createEmptySettings().ui,
 			},
 		});
 
@@ -185,6 +188,7 @@ describe("song-mode db cascade helpers", () => {
 			recents: [],
 			lastOpenSongId: undefined,
 			workspaceBySongId: {},
+			ui: createEmptySettings().ui,
 		});
 	});
 });

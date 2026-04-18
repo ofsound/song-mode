@@ -15,6 +15,7 @@ import type {
 	SearchResult,
 	Song,
 	SongModeSnapshot,
+	SongModeUiSettings,
 	WorkspaceState,
 } from "#/lib/song-mode/types";
 import {
@@ -64,6 +65,11 @@ interface SongModeContextValue extends SongModeSnapshot {
 		patch:
 			| Partial<WorkspaceState>
 			| ((current: WorkspaceState) => WorkspaceState),
+	) => Promise<void>;
+	updateUiSettings: (
+		patch:
+			| Partial<SongModeUiSettings>
+			| ((current: SongModeUiSettings) => SongModeUiSettings),
 	) => Promise<void>;
 	rememberSongOpened: (songId: string) => Promise<void>;
 	registerAudioElement: (
@@ -123,8 +129,14 @@ export function SongModeProvider({ children }: { children: ReactNode }) {
 					annotations: snapshot.annotations,
 				},
 				query,
+				snapshot.settings.ui,
 			),
-		[snapshot.annotations, snapshot.audioFiles, snapshot.songs],
+		[
+			snapshot.annotations,
+			snapshot.audioFiles,
+			snapshot.settings.ui,
+			snapshot.songs,
+		],
 	);
 
 	const removeRegisteredAudio = useCallback(

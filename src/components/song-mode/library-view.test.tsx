@@ -10,6 +10,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_RICH_TEXT } from "#/lib/song-mode/rich-text";
 import type { Annotation, AudioFileRecord, Song } from "#/lib/song-mode/types";
+import { createDefaultUiSettings } from "#/lib/song-mode/types";
 import { LibraryHeaderActionSlotContext } from "./app-chrome";
 import { LibraryView } from "./library-view";
 
@@ -19,6 +20,7 @@ const deleteSongMock = vi.fn();
 let songs: Song[] = [];
 let audioFiles: AudioFileRecord[] = [];
 let annotations: Annotation[] = [];
+let uiSettings = createDefaultUiSettings();
 
 vi.mock("@tanstack/react-router", () => ({
 	useNavigate: () => navigateMock,
@@ -34,6 +36,7 @@ vi.mock("#/providers/song-mode-provider", () => ({
 		settings: {
 			recents: [],
 			workspaceBySongId: {},
+			ui: uiSettings,
 		},
 		createSong: createSongMock,
 		deleteSong: deleteSongMock,
@@ -62,6 +65,7 @@ describe("LibraryView", () => {
 		songs = [];
 		audioFiles = [];
 		annotations = [];
+		uiSettings = createDefaultUiSettings();
 	});
 
 	afterEach(() => {
@@ -208,5 +212,33 @@ describe("LibraryView", () => {
 		await waitFor(() => {
 			expect(deleteSongMock).toHaveBeenCalledWith("song-1");
 		});
+	});
+
+	it("hides artist and project fields when metadata visibility is disabled", () => {
+		const headerSlot = document.createElement("div");
+		document.body.appendChild(headerSlot);
+		uiSettings = {
+			...uiSettings,
+			showArtist: false,
+			showProject: false,
+		};
+		songs = [makeSong("song-1")];
+
+		render(
+			<LibraryHeaderActionSlotContext.Provider
+				value={{ enabled: true, slot: headerSlot }}
+			>
+				<LibraryView />
+			</LibraryHeaderActionSlotContext.Provider>,
+		);
+
+		expect(screen.queryByText("New Artist")).toBeNull();
+
+		fireEvent.click(
+			within(headerSlot).getByRole("button", { name: /create song/i }),
+		);
+
+		expect(screen.queryByLabelText(/^artist$/i)).toBeNull();
+		expect(screen.queryByLabelText(/^project$/i)).toBeNull();
 	});
 });

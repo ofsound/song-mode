@@ -428,6 +428,7 @@ export function WaveformCard({
 				<div
 					ref={surfaceRef}
 					className="waveform-surface relative overflow-hidden border border-[var(--color-border-subtle)]"
+					style={{ height: "var(--song-workspace-waveform-height)" }}
 					role="button"
 					tabIndex={0}
 					aria-label={`Waveform for ${audioFile.title}`}

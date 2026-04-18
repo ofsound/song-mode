@@ -18,7 +18,9 @@ import {
 	type CreateAnnotationInput,
 	type CreateSongInput,
 	createDefaultWorkspaceState,
+	normalizeUiSettings,
 	type Song,
+	type SongModeUiSettings,
 	type WorkspaceState,
 } from "#/lib/song-mode/types";
 import {
@@ -496,6 +498,38 @@ export function useAnnotationMutations({
 export function useWorkspaceMutations({
 	commitSnapshot,
 }: UseWorkspaceMutationsOptions) {
+	const updateUiSettings = useCallback(
+		async (
+			patch:
+				| Partial<SongModeUiSettings>
+				| ((current: SongModeUiSettings) => SongModeUiSettings),
+		) => {
+			await commitSnapshot(
+				(current) => {
+					const nextUiSettings =
+						typeof patch === "function"
+							? normalizeUiSettings(patch(current.settings.ui))
+							: normalizeUiSettings({
+									...current.settings.ui,
+									...patch,
+								});
+
+					return {
+						...current,
+						settings: {
+							...current.settings,
+							ui: nextUiSettings,
+						},
+					};
+				},
+				async (nextSnapshot) => {
+					await saveSettings(nextSnapshot.settings);
+				},
+			);
+		},
+		[commitSnapshot],
+	);
+
 	const updateWorkspaceState = useCallback(
 		async (
 			songId: string,
@@ -574,8 +608,9 @@ export function useWorkspaceMutations({
 	return useMemo(
 		() => ({
 			rememberSongOpened,
+			updateUiSettings,
 			updateWorkspaceState,
 		}),
-		[rememberSongOpened, updateWorkspaceState],
+		[rememberSongOpened, updateUiSettings, updateWorkspaceState],
 	);
 }

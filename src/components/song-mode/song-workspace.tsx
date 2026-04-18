@@ -25,6 +25,7 @@ export function SongWorkspace({
 	const songRouteHeaderSlot = useSongRouteHeaderSlot();
 	const {
 		ready,
+		settings,
 		getSongById,
 		getSongAudioFiles,
 		getAnnotationsForFile,
@@ -245,6 +246,8 @@ export function SongWorkspace({
 	const songHeaderControls = (
 		<SongWorkspaceHeaderControls
 			song={song}
+			showArtist={settings.ui.showArtist}
+			showProject={settings.ui.showProject}
 			onOpenUpload={() => setIsUploadOpen(true)}
 			onUpdateSong={(patch) => updateSong(song.id, patch)}
 		/>

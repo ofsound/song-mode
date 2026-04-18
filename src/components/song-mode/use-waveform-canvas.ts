@@ -1,5 +1,6 @@
 import { type MutableRefObject, useEffect } from "react";
 import type { WaveformData } from "#/lib/song-mode/types";
+import { getWaveformHeightPx } from "#/lib/song-mode/ui-settings";
 
 interface UseWaveformCanvasOptions {
 	canvasRef: MutableRefObject<HTMLCanvasElement | null>;
@@ -34,7 +35,6 @@ export function useWaveformCanvas({
 
 		const draw = () => {
 			const width = Math.round(surface.clientWidth);
-			const height = 164;
 			if (width <= 0) {
 				return false;
 			}
@@ -43,6 +43,13 @@ export function useWaveformCanvas({
 			const styles = window.getComputedStyle(surface);
 			const readColor = (name: string) =>
 				styles.getPropertyValue(name).trim() || "transparent";
+			const parsedHeight = Number.parseInt(
+				styles.getPropertyValue("--song-workspace-waveform-height"),
+				10,
+			);
+			const height = Number.isFinite(parsedHeight)
+				? parsedHeight
+				: getWaveformHeightPx("large");
 			canvas.width = width * ratio;
 			canvas.height = height * ratio;
 			canvas.style.width = `${width}px`;
