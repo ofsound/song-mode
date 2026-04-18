@@ -915,8 +915,10 @@ describe("WaveformCard", () => {
 			'[data-range-handle="start"]',
 		);
 		expect(startHandle).toBeTruthy();
+		const startHandleSvg = startHandle?.querySelector("svg");
+		expect(startHandleSvg).toBeTruthy();
 
-		fireEvent.pointerDown(startHandle as Element, {
+		fireEvent.pointerDown(startHandleSvg as Element, {
 			button: 0,
 			pointerId: 10,
 			clientX: 40,
@@ -1019,8 +1021,10 @@ describe("WaveformCard", () => {
 			'[data-range-handle="end"]',
 		);
 		expect(endHandle).toBeTruthy();
+		const endHandleSvg = endHandle?.querySelector("svg");
+		expect(endHandleSvg).toBeTruthy();
 
-		fireEvent.pointerDown(endHandle as Element, {
+		fireEvent.pointerDown(endHandleSvg as Element, {
 			button: 0,
 			pointerId: 11,
 			clientX: 55,
@@ -1079,8 +1083,10 @@ describe("WaveformCard", () => {
 		});
 		const markerHandle = markerButton.querySelector("[data-marker-handle]");
 		expect(markerHandle).toBeTruthy();
+		const markerHandleSvg = markerHandle?.querySelector("svg");
+		expect(markerHandleSvg).toBeTruthy();
 
-		fireEvent.pointerDown(markerHandle as Element, {
+		fireEvent.pointerDown(markerHandleSvg as Element, {
 			button: 0,
 			pointerId: 7,
 			clientX: 40,
@@ -1137,8 +1143,10 @@ describe("WaveformCard", () => {
 		});
 		const markerHandle = markerButton.querySelector("[data-marker-handle]");
 		expect(markerHandle).toBeTruthy();
+		const markerHandleSvg = markerHandle?.querySelector("svg");
+		expect(markerHandleSvg).toBeTruthy();
 
-		fireEvent.pointerDown(markerHandle as Element, {
+		fireEvent.pointerDown(markerHandleSvg as Element, {
 			button: 0,
 			pointerId: 8,
 			clientX: 40,
@@ -1191,6 +1199,8 @@ describe("WaveformCard", () => {
 		});
 		const markerHandle = markerButton.querySelector("[data-marker-handle]");
 		expect(markerHandle).toBeTruthy();
+		const markerHandleSvg = markerHandle?.querySelector("svg");
+		expect(markerHandleSvg).toBeTruthy();
 
 		fireEvent.pointerEnter(markerHandle as Element, {
 			clientX: 40,
@@ -1198,7 +1208,7 @@ describe("WaveformCard", () => {
 		});
 		expect(screen.getByText("Lead vocal starts")).toBeTruthy();
 
-		fireEvent.pointerDown(markerHandle as Element, {
+		fireEvent.pointerDown(markerHandleSvg as Element, {
 			button: 0,
 			pointerId: 9,
 			clientX: 40,

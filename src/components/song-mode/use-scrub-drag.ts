@@ -85,7 +85,7 @@ export function useScrubDrag({
 			onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
 				if (
 					event.button !== 0 ||
-					!(event.target instanceof HTMLElement) ||
+					!(event.target instanceof Element) ||
 					!event.target.closest(handleSelector)
 				) {
 					return;
