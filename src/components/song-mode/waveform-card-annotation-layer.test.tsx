@@ -34,6 +34,7 @@ function renderLayer(annotation: Annotation) {
 				onSelectAnnotation={vi.fn()}
 				onSelectFile={vi.fn()}
 				onUpdateAnnotation={vi.fn().mockResolvedValue(undefined)}
+				onDeleteAnnotation={vi.fn().mockResolvedValue(undefined)}
 				getTimePerPixel={() => 1000}
 				setHoveredAnnotation={vi.fn()}
 				showPointMarkerConvertControl

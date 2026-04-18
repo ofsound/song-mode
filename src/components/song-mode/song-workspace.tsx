@@ -292,6 +292,7 @@ export function SongWorkspace({
 							songId={songId}
 							togglePlayback={togglePlayback}
 							updateAnnotation={updateAnnotation}
+							deleteAnnotation={deleteAnnotation}
 							updateAudioFile={updateAudioFile}
 							workspacePlayheadMsByFileId={workspace.playheadMsByFileId}
 							onSelectFile={(fileId) =>

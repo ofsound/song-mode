@@ -44,6 +44,7 @@ interface SongWorkspaceWaveformListProps {
 		annotationId: string,
 		patch: Partial<Annotation>,
 	) => Promise<void>;
+	deleteAnnotation: (annotationId: string) => Promise<void>;
 	updateAudioFile: (
 		audioFileId: string,
 		patch: Partial<AudioFileRecord>,
@@ -69,6 +70,7 @@ export function SongWorkspaceWaveformList({
 	songId,
 	togglePlayback,
 	updateAnnotation,
+	deleteAnnotation,
 	updateAudioFile,
 	workspacePlayheadMsByFileId,
 	onSelectAnnotation,
@@ -119,6 +121,7 @@ export function SongWorkspaceWaveformList({
 							handleCreateAnnotation(audioFile.id, annotationInput)
 						}
 						onUpdateAnnotation={updateAnnotation}
+						onDeleteAnnotation={deleteAnnotation}
 						onSeek={(timeMs, autoplay) =>
 							seekFile(audioFile.id, timeMs, autoplay)
 						}

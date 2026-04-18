@@ -24,6 +24,7 @@ interface WaveformCardAnnotationLayerProps {
 		top: string;
 		transform: string;
 	} | null;
+	onDeleteAnnotation: (annotationId: string) => Promise<void>;
 	onSeek: (timeMs: number, autoplay?: boolean) => Promise<void>;
 	onSelectAnnotation: (annotationId: string) => void;
 	onSelectFile: (fileId: string) => void;
@@ -47,6 +48,7 @@ export function WaveformCardAnnotationLayer({
 	annotations,
 	hoveredAnnotationRecord,
 	hoveredTooltipPosition,
+	onDeleteAnnotation,
 	onSeek,
 	onSelectAnnotation,
 	onSelectFile,
@@ -67,12 +69,14 @@ export function WaveformCardAnnotationLayer({
 	const {
 		consumeSuppressedClick,
 		getMarkerDragHandlers,
+		getRangeBodyDragHandlers,
 		getRangeEdgeDragHandlers,
 	} = useScrubDrag({
 		audioFileId: audioFile.id,
 		durationMs: audioFile.durationMs,
 		getTimePerPixel,
 		onClearHover: () => setHoveredAnnotation(null),
+		onDeleteAnnotation,
 		onSelectAnnotation,
 		onSelectFile,
 		onUpdateAnnotation,
@@ -147,6 +151,14 @@ export function WaveformCardAnnotationLayer({
 
 				if (annotation.type === "range" && annotation.endMs) {
 					const rangeColor = annotation.color ?? "var(--color-annotation-2)";
+					const rangeBodyHandlers = attachReshapeTracking(
+						annotation.id,
+						getRangeBodyDragHandlers(
+							annotation.id,
+							annotation.startMs,
+							annotation.endMs,
+						),
+					);
 					const rangeStartDragHandlers = attachReshapeTracking(
 						annotation.id,
 						getRangeEdgeDragHandlers(
@@ -201,21 +213,31 @@ export function WaveformCardAnnotationLayer({
 										event.clientY,
 									)
 								}
-								onPointerMove={(event) =>
+								onPointerMove={(event) => {
+									rangeBodyHandlers.onPointerMove(event);
 									updateHoveredAnnotationPosition(
 										annotation.id,
 										event.clientX,
 										event.clientY,
-									)
-								}
+									);
+								}}
 								onPointerLeave={() => setHoveredAnnotation(null)}
+								onPointerDown={rangeBodyHandlers.onPointerDown}
+								onPointerUp={rangeBodyHandlers.onPointerUp}
+								onPointerCancel={rangeBodyHandlers.onPointerCancel}
 								onClick={(event) => {
+									if (consumeSuppressedClick(annotation.id)) {
+										event.preventDefault();
+										event.stopPropagation();
+										return;
+									}
+
 									event.stopPropagation();
 									onSelectFile(audioFile.id);
 									onSelectAnnotation(annotation.id);
 									void onSeek(annotation.startMs, true);
 								}}
-								className="pointer-events-auto absolute inset-x-0 bottom-0 cursor-default border-0 p-0"
+								className="pointer-events-auto absolute inset-x-0 bottom-0 cursor-grab border-0 p-0 active:cursor-grabbing"
 								style={{
 									height: "var(--waveform-marker-gutter-height)",
 									backgroundColor: rangeColor,
@@ -230,7 +252,7 @@ export function WaveformCardAnnotationLayer({
 								onPointerMove={rangeStartDragHandlers.onPointerMove}
 								onPointerUp={rangeStartDragHandlers.onPointerUp}
 								onPointerCancel={rangeStartDragHandlers.onPointerCancel}
-								className="pointer-events-auto absolute bottom-0 top-0 left-0 w-3 -translate-x-1/2"
+								className="pointer-events-auto absolute bottom-0 left-0 h-[var(--waveform-marker-gutter-height)] w-3 -translate-x-1/2"
 							>
 								<span
 									aria-hidden
@@ -265,7 +287,7 @@ export function WaveformCardAnnotationLayer({
 								onPointerMove={rangeEndDragHandlers.onPointerMove}
 								onPointerUp={rangeEndDragHandlers.onPointerUp}
 								onPointerCancel={rangeEndDragHandlers.onPointerCancel}
-								className="pointer-events-auto absolute bottom-0 top-0 left-full w-3 -translate-x-1/2"
+								className="pointer-events-auto absolute bottom-0 left-full h-[var(--waveform-marker-gutter-height)] w-3 -translate-x-1/2"
 							>
 								<span
 									aria-hidden

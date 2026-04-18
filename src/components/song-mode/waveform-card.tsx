@@ -5,9 +5,15 @@ import {
 	Play,
 	Plus,
 	RotateCcw,
-	UnfoldHorizontal,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+	type MouseEvent as ReactMouseEvent,
+	type PointerEvent as ReactPointerEvent,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { resolveAudioFileSessionDateLabel } from "#/lib/song-mode/dates";
 import { EMPTY_RICH_TEXT } from "#/lib/song-mode/rich-text";
 import type {
@@ -25,8 +31,8 @@ import { useWaveformAudioGraph } from "./use-waveform-audio-graph";
 import { useWaveformCanvas } from "./use-waveform-canvas";
 import { WaveformCardAnnotationLayer } from "./waveform-card-annotation-layer";
 
-const PLAYHEAD_ADD_MARKER_HOTSPOT_HEIGHT_PX = 36;
 const DEFAULT_RANGE_ANNOTATION_DURATION_MS = 10_000;
+const PLAYHEAD_SNAP_DISTANCE_PX = 20;
 
 interface HoveredAnnotationState {
 	annotationId: string;
@@ -42,6 +48,19 @@ interface SeekDragState {
 interface WaveformSeekClickState {
 	clientX: number;
 	timeMs: number;
+}
+
+interface GutterHoverState {
+	position: "top" | "bottom";
+	x: number;
+	timeMs: number;
+}
+
+interface BottomGutterDragState {
+	pointerId: number;
+	anchorTimeMs: number;
+	currentTimeMs: number;
+	moved: boolean;
 }
 
 interface WaveformCardProps {
@@ -61,6 +80,7 @@ interface WaveformCardProps {
 		annotationId: string,
 		patch: Partial<Annotation>,
 	) => Promise<void>;
+	onDeleteAnnotation: (annotationId: string) => Promise<void>;
 	onSeek: (timeMs: number, autoplay?: boolean) => Promise<void>;
 	onTogglePlayback: () => Promise<void>;
 	onRegisterAudioElement: (element: HTMLAudioElement | null) => void;
@@ -86,6 +106,7 @@ export function WaveformCard({
 	onSelectAnnotation,
 	onCreateAnnotation,
 	onUpdateAnnotation,
+	onDeleteAnnotation,
 	onSeek,
 	onTogglePlayback,
 	onRegisterAudioElement,
@@ -98,8 +119,10 @@ export function WaveformCard({
 	const [objectUrl, setObjectUrl] = useState<string | null>(null);
 	const [hoveredAnnotation, setHoveredAnnotation] =
 		useState<HoveredAnnotationState | null>(null);
-	const [isPlayheadAddMarkerVisible, setIsPlayheadAddMarkerVisible] =
-		useState(false);
+	const [gutterHover, setGutterHover] = useState<GutterHoverState | null>(null);
+	const [bottomGutterDrag, setBottomGutterDrag] =
+		useState<BottomGutterDragState | null>(null);
+	const bottomGutterDragStateRef = useRef<BottomGutterDragState | null>(null);
 	const articleRef = useRef<HTMLElement | null>(null);
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const waveformShellRef = useRef<HTMLDivElement | null>(null);
@@ -118,11 +141,6 @@ export function WaveformCard({
 		() => normalizeWaveformData(audioFile.waveform, audioFile.durationMs),
 		[audioFile.durationMs, audioFile.waveform],
 	);
-	const playheadTimeMs = Math.max(
-		0,
-		Math.min(currentTimeMs, audioFile.durationMs),
-	);
-	const playheadLeft = `${(playheadTimeMs / Math.max(audioFile.durationMs, 1)) * 100}%`;
 	const hoveredAnnotationRecord = useMemo(
 		() =>
 			hoveredAnnotation
@@ -227,6 +245,35 @@ export function WaveformCard({
 		return Math.round(audioFile.durationMs * ratio);
 	}
 
+	function getPlayheadClientX(): number | null {
+		if (isPlaying || !canvasSurfaceRef.current) {
+			return null;
+		}
+
+		const rect = canvasSurfaceRef.current.getBoundingClientRect();
+		if (rect.width <= 0) {
+			return null;
+		}
+
+		const clampedTimeMs = Math.max(
+			0,
+			Math.min(currentTimeMs, audioFile.durationMs),
+		);
+		const ratio = clampedTimeMs / Math.max(audioFile.durationMs, 1);
+		return rect.left + ratio * rect.width;
+	}
+
+	function snapClientXToPlayhead(clientX: number): number {
+		const playheadClientX = getPlayheadClientX();
+		if (
+			playheadClientX !== null &&
+			Math.abs(clientX - playheadClientX) <= PLAYHEAD_SNAP_DISTANCE_PX
+		) {
+			return playheadClientX;
+		}
+		return clientX;
+	}
+
 	function getTimePerPixel(): number {
 		if (!canvasSurfaceRef.current) {
 			return 0;
@@ -272,16 +319,26 @@ export function WaveformCard({
 	}
 
 	async function createRangeAnnotationAtTime(timeMs: number) {
+		await createRangeAnnotationFromBounds(
+			timeMs,
+			Math.min(
+				audioFile.durationMs,
+				timeMs + DEFAULT_RANGE_ANNOTATION_DURATION_MS,
+			),
+		);
+	}
+
+	async function createRangeAnnotationFromBounds(
+		startMs: number,
+		endMs: number,
+	) {
 		onSelectFile(audioFile.id);
 
 		const annotation = await onCreateAnnotation({
 			type: "range",
-			startMs: timeMs,
-			endMs: Math.min(
-				audioFile.durationMs,
-				timeMs + DEFAULT_RANGE_ANNOTATION_DURATION_MS,
-			),
-			title: `Range ${formatDuration(timeMs)}`,
+			startMs,
+			endMs,
+			title: `Range ${formatDuration(startMs)}`,
 			body: EMPTY_RICH_TEXT,
 			color: "var(--color-annotation-2)",
 		});
@@ -334,6 +391,130 @@ export function WaveformCard({
 	};
 
 	const sessionDateLabel = resolveAudioFileSessionDateLabel(audioFile);
+
+	function handleGutterPointerMove(
+		position: "top" | "bottom",
+		event: ReactPointerEvent<HTMLDivElement>,
+	) {
+		const gutter = event.currentTarget;
+		const rect = gutter.getBoundingClientRect();
+		const snappedClientX = snapClientXToPlayhead(event.clientX);
+		const timeMs = getWaveformTimeMs(snappedClientX);
+		if (timeMs === null) {
+			return;
+		}
+
+		setGutterHover({
+			position,
+			x: snappedClientX - rect.left,
+			timeMs,
+		});
+	}
+
+	function handleGutterPointerLeave() {
+		setGutterHover(null);
+	}
+
+	function handleTopGutterClick(event: ReactMouseEvent<HTMLDivElement>) {
+		event.stopPropagation();
+		const timeMs = getWaveformTimeMs(snapClientXToPlayhead(event.clientX));
+		if (timeMs === null) {
+			return;
+		}
+
+		void createPointAnnotationAtTime(timeMs);
+	}
+
+	function clearBottomGutterDrag(target: HTMLDivElement, pointerId: number) {
+		bottomGutterDragStateRef.current = null;
+		setBottomGutterDrag(null);
+		if (target.hasPointerCapture?.(pointerId)) {
+			target.releasePointerCapture(pointerId);
+		}
+	}
+
+	function handleBottomGutterPointerDown(
+		event: ReactPointerEvent<HTMLDivElement>,
+	) {
+		if (event.button !== 0) {
+			return;
+		}
+
+		const timeMs = getWaveformTimeMs(snapClientXToPlayhead(event.clientX));
+		if (timeMs === null) {
+			return;
+		}
+
+		event.stopPropagation();
+		onSelectFile(audioFile.id);
+
+		const dragState: BottomGutterDragState = {
+			pointerId: event.pointerId,
+			anchorTimeMs: timeMs,
+			currentTimeMs: timeMs,
+			moved: false,
+		};
+		bottomGutterDragStateRef.current = dragState;
+		setBottomGutterDrag(dragState);
+		event.currentTarget.setPointerCapture?.(event.pointerId);
+	}
+
+	function handleBottomGutterPointerMove(
+		event: ReactPointerEvent<HTMLDivElement>,
+	) {
+		handleGutterPointerMove("bottom", event);
+
+		const dragState = bottomGutterDragStateRef.current;
+		if (!dragState || dragState.pointerId !== event.pointerId) {
+			return;
+		}
+
+		const timeMs = getWaveformTimeMs(event.clientX);
+		if (timeMs === null || timeMs === dragState.currentTimeMs) {
+			return;
+		}
+
+		const moved = dragState.moved || timeMs !== dragState.anchorTimeMs;
+		const nextState: BottomGutterDragState = {
+			...dragState,
+			currentTimeMs: timeMs,
+			moved,
+		};
+		bottomGutterDragStateRef.current = nextState;
+		setBottomGutterDrag(nextState);
+	}
+
+	async function handleBottomGutterPointerUp(
+		event: ReactPointerEvent<HTMLDivElement>,
+	) {
+		const dragState = bottomGutterDragStateRef.current;
+		if (!dragState || dragState.pointerId !== event.pointerId) {
+			return;
+		}
+
+		event.stopPropagation();
+		clearBottomGutterDrag(event.currentTarget, event.pointerId);
+
+		if (!dragState.moved) {
+			await createRangeAnnotationAtTime(dragState.anchorTimeMs);
+			return;
+		}
+
+		const startMs = Math.min(dragState.anchorTimeMs, dragState.currentTimeMs);
+		const endMs = Math.max(dragState.anchorTimeMs, dragState.currentTimeMs);
+		await createRangeAnnotationFromBounds(startMs, endMs);
+	}
+
+	function handleBottomGutterPointerCancel(
+		event: ReactPointerEvent<HTMLDivElement>,
+	) {
+		const dragState = bottomGutterDragStateRef.current;
+		if (!dragState || dragState.pointerId !== event.pointerId) {
+			return;
+		}
+
+		clearBottomGutterDrag(event.currentTarget, event.pointerId);
+	}
 
 	return (
 		<article
@@ -458,14 +639,12 @@ export function WaveformCard({
 					aria-label={`Waveform for ${audioFile.title}`}
 					onPointerLeave={() => {
 						setHoveredAnnotation(null);
-						setIsPlayheadAddMarkerVisible(false);
+						setGutterHover(null);
 					}}
 					onPointerDown={(event) => {
 						if (
 							event.button !== 0 ||
-							(event.target as HTMLElement).closest(
-								"[data-annotation-hit], [data-playhead-add-marker-hit], [data-playhead-add-range-hit]",
-							)
+							(event.target as HTMLElement).closest("[data-annotation-hit]")
 						) {
 							return;
 						}
@@ -528,9 +707,7 @@ export function WaveformCard({
 					}}
 					onDoubleClick={(event) => {
 						if (
-							(event.target as HTMLElement).closest(
-								"[data-annotation-hit], [data-playhead-add-marker-hit], [data-playhead-add-range-hit]",
-							)
+							(event.target as HTMLElement).closest("[data-annotation-hit]")
 						) {
 							return;
 						}
@@ -566,121 +743,82 @@ export function WaveformCard({
 						void onSeek(Math.round(audioFile.durationMs / 2));
 					}}
 				>
+					{/* biome-ignore lint/a11y/useKeyWithClickEvents: pointer-only gutter quick-add; keyboard users cannot pick an arbitrary time on the gutter */}
+					{/* biome-ignore lint/a11y/noStaticElementInteractions: pointer-only quick-add affordance; the gutter does not behave as a single button because the click position picks the time */}
 					<div
-						className="waveform-surface__gutter min-h-0 pointer-events-none"
-						aria-hidden
-					/>
+						className="waveform-surface__gutter relative min-h-0"
+						data-testid="waveform-gutter-top"
+						onPointerEnter={(event) => handleGutterPointerMove("top", event)}
+						onPointerMove={(event) => handleGutterPointerMove("top", event)}
+						onPointerLeave={handleGutterPointerLeave}
+						onClick={handleTopGutterClick}
+					>
+						{gutterHover?.position === "top" ? (
+							<span
+								aria-hidden
+								data-testid="gutter-add-marker-icon"
+								className="pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
+								style={{ left: `${gutterHover.x}px` }}
+							>
+								<Plus size={14} />
+							</span>
+						) : null}
+					</div>
 					<div
 						ref={canvasSurfaceRef}
 						className="relative min-h-0 border-y border-[var(--color-border-subtle)]"
 						data-testid="waveform-canvas-surface"
 					>
 						<canvas ref={canvasRef} className="block w-full" />
-						<div
-							className="pointer-events-none absolute bottom-0 top-0 z-10"
-							style={{ left: playheadLeft }}
-						>
-							<button
-								type="button"
-								data-playhead-add-marker-hit
-								data-testid="playhead-add-marker-button"
-								data-visible={isPlayheadAddMarkerVisible}
-								aria-label={`Add marker at ${formatDuration(playheadTimeMs)} for ${audioFile.title}`}
-								title="Add point marker at playhead"
-								onPointerDown={(event) => {
-									event.stopPropagation();
-								}}
-								onPointerEnter={() => setIsPlayheadAddMarkerVisible(true)}
-								onPointerLeave={() => setIsPlayheadAddMarkerVisible(false)}
-								onFocus={() => setIsPlayheadAddMarkerVisible(true)}
-								onBlur={(event) => {
-									if (
-										event.relatedTarget instanceof Node &&
-										event.currentTarget.contains(event.relatedTarget)
-									) {
-										return;
-									}
-
-									setIsPlayheadAddMarkerVisible(false);
-								}}
-								onKeyDown={(event) => {
-									event.stopPropagation();
-									if (event.key === "Enter") {
-										event.preventDefault();
-										void createPointAnnotationAtTime(playheadTimeMs);
-									}
-									if (event.key === " ") {
-										event.preventDefault();
-									}
-								}}
-								onKeyUp={(event) => {
-									event.stopPropagation();
-									if (event.key !== " ") {
-										return;
-									}
-
-									event.preventDefault();
-									void createPointAnnotationAtTime(playheadTimeMs);
-								}}
-								onClick={(event) => {
-									event.stopPropagation();
-									void createPointAnnotationAtTime(playheadTimeMs);
-								}}
-								className={`pointer-events-auto absolute left-1/2 top-1 inline-flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border shadow-sm transition-all duration-150 focus-visible:opacity-100 focus-visible:scale-100 ${
-									isPlayheadAddMarkerVisible
-										? "border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] text-[var(--color-text)] opacity-100 scale-100"
-										: "border-transparent bg-transparent text-[var(--color-text-muted)] opacity-0 scale-95"
-								}`}
-								style={{
-									height: `${PLAYHEAD_ADD_MARKER_HOTSPOT_HEIGHT_PX}px`,
-								}}
-							>
-								<Plus size={14} />
-							</button>
-							<button
-								type="button"
-								data-playhead-add-range-hit
-								data-testid="playhead-add-range-button"
-								data-visible={isPlayheadAddMarkerVisible}
-								aria-label={`Add range at ${formatDuration(playheadTimeMs)} for ${audioFile.title}`}
-								title="Add range at playhead"
-								onPointerDown={(event) => {
-									event.stopPropagation();
-								}}
-								onPointerEnter={() => setIsPlayheadAddMarkerVisible(true)}
-								onPointerLeave={() => setIsPlayheadAddMarkerVisible(false)}
-								onFocus={() => setIsPlayheadAddMarkerVisible(true)}
-								onBlur={(event) => {
-									if (
-										event.relatedTarget instanceof Node &&
-										event.currentTarget.contains(event.relatedTarget)
-									) {
-										return;
-									}
-
-									setIsPlayheadAddMarkerVisible(false);
-								}}
-								onClick={(event) => {
-									event.stopPropagation();
-									void createRangeAnnotationAtTime(playheadTimeMs);
-								}}
-								className={`pointer-events-auto absolute bottom-1 left-1/2 inline-flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border shadow-sm transition-all duration-150 focus-visible:opacity-100 focus-visible:scale-100 ${
-									isPlayheadAddMarkerVisible
-										? "border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] text-[var(--color-text)] opacity-100 scale-100"
-										: "border-transparent bg-transparent text-[var(--color-text-muted)] opacity-0 scale-95"
-								}`}
-								style={{
-									height: `${PLAYHEAD_ADD_MARKER_HOTSPOT_HEIGHT_PX}px`,
-								}}
-							>
-								<UnfoldHorizontal size={14} />
-							</button>
-						</div>
 					</div>
 					<div
-						className="waveform-surface__gutter min-h-0 pointer-events-none"
-						aria-hidden
-					/>
+						className="waveform-surface__gutter relative min-h-0"
+						data-testid="waveform-gutter-bottom"
+						onPointerEnter={(event) => handleGutterPointerMove("bottom", event)}
+						onPointerMove={handleBottomGutterPointerMove}
+						onPointerLeave={handleGutterPointerLeave}
+						onPointerDown={handleBottomGutterPointerDown}
+						onPointerUp={handleBottomGutterPointerUp}
+						onPointerCancel={handleBottomGutterPointerCancel}
+					>
+						{bottomGutterDrag?.moved ? (
+							<span
+								aria-hidden
+								data-testid="gutter-add-range-preview"
+								className="pointer-events-none absolute inset-y-0"
+								style={{
+									left: `${
+										(Math.min(
+											bottomGutterDrag.anchorTimeMs,
+											bottomGutterDrag.currentTimeMs,
+										) /
+											Math.max(audioFile.durationMs, 1)) *
+										100
+									}%`,
+									width: `${
+										(Math.abs(
+											bottomGutterDrag.currentTimeMs -
+												bottomGutterDrag.anchorTimeMs,
+										) /
+											Math.max(audioFile.durationMs, 1)) *
+										100
+									}%`,
+									backgroundColor: "var(--color-annotation-2)",
+									opacity: 0.45,
+								}}
+							/>
+						) : null}
+						{gutterHover?.position === "bottom" && !bottomGutterDrag ? (
+							<span
+								aria-hidden
+								data-testid="gutter-add-range-icon"
+								className="pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
+								style={{ left: `${gutterHover.x}px` }}
+							>
+								<Plus size={14} />
+							</span>
+						) : null}
+					</div>
 					<div
 						ref={annotationOverlayRef}
 						className="pointer-events-none absolute inset-0 z-20"
@@ -692,6 +830,7 @@ export function WaveformCard({
 							annotations={sortedAnnotations}
 							hoveredAnnotationRecord={hoveredAnnotationRecord}
 							hoveredTooltipPosition={hoveredTooltipPosition}
+							onDeleteAnnotation={onDeleteAnnotation}
 							onSeek={onSeek}
 							onSelectAnnotation={onSelectAnnotation}
 							onSelectFile={onSelectFile}
