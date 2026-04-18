@@ -499,7 +499,7 @@ describe("WaveformCard", () => {
 		});
 	});
 
-	it("shows a custom tooltip when hovering a marker handle square", () => {
+	it("shows a custom tooltip when hovering a marker handle", () => {
 		renderWaveformCard({
 			annotations: [
 				{
@@ -602,7 +602,7 @@ describe("WaveformCard", () => {
 		expect(screen.queryByText("Main hook")).toBeNull();
 	});
 
-	it("drags point markers horizontally from the square handle", async () => {
+	it("drags point markers horizontally from the marker handle", async () => {
 		const onUpdateAnnotation = vi.fn().mockResolvedValue(undefined);
 		const onSeek = vi.fn().mockResolvedValue(undefined);
 		const onSelectFile = vi.fn();

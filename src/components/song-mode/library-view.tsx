@@ -1,5 +1,13 @@
 import { useNavigate } from "@tanstack/react-router";
-import { FolderOpenDot, Plus, Sparkles, Trash2, Waves, X } from "lucide-react";
+import {
+	Bookmark,
+	File,
+	FolderOpenDot,
+	Plus,
+	Sparkles,
+	Trash2,
+	X,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { EMPTY_RICH_TEXT, richTextPreview } from "#/lib/song-mode/rich-text";
@@ -203,11 +211,11 @@ export function LibraryView() {
 
 										<div className="mt-6 flex items-center gap-2">
 											<StatChip
-												icon={<Waves size={14} />}
+												icon={<File size={14} />}
 												label={`${songAudioFiles.length} files`}
 											/>
 											<StatChip
-												icon={<Sparkles size={14} />}
+												icon={<Bookmark size={14} />}
 												label={`${songAnnotations.length} markers`}
 											/>
 											<button

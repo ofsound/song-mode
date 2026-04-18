@@ -128,10 +128,6 @@
 		color-mix(in srgb, var(--color-zinc-950) 14%, transparent),
 		color-mix(in srgb, var(--color-white) 20%, transparent)
 	);
-	--color-waveform-marker-active: light-dark(
-		var(--color-zinc-900),
-		var(--color-white)
-	);
 	--color-waveform-marker-track: light-dark(
 		var(--accent-light-strong-base),
 		var(--accent-dark-strong-base)

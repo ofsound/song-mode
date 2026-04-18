@@ -142,13 +142,7 @@ export function WaveformCardAnnotationLayer({
 						className="absolute bottom-0 top-0 w-3 -translate-x-1/2"
 						style={{ left }}
 					>
-						<span
-							className={`absolute bottom-0 top-0 left-1/2 w-0.5 -translate-x-1/2 ${
-								activeAnnotationId === annotation.id
-									? "bg-[var(--color-waveform-marker-active)]"
-									: "bg-[var(--color-waveform-marker-track)]"
-							}`}
-						/>
+						<span className="absolute bottom-0 top-0 left-1/2 w-0.5 -translate-x-1/2 bg-[var(--color-waveform-marker-track)]" />
 						<span
 							data-marker-handle
 							onPointerEnter={(event) =>
@@ -166,12 +160,25 @@ export function WaveformCardAnnotationLayer({
 								)
 							}
 							onPointerLeave={() => setHoveredAnnotation(null)}
-							className="absolute left-1/2 top-4 h-3 w-3 -translate-x-1/2 cursor-pointer border border-[var(--color-waveform-marker-dot-border)]"
-							style={{
-								backgroundColor:
-									annotation.color ?? "var(--color-annotation-4)",
-							}}
-						/>
+							className="absolute left-1/2 top-0 -translate-x-1/2 cursor-pointer leading-none"
+						>
+							<svg
+								width={21}
+								height={16.5}
+								viewBox="0 0 14 11"
+								className="block"
+								aria-hidden={true}
+							>
+								<polygon
+									points="7,11 0,0 14,0"
+									className="fill-[var(--color-waveform-marker-dot-border)]"
+								/>
+								<polygon
+									points="7,9.5 1.1,1.1 12.9,1.1"
+									fill={annotation.color ?? "var(--color-annotation-4)"}
+								/>
+							</svg>
+						</span>
 					</button>
 				);
 			})}
