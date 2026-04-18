@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Search, Sparkles } from "lucide-react";
+import { Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { isEditableElement } from "#/lib/song-mode/dom";
 import { targetToRouteSearch } from "#/lib/song-mode/links";
@@ -66,22 +66,11 @@ export function GlobalSearch() {
 				/>
 			</label>
 
-			{open && (
+			{open && (!ready || query.trim().length > 0) && (
 				<div className="search-popover absolute left-0 right-0 top-[calc(100%+0.75rem)] z-40 p-3">
 					{!ready ? (
 						<div className="px-4 py-5 text-sm text-[var(--color-text-muted)]">
 							Loading local search index...
-						</div>
-					) : query.trim().length === 0 ? (
-						<div className="flex items-start gap-3 border border-dashed border-[var(--color-border-subtle)] px-4 py-5 text-sm text-[var(--color-text-muted)]">
-							<Sparkles
-								size={16}
-								className="mt-0.5 text-[var(--color-accent)]"
-							/>
-							<div>
-								Jump across songs, waveform notes, bookmark regions, and the
-								song journal from one place.
-							</div>
 						</div>
 					) : results.length === 0 ? (
 						<div className="px-4 py-5 text-sm text-[var(--color-text-muted)]">

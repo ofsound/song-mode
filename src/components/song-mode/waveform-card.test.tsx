@@ -86,7 +86,19 @@ function createAudioFile(
 function renderWaveformCard({
 	audioFile = createAudioFile(),
 	annotations = [],
+	currentTimeMs = 0,
 	isPlaying = false,
+	onCreateAnnotation = vi.fn(
+		async (input: Omit<CreateAnnotationInput, "songId" | "audioFileId">) =>
+			({
+				id: "annotation-1",
+				songId: "song-1",
+				audioFileId: "file-1",
+				createdAt: "2026-04-16T00:00:00.000Z",
+				updatedAt: "2026-04-16T00:00:00.000Z",
+				...input,
+			}) as Annotation,
+	),
 	onSeek = vi.fn().mockResolvedValue(undefined),
 	onUpdateAnnotation = vi.fn().mockResolvedValue(undefined),
 	onSelectFile = vi.fn(),
@@ -97,7 +109,11 @@ function renderWaveformCard({
 }: {
 	audioFile?: AudioFileRecord;
 	annotations?: Annotation[];
+	currentTimeMs?: number;
 	isPlaying?: boolean;
+	onCreateAnnotation?: (
+		input: Omit<CreateAnnotationInput, "songId" | "audioFileId">,
+	) => Promise<Annotation>;
 	onSeek?: (timeMs: number, autoplay?: boolean) => Promise<void>;
 	onUpdateAnnotation?: (
 		annotationId: string,
@@ -117,22 +133,12 @@ function renderWaveformCard({
 			audioFile={audioFile}
 			annotations={annotations}
 			blob={new Blob(["tone"], { type: "audio/wav" })}
-			currentTimeMs={0}
+			currentTimeMs={currentTimeMs}
 			isPlaying={isPlaying}
 			isSelected
 			onSelectFile={onSelectFile}
 			onSelectAnnotation={onSelectAnnotation}
-			onCreateAnnotation={vi.fn(
-				async (input: Omit<CreateAnnotationInput, "songId" | "audioFileId">) =>
-					({
-						id: "annotation-1",
-						songId: "song-1",
-						audioFileId: "file-1",
-						createdAt: "2026-04-16T00:00:00.000Z",
-						updatedAt: "2026-04-16T00:00:00.000Z",
-						...input,
-					}) as Annotation,
-			)}
+			onCreateAnnotation={onCreateAnnotation}
 			onUpdateAnnotation={onUpdateAnnotation}
 			onSeek={onSeek}
 			onTogglePlayback={vi.fn().mockResolvedValue(undefined)}
@@ -416,6 +422,159 @@ describe("WaveformCard", () => {
 		});
 		expect(onSeek).toHaveBeenCalledTimes(1);
 		expect(onSelectFile).toHaveBeenCalledWith("file-1");
+	});
+
+	it("reveals the playhead add-marker button on hover and hides it on leave", () => {
+		renderWaveformCard({
+			currentTimeMs: 45000,
+		});
+
+		const addMarkerButton = screen.getByRole("button", {
+			name: /add marker at 0:45 for mix v1/i,
+		});
+		expect(addMarkerButton.getAttribute("data-visible")).toBe("false");
+
+		fireEvent.pointerEnter(addMarkerButton);
+		expect(addMarkerButton.getAttribute("data-visible")).toBe("true");
+
+		fireEvent.pointerLeave(addMarkerButton);
+		expect(addMarkerButton.getAttribute("data-visible")).toBe("false");
+	});
+
+	it("creates a point marker at the current playhead from the playhead add button", async () => {
+		const onCreateAnnotation = vi.fn().mockResolvedValue({
+			id: "annotation-9",
+			songId: "song-1",
+			audioFileId: "file-1",
+			type: "point",
+			startMs: 45000,
+			title: "Marker 0:45",
+			body: EMPTY_RICH_TEXT,
+			color: "var(--color-annotation-4)",
+			createdAt: "2026-04-16T00:00:00.000Z",
+			updatedAt: "2026-04-16T00:00:00.000Z",
+		} satisfies Annotation);
+		const onSeek = vi.fn().mockResolvedValue(undefined);
+		const onSelectFile = vi.fn();
+		const onSelectAnnotation = vi.fn();
+
+		renderWaveformCard({
+			currentTimeMs: 45000,
+			onCreateAnnotation,
+			onSeek,
+			onSelectFile,
+			onSelectAnnotation,
+		});
+
+		fireEvent.click(
+			screen.getByRole("button", {
+				name: /add marker at 0:45 for mix v1/i,
+			}),
+		);
+
+		await waitFor(() => {
+			expect(onCreateAnnotation).toHaveBeenCalledWith({
+				type: "point",
+				startMs: 45000,
+				title: "Marker 0:45",
+				body: EMPTY_RICH_TEXT,
+				color: "var(--color-annotation-4)",
+			});
+		});
+		expect(onSelectFile).toHaveBeenCalledWith("file-1");
+		expect(onSelectAnnotation).toHaveBeenCalledWith("annotation-9");
+		expect(onSeek).not.toHaveBeenCalled();
+	});
+
+	it("creates a point marker from the playhead add button keyboard interactions", async () => {
+		const onCreateAnnotation = vi.fn().mockResolvedValue({
+			id: "annotation-5",
+			songId: "song-1",
+			audioFileId: "file-1",
+			type: "point",
+			startMs: 60000,
+			title: "Marker 1:00",
+			body: EMPTY_RICH_TEXT,
+			color: "var(--color-annotation-4)",
+			createdAt: "2026-04-16T00:00:00.000Z",
+			updatedAt: "2026-04-16T00:00:00.000Z",
+		} satisfies Annotation);
+
+		renderWaveformCard({
+			currentTimeMs: 60000,
+			onCreateAnnotation,
+		});
+
+		const addMarkerButton = screen.getByRole("button", {
+			name: /add marker at 1:00 for mix v1/i,
+		});
+		fireEvent.focus(addMarkerButton);
+		expect(addMarkerButton.getAttribute("data-visible")).toBe("true");
+
+		fireEvent.keyDown(addMarkerButton, { key: "Enter" });
+
+		await waitFor(() => {
+			expect(onCreateAnnotation).toHaveBeenCalledWith({
+				type: "point",
+				startMs: 60000,
+				title: "Marker 1:00",
+				body: EMPTY_RICH_TEXT,
+				color: "var(--color-annotation-4)",
+			});
+		});
+		expect(onCreateAnnotation).toHaveBeenCalledTimes(1);
+
+		fireEvent.keyDown(addMarkerButton, { key: " " });
+		fireEvent.keyUp(addMarkerButton, { key: " " });
+
+		await waitFor(() => {
+			expect(onCreateAnnotation).toHaveBeenCalledTimes(2);
+		});
+	});
+
+	it("does not show the playhead add-marker button in point or range mode", () => {
+		renderWaveformCard({
+			currentTimeMs: 45000,
+		});
+
+		expect(
+			screen.getByRole("button", {
+				name: /add marker at 0:45 for mix v1/i,
+			}),
+		).toBeTruthy();
+
+		fireEvent.click(
+			screen.getByRole("button", {
+				name: /point/i,
+			}),
+		);
+		expect(
+			screen.queryByRole("button", {
+				name: /add marker at 0:45 for mix v1/i,
+			}),
+		).toBeNull();
+
+		fireEvent.click(
+			screen.getByRole("button", {
+				name: /seek/i,
+			}),
+		);
+		expect(
+			screen.getByRole("button", {
+				name: /add marker at 0:45 for mix v1/i,
+			}),
+		).toBeTruthy();
+
+		fireEvent.click(
+			screen.getByRole("button", {
+				name: /range/i,
+			}),
+		);
+		expect(
+			screen.queryByRole("button", {
+				name: /add marker at 0:45 for mix v1/i,
+			}),
+		).toBeNull();
 	});
 
 	it("selects the file when clicking non-interactive row space", () => {

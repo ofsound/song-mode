@@ -28,6 +28,7 @@ import { useWaveformCanvas } from "./use-waveform-canvas";
 import { WaveformCardAnnotationLayer } from "./waveform-card-annotation-layer";
 
 type WaveformMode = "seek" | "point" | "range";
+const PLAYHEAD_ADD_MARKER_HOTSPOT_HEIGHT_PX = 36;
 
 interface HoveredAnnotationState {
 	annotationId: string;
@@ -96,6 +97,8 @@ export function WaveformCard({
 	const [rangeAnchorMs, setRangeAnchorMs] = useState<number | null>(null);
 	const [hoveredAnnotation, setHoveredAnnotation] =
 		useState<HoveredAnnotationState | null>(null);
+	const [isPlayheadAddMarkerVisible, setIsPlayheadAddMarkerVisible] =
+		useState(false);
 	const articleRef = useRef<HTMLElement | null>(null);
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const surfaceRef = useRef<HTMLDivElement | null>(null);
@@ -111,6 +114,11 @@ export function WaveformCard({
 		() => normalizeWaveformData(audioFile.waveform, audioFile.durationMs),
 		[audioFile.durationMs, audioFile.waveform],
 	);
+	const playheadTimeMs = Math.max(
+		0,
+		Math.min(currentTimeMs, audioFile.durationMs),
+	);
+	const playheadLeft = `${(playheadTimeMs / Math.max(audioFile.durationMs, 1)) * 100}%`;
 	const hoveredAnnotationRecord = useMemo(
 		() =>
 			hoveredAnnotation
@@ -170,6 +178,12 @@ export function WaveformCard({
 		}
 	}, [currentTimeMs]);
 
+	useEffect(() => {
+		if (mode !== "seek" && isPlayheadAddMarkerVisible) {
+			setIsPlayheadAddMarkerVisible(false);
+		}
+	}, [isPlayheadAddMarkerVisible, mode]);
+
 	useWaveformAudioGraph({
 		audioRef,
 		isPlaying,
@@ -226,6 +240,19 @@ export function WaveformCard({
 		});
 	}
 
+	async function createPointAnnotationAtTime(timeMs: number) {
+		onSelectFile(audioFile.id);
+
+		const annotation = await onCreateAnnotation({
+			type: "point",
+			startMs: timeMs,
+			title: `Marker ${formatDuration(timeMs)}`,
+			body: EMPTY_RICH_TEXT,
+			color: "var(--color-annotation-4)",
+		});
+		onSelectAnnotation(annotation.id);
+	}
+
 	async function handleWaveformAction(clientX: number, autoplay?: boolean) {
 		const timeMs = getWaveformTimeMs(clientX);
 		if (timeMs === null) {
@@ -245,14 +272,7 @@ export function WaveformCard({
 		}
 
 		if (mode === "point") {
-			const annotation = await onCreateAnnotation({
-				type: "point",
-				startMs: timeMs,
-				title: `Marker ${formatDuration(timeMs)}`,
-				body: EMPTY_RICH_TEXT,
-				color: "var(--color-annotation-4)",
-			});
-			onSelectAnnotation(annotation.id);
+			await createPointAnnotationAtTime(timeMs);
 			setMode("seek");
 			return;
 		}
@@ -454,12 +474,17 @@ export function WaveformCard({
 					role="button"
 					tabIndex={0}
 					aria-label={`Waveform for ${audioFile.title}`}
-					onPointerLeave={() => setHoveredAnnotation(null)}
+					onPointerLeave={() => {
+						setHoveredAnnotation(null);
+						setIsPlayheadAddMarkerVisible(false);
+					}}
 					onPointerDown={(event) => {
 						if (
 							mode !== "seek" ||
 							event.button !== 0 ||
-							(event.target as HTMLElement).closest("[data-annotation-hit]")
+							(event.target as HTMLElement).closest(
+								"[data-annotation-hit], [data-playhead-add-marker-hit]",
+							)
 						) {
 							return;
 						}
@@ -522,7 +547,9 @@ export function WaveformCard({
 						}
 
 						if (
-							(event.target as HTMLElement).closest("[data-annotation-hit]")
+							(event.target as HTMLElement).closest(
+								"[data-annotation-hit], [data-playhead-add-marker-hit]",
+							)
 						) {
 							return;
 						}
@@ -556,6 +583,70 @@ export function WaveformCard({
 						<RotateCcw size={14} />
 					</button>
 					<canvas ref={canvasRef} className="block w-full" />
+					{mode === "seek" ? (
+						<div
+							className="pointer-events-none absolute bottom-0 top-0 z-10"
+							style={{ left: playheadLeft }}
+						>
+							<button
+								type="button"
+								data-playhead-add-marker-hit
+								data-testid="playhead-add-marker-button"
+								data-visible={isPlayheadAddMarkerVisible}
+								aria-label={`Add marker at ${formatDuration(playheadTimeMs)} for ${audioFile.title}`}
+								title="Add point marker at playhead"
+								onPointerDown={(event) => {
+									event.stopPropagation();
+								}}
+								onPointerEnter={() => setIsPlayheadAddMarkerVisible(true)}
+								onPointerLeave={() => setIsPlayheadAddMarkerVisible(false)}
+								onFocus={() => setIsPlayheadAddMarkerVisible(true)}
+								onBlur={(event) => {
+									if (
+										event.relatedTarget instanceof Node &&
+										event.currentTarget.contains(event.relatedTarget)
+									) {
+										return;
+									}
+
+									setIsPlayheadAddMarkerVisible(false);
+								}}
+								onKeyDown={(event) => {
+									event.stopPropagation();
+									if (event.key === "Enter") {
+										event.preventDefault();
+										void createPointAnnotationAtTime(playheadTimeMs);
+									}
+									if (event.key === " ") {
+										event.preventDefault();
+									}
+								}}
+								onKeyUp={(event) => {
+									event.stopPropagation();
+									if (event.key !== " ") {
+										return;
+									}
+
+									event.preventDefault();
+									void createPointAnnotationAtTime(playheadTimeMs);
+								}}
+								onClick={(event) => {
+									event.stopPropagation();
+									void createPointAnnotationAtTime(playheadTimeMs);
+								}}
+								className={`pointer-events-auto absolute left-1/2 top-1 inline-flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border shadow-sm transition-all duration-150 focus-visible:opacity-100 focus-visible:scale-100 ${
+									isPlayheadAddMarkerVisible
+										? "border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] text-[var(--color-text)] opacity-100 scale-100"
+										: "border-transparent bg-transparent text-[var(--color-text-muted)] opacity-0 scale-95"
+								}`}
+								style={{
+									height: `${PLAYHEAD_ADD_MARKER_HOTSPOT_HEIGHT_PX}px`,
+								}}
+							>
+								<Plus size={14} />
+							</button>
+						</div>
+					) : null}
 					<WaveformCardAnnotationLayer
 						activeAnnotationId={activeAnnotationId}
 						audioFile={audioFile}
