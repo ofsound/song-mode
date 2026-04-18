@@ -52,6 +52,18 @@ describe("ui settings helpers", () => {
 		).toBe(true);
 	});
 
+	it("removes data-reduce-keyboard-focus when keyboard highlights are re-enabled", () => {
+		applyUiSettingsToRoot(
+			{ ...createDefaultUiSettings(), keyboardFocusHighlights: false },
+			document.documentElement,
+		);
+		applyUiSettingsToRoot(createDefaultUiSettings(), document.documentElement);
+
+		expect(
+			document.documentElement.hasAttribute("data-reduce-keyboard-focus"),
+		).toBe(false);
+	});
+
 	it("round-trips settings through local storage normalization", () => {
 		const uiSettings = {
 			...createDefaultUiSettings(),

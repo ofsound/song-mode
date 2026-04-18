@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	within,
+} from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDefaultUiSettings } from "#/lib/song-mode/types";
 import { SongModeChrome } from "./app-chrome";
 
@@ -43,6 +49,14 @@ vi.mock("./theme-toggle", () => ({
 }));
 
 describe("SongModeChrome", () => {
+	beforeEach(() => {
+		updateUiSettingsMock.mockClear();
+	});
+
+	afterEach(() => {
+		cleanup();
+	});
+
 	it("renders the settings button before the theme toggle and opens the modal", () => {
 		render(
 			<SongModeChrome>
@@ -65,5 +79,31 @@ describe("SongModeChrome", () => {
 		fireEvent.click(settingsButton);
 
 		expect(screen.getByRole("dialog", { name: /settings/i })).toBeTruthy();
+	});
+
+	it("updates keyboard focus highlights from the settings dialog", () => {
+		render(
+			<SongModeChrome>
+				<main>Library</main>
+			</SongModeChrome>,
+		);
+
+		fireEvent.click(
+			screen.getByRole("button", {
+				name: /open settings/i,
+			}),
+		);
+
+		const focusCard = screen.getByText("Show focus rings").closest(".border");
+		expect(focusCard).toBeTruthy();
+		fireEvent.click(within(focusCard as HTMLElement).getByRole("button"));
+
+		expect(updateUiSettingsMock).toHaveBeenCalledTimes(1);
+		const updater = updateUiSettingsMock.mock.calls[0]?.[0];
+		expect(typeof updater).toBe("function");
+		expect(updater(createDefaultUiSettings())).toEqual({
+			...createDefaultUiSettings(),
+			keyboardFocusHighlights: false,
+		});
 	});
 });

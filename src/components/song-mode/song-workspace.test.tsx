@@ -576,6 +576,27 @@ describe("SongWorkspace", () => {
 		expect(seekActiveBy).toHaveBeenNthCalledWith(3, -5000);
 	});
 
+	it("seeks 1 second when holding shift with comma and period", () => {
+		currentAudioFiles = [createAudioFile()];
+		seekActiveBy.mockClear();
+
+		render(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+
+		fireEvent.keyDown(window, {
+			key: "<",
+			code: "Comma",
+			shiftKey: true,
+		});
+		fireEvent.keyDown(window, {
+			key: ">",
+			code: "Period",
+			shiftKey: true,
+		});
+
+		expect(seekActiveBy).toHaveBeenNthCalledWith(1, -1000);
+		expect(seekActiveBy).toHaveBeenNthCalledWith(2, 1000);
+	});
+
 	it("keeps a zero live playhead instead of falling back to workspace playhead", () => {
 		currentAudioFiles = [createAudioFile()];
 		currentWorkspace = {

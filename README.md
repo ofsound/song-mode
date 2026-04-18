@@ -37,8 +37,8 @@ npm run verify
 ## Keyboard Shortcuts
 
 - `Space`: play/pause the selected file
-- `Left` / `,`: seek backward 5 seconds
-- `Right` / `.`: seek forward 5 seconds
+- `Left` / `,`: seek backward 5 seconds (hold `Shift` to seek 1 second)
+- `Right` / `.`: seek forward 5 seconds (hold `Shift` to seek 1 second)
 - `Shift + Up`: jump to previous annotation
 - `Shift + Down`: jump to next annotation
 - `Shift + J`: focus the song journal

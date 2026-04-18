@@ -56,7 +56,7 @@ export function useSongWorkspaceShortcuts({
 				event.code === "Comma"
 			) {
 				event.preventDefault();
-				void seekActiveBy(-5000);
+				void seekActiveBy(event.shiftKey ? -1000 : -5000);
 			}
 
 			if (
@@ -65,7 +65,7 @@ export function useSongWorkspaceShortcuts({
 				event.code === "Period"
 			) {
 				event.preventDefault();
-				void seekActiveBy(5000);
+				void seekActiveBy(event.shiftKey ? 1000 : 5000);
 			}
 
 			if (event.shiftKey && event.key === "ArrowUp") {

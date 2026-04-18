@@ -117,10 +117,14 @@ a[aria-disabled="true"],
 	cursor: not-allowed;
 }
 
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-textarea:focus-visible {
+:where(
+		button,
+		a,
+		input,
+		textarea,
+		select,
+		[role="button"]:not([aria-disabled="true"])
+	):focus-visible {
 	outline: none;
 	box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
@@ -183,7 +187,7 @@ pre code {
 	color: var(--color-text-subtle);
 }
 
-.field-input:focus {
+.field-input:focus-visible {
 	border-color: var(--color-accent-strong);
 	box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
@@ -201,7 +205,7 @@ pre code {
 	box-shadow: none;
 }
 
-[data-reduce-keyboard-focus] .field-input:focus {
+[data-reduce-keyboard-focus] .field-input:focus-visible {
 	border-color: var(--color-border-strong);
 	box-shadow: none;
 }

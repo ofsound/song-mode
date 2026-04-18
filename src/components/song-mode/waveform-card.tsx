@@ -939,7 +939,7 @@ export function WaveformCard({
 			</div>
 
 			<div className="mt-3 flex items-center justify-between gap-3 text-xs text-[var(--color-text-subtle)]">
-				<span className="tabular-nums">
+				<span className="text-sm tabular-nums text-[var(--color-text)]">
 					{formatDuration(currentTimeMs)} /{" "}
 					{formatDuration(audioFile.durationMs)}
 				</span>
