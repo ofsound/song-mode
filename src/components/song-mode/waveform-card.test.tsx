@@ -975,52 +975,6 @@ describe("WaveformCard", () => {
 		expect(onSelectAnnotation).toHaveBeenCalledWith("annotation-1");
 	});
 
-	it("reveals the point-marker convert control on hover and converts the marker into a range", async () => {
-		const onUpdateAnnotation = vi.fn().mockResolvedValue(undefined);
-		const onSelectFile = vi.fn();
-		const onSelectAnnotation = vi.fn();
-
-		renderWaveformCard({
-			onUpdateAnnotation,
-			onSelectFile,
-			onSelectAnnotation,
-			annotations: [
-				{
-					id: "annotation-1",
-					songId: "song-1",
-					audioFileId: "file-1",
-					type: "point",
-					startMs: 30000,
-					title: "Verse",
-					body: EMPTY_RICH_TEXT,
-					color: "var(--color-annotation-4)",
-					createdAt: "2026-04-16T00:00:00.000Z",
-					updatedAt: "2026-04-16T00:00:00.000Z",
-				},
-			],
-		});
-
-		const convertButton = screen.getByRole("button", {
-			name: /convert verse to a range/i,
-		});
-		expect(convertButton.getAttribute("data-visible")).toBe("false");
-
-		fireEvent.pointerEnter(convertButton);
-		expect(convertButton.getAttribute("data-visible")).toBe("true");
-
-		fireEvent.click(convertButton);
-
-		await waitFor(() => {
-			expect(onUpdateAnnotation).toHaveBeenCalledWith("annotation-1", {
-				type: "range",
-				endMs: 40000,
-				color: "var(--color-annotation-2)",
-			});
-		});
-		expect(onSelectFile).toHaveBeenCalledWith("file-1");
-		expect(onSelectAnnotation).toHaveBeenCalledWith("annotation-1");
-	});
-
 	it("slows end-handle dragging for a range while Shift is held", async () => {
 		const onUpdateAnnotation = vi.fn().mockResolvedValue(undefined);
 

@@ -54,6 +54,12 @@ const themeBootstrapScript = `(() => {
 					? "92px"
 					: "164px",
 		);
+
+		if (uiSettings.keyboardFocusHighlights === false) {
+			document.documentElement.setAttribute("data-reduce-keyboard-focus", "");
+		} else {
+			document.documentElement.removeAttribute("data-reduce-keyboard-focus");
+		}
 	} catch {}
 })()`;
 

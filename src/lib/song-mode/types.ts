@@ -82,6 +82,8 @@ export interface SongModeUiSettings {
 	waveformHeight: WaveformHeightPreset;
 	showArtist: boolean;
 	showProject: boolean;
+	/** When true, :focus-visible uses accent rings (recommended for keyboard use). */
+	keyboardFocusHighlights: boolean;
 }
 
 export interface SongModeSettings {
@@ -169,6 +171,7 @@ export function createDefaultUiSettings(): SongModeUiSettings {
 		waveformHeight: "large",
 		showArtist: true,
 		showProject: true,
+		keyboardFocusHighlights: true,
 	};
 }
 
@@ -218,6 +221,8 @@ export function normalizeUiSettings(
 		waveformHeight: normalizeWaveformHeightPreset(value?.waveformHeight),
 		showArtist: value?.showArtist ?? defaults.showArtist,
 		showProject: value?.showProject ?? defaults.showProject,
+		keyboardFocusHighlights:
+			value?.keyboardFocusHighlights ?? defaults.keyboardFocusHighlights,
 	};
 }
 

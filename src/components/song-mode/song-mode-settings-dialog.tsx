@@ -161,6 +161,29 @@ export function SongModeSettingsDialog({
 							/>
 						</div>
 					</section>
+
+					<section className="grid gap-4">
+						<div>
+							<p className="eyebrow mb-2">Accessibility</p>
+							<h3 className="text-lg font-semibold text-[var(--color-text)]">
+								Keyboard focus highlights
+							</h3>
+						</div>
+						<div className="grid gap-3 md:grid-cols-2">
+							<ToggleSettingCard
+								label="Show focus rings"
+								enabled={uiSettings.keyboardFocusHighlights}
+								detailWhenOn="Focused controls show a ring when using the keyboard."
+								detailWhenOff="Keyboard focus rings are hidden; pointer use is unchanged."
+								onToggle={() =>
+									void onUpdateUiSettings((current) => ({
+										...current,
+										keyboardFocusHighlights: !current.keyboardFocusHighlights,
+									}))
+								}
+							/>
+						</div>
+					</section>
 				</div>
 			</div>
 		</div>
@@ -199,10 +222,14 @@ function ToggleSettingCard({
 	label,
 	enabled,
 	onToggle,
+	detailWhenOn = "Visible across the UI",
+	detailWhenOff = "Hidden until re-enabled",
 }: {
 	label: string;
 	enabled: boolean;
 	onToggle: () => void;
+	detailWhenOn?: string;
+	detailWhenOff?: string;
 }) {
 	return (
 		<div className="border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] px-4 py-4">
@@ -212,7 +239,7 @@ function ToggleSettingCard({
 						{label}
 					</div>
 					<div className="mt-1 text-sm text-[var(--color-text-muted)]">
-						{enabled ? "Visible across the UI" : "Hidden until re-enabled"}
+						{enabled ? detailWhenOn : detailWhenOff}
 					</div>
 				</div>
 				<button

@@ -40,6 +40,11 @@ export function applyUiSettingsToRoot(
 		"--song-workspace-waveform-height",
 		`${getWaveformHeightPx(uiSettings.waveformHeight)}px`,
 	);
+	if (uiSettings.keyboardFocusHighlights) {
+		root.removeAttribute("data-reduce-keyboard-focus");
+	} else {
+		root.setAttribute("data-reduce-keyboard-focus", "");
+	}
 }
 
 export function readUiSettingsFromStorage(

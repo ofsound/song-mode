@@ -63,6 +63,10 @@
 	outline-offset: 3px;
 }
 
+[data-reduce-keyboard-focus] .panel-shell-action:focus-visible {
+	outline: none;
+}
+
 .panel-shell.panel-shell--plain {
 	background: var(--color-surface);
 	backdrop-filter: none;

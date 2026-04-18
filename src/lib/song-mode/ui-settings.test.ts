@@ -36,6 +36,20 @@ describe("ui settings helpers", () => {
 				"--song-workspace-waveform-height",
 			),
 		).toBe("92px");
+		expect(
+			document.documentElement.hasAttribute("data-reduce-keyboard-focus"),
+		).toBe(false);
+	});
+
+	it("sets data-reduce-keyboard-focus when keyboard highlights are disabled", () => {
+		applyUiSettingsToRoot(
+			{ ...createDefaultUiSettings(), keyboardFocusHighlights: false },
+			document.documentElement,
+		);
+
+		expect(
+			document.documentElement.hasAttribute("data-reduce-keyboard-focus"),
+		).toBe(true);
 	});
 
 	it("round-trips settings through local storage normalization", () => {

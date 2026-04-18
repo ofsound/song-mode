@@ -1,12 +1,8 @@
-import { UnfoldHorizontal } from "lucide-react";
-import { type PointerEvent, useState } from "react";
-import { richTextPreview } from "#/lib/song-mode/rich-text";
+import { type PointerEvent, useRef, useState } from "react";
+import { hasRichTextContent, richTextPreview } from "#/lib/song-mode/rich-text";
 import type { Annotation, AudioFileRecord } from "#/lib/song-mode/types";
 import { formatDuration } from "#/lib/song-mode/waveform";
 import { useScrubDrag } from "./use-scrub-drag";
-
-const POINT_MARKER_RANGE_DURATION_MS = 10_000;
-const POINT_MARKER_CONVERT_RANGE_HOTSPOT_HEIGHT_PX = 36;
 
 interface HoveredAnnotationState {
 	annotationId: string;
@@ -34,7 +30,6 @@ interface WaveformCardAnnotationLayerProps {
 	) => Promise<void>;
 	getTimePerPixel: () => number;
 	setHoveredAnnotation: (annotation: HoveredAnnotationState | null) => void;
-	showPointMarkerConvertControl: boolean;
 	updateHoveredAnnotationPosition: (
 		annotationId: string,
 		clientX: number,
@@ -55,14 +50,15 @@ export function WaveformCardAnnotationLayer({
 	onUpdateAnnotation,
 	getTimePerPixel,
 	setHoveredAnnotation,
-	showPointMarkerConvertControl,
 	updateHoveredAnnotationPosition,
 }: WaveformCardAnnotationLayerProps) {
-	const [
-		visiblePointMarkerRangeConvertId,
-		setVisiblePointMarkerRangeConvertId,
-	] = useState<string | null>(null);
 	const [reshapingRangeId, setReshapingRangeId] = useState<string | null>(null);
+	const reshapePointerStartRef = useRef<{
+		annotationId: string;
+		pointerId: number;
+		x: number;
+		y: number;
+	} | null>(null);
 	const [adjustingPointMarkerId, setAdjustingPointMarkerId] = useState<
 		string | null
 	>(null);
@@ -91,18 +87,42 @@ export function WaveformCardAnnotationLayer({
 			onPointerCancel: (event: PointerEvent<HTMLButtonElement>) => void;
 		},
 	) {
+		const RESHAPE_INTENT_DISTANCE_PX = 3;
+
 		return {
 			onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
-				setReshapingRangeId(annotationId);
+				reshapePointerStartRef.current = {
+					annotationId,
+					pointerId: event.pointerId,
+					x: event.clientX,
+					y: event.clientY,
+				};
 				handlers.onPointerDown(event);
 			},
-			onPointerMove: handlers.onPointerMove,
+			onPointerMove: (event: PointerEvent<HTMLButtonElement>) => {
+				const start = reshapePointerStartRef.current;
+				if (
+					start &&
+					start.annotationId === annotationId &&
+					start.pointerId === event.pointerId &&
+					reshapingRangeId !== annotationId
+				) {
+					const dx = event.clientX - start.x;
+					const dy = event.clientY - start.y;
+					if (Math.hypot(dx, dy) >= RESHAPE_INTENT_DISTANCE_PX) {
+						setReshapingRangeId(annotationId);
+					}
+				}
+				handlers.onPointerMove(event);
+			},
 			onPointerUp: (event: PointerEvent<HTMLButtonElement>) => {
 				handlers.onPointerUp(event);
+				reshapePointerStartRef.current = null;
 				setReshapingRangeId(null);
 			},
 			onPointerCancel: (event: PointerEvent<HTMLButtonElement>) => {
 				handlers.onPointerCancel(event);
+				reshapePointerStartRef.current = null;
 				setReshapingRangeId(null);
 			},
 		};
@@ -190,16 +210,14 @@ export function WaveformCardAnnotationLayer({
 							<div
 								aria-hidden
 								data-range-waveform-highlight
-								className={`pointer-events-none absolute top-[var(--waveform-marker-gutter-height)] bottom-[var(--waveform-marker-gutter-height)] border ${
-									reshapingRangeId === annotation.id
-										? activeAnnotationId === annotation.id
-											? "border-[var(--color-waveform-annotation-active)] shadow-[0_0_0_1px_var(--color-waveform-annotation-active)]"
-											: "border-[var(--color-waveform-annotation-inactive)]"
-										: "border-transparent shadow-none"
-								}`}
+								className="pointer-events-none absolute top-[var(--waveform-marker-gutter-height)] bottom-[var(--waveform-marker-gutter-height)]"
 								style={{
 									left: 0,
 									width: "100%",
+									backgroundColor:
+										reshapingRangeId === annotation.id
+											? `color-mix(in srgb, ${rangeColor} 32%, transparent)`
+											: undefined,
 								}}
 							/>
 							<button
@@ -325,17 +343,11 @@ export function WaveformCardAnnotationLayer({
 					annotation.id,
 					getMarkerDragHandlers(annotation.id, annotation.startMs),
 				);
-				const isConvertRangeVisible =
-					visiblePointMarkerRangeConvertId === annotation.id;
-				const nextRangeEndMs = Math.min(
-					audioFile.durationMs,
-					annotation.startMs + POINT_MARKER_RANGE_DURATION_MS,
-				);
 
 				return (
 					<div
 						key={annotation.id}
-						className="absolute bottom-0 top-0 z-10"
+						className="absolute top-0 bottom-[var(--waveform-marker-gutter-height)] z-10"
 						style={{ left }}
 					>
 						<button
@@ -358,7 +370,7 @@ export function WaveformCardAnnotationLayer({
 							onPointerMove={markerDragHandlers.onPointerMove}
 							onPointerUp={markerDragHandlers.onPointerUp}
 							onPointerCancel={markerDragHandlers.onPointerCancel}
-							className="pointer-events-auto absolute bottom-0 top-0 left-1/2 w-3 -translate-x-1/2"
+							className="pointer-events-auto absolute top-0 bottom-0 left-1/2 w-3 -translate-x-1/2"
 						>
 							<span
 								aria-hidden
@@ -409,58 +421,6 @@ export function WaveformCardAnnotationLayer({
 								</svg>
 							</span>
 						</button>
-						{showPointMarkerConvertControl ? (
-							<button
-								type="button"
-								data-annotation-hit
-								data-testid={`marker-convert-range-button-${annotation.id}`}
-								data-visible={isConvertRangeVisible}
-								aria-label={`Convert ${buildPointMarkerLabel(annotation)} to a range`}
-								title="Convert marker to range"
-								onPointerDown={(event) => {
-									event.stopPropagation();
-								}}
-								onPointerEnter={() => {
-									setHoveredAnnotation(null);
-									setVisiblePointMarkerRangeConvertId(annotation.id);
-								}}
-								onPointerLeave={() =>
-									setVisiblePointMarkerRangeConvertId((current) =>
-										current === annotation.id ? null : current,
-									)
-								}
-								onFocus={() => {
-									setHoveredAnnotation(null);
-									setVisiblePointMarkerRangeConvertId(annotation.id);
-								}}
-								onBlur={() =>
-									setVisiblePointMarkerRangeConvertId((current) =>
-										current === annotation.id ? null : current,
-									)
-								}
-								onClick={(event) => {
-									event.stopPropagation();
-									setVisiblePointMarkerRangeConvertId(null);
-									onSelectFile(audioFile.id);
-									onSelectAnnotation(annotation.id);
-									void onUpdateAnnotation(annotation.id, {
-										type: "range",
-										endMs: nextRangeEndMs,
-										color: "var(--color-annotation-2)",
-									});
-								}}
-								className={`pointer-events-auto absolute bottom-[calc(var(--waveform-marker-gutter-height)+0.25rem)] left-1/2 inline-flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border shadow-sm transition-all duration-150 focus-visible:opacity-100 focus-visible:scale-100 ${
-									isConvertRangeVisible
-										? "border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] text-[var(--color-text)] opacity-100 scale-100"
-										: "border-transparent bg-transparent text-[var(--color-text-muted)] opacity-0 scale-95"
-								}`}
-								style={{
-									height: `${POINT_MARKER_CONVERT_RANGE_HOTSPOT_HEIGHT_PX}px`,
-								}}
-							>
-								<UnfoldHorizontal size={14} />
-							</button>
-						) : null}
 					</div>
 				);
 			})}
@@ -479,14 +439,11 @@ export function WaveformCardAnnotationLayer({
 								? "Untitled range"
 								: "Untitled marker")}
 					</p>
-					<p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
-						{richTextPreview(
-							hoveredAnnotationRecord.body,
-							hoveredAnnotationRecord.type === "range"
-								? "No range description yet."
-								: "No marker description yet.",
-						)}
-					</p>
+					{hasRichTextContent(hoveredAnnotationRecord.body) ? (
+						<p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
+							{richTextPreview(hoveredAnnotationRecord.body)}
+						</p>
+					) : null}
 				</div>
 			) : null}
 		</>
@@ -509,10 +466,6 @@ function buildAnnotationAriaLabel(annotation: Annotation): string {
 	const typeLabel = annotation.type === "range" ? "range" : "marker";
 	const title = annotation.title?.trim() || `Untitled ${typeLabel}`;
 	return `${title} at ${formatAnnotationTime(annotation)}`;
-}
-
-function buildPointMarkerLabel(annotation: Annotation): string {
-	return annotation.title.trim() || "Untitled marker";
 }
 
 function buildRangeHandleAriaLabel(

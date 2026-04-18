@@ -932,7 +932,6 @@ export function WaveformCard({
 							onUpdateAnnotation={onUpdateAnnotation}
 							getTimePerPixel={getTimePerPixel}
 							setHoveredAnnotation={setHoveredAnnotation}
-							showPointMarkerConvertControl
 							updateHoveredAnnotationPosition={updateHoveredAnnotationPosition}
 						/>
 					</div>

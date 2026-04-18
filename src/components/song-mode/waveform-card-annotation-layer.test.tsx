@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_RICH_TEXT } from "#/lib/song-mode/rich-text";
 import type { Annotation, AudioFileRecord } from "#/lib/song-mode/types";
 import { WaveformCardAnnotationLayer } from "./waveform-card-annotation-layer";
@@ -37,7 +37,6 @@ function renderLayer(annotation: Annotation) {
 				onDeleteAnnotation={vi.fn().mockResolvedValue(undefined)}
 				getTimePerPixel={() => 1000}
 				setHoveredAnnotation={vi.fn()}
-				showPointMarkerConvertControl
 				updateHoveredAnnotationPosition={vi.fn()}
 			/>
 		</div>,
@@ -45,6 +44,10 @@ function renderLayer(annotation: Annotation) {
 }
 
 describe("WaveformCardAnnotationLayer", () => {
+	afterEach(() => {
+		cleanup();
+	});
+
 	it("restores pointer hit testing for point marker controls inside the overlay", () => {
 		renderLayer({
 			id: "annotation-1",
@@ -66,13 +69,31 @@ describe("WaveformCardAnnotationLayer", () => {
 				})
 				.classList.contains("pointer-events-auto"),
 		).toBe(true);
-		expect(
-			screen
-				.getByRole("button", {
-					name: /convert verse to a range/i,
-				})
-				.classList.contains("pointer-events-auto"),
-		).toBe(true);
+	});
+
+	it("keeps the point marker hit area out of the bottom gutter region", () => {
+		renderLayer({
+			id: "annotation-1",
+			songId: "song-1",
+			audioFileId: "file-1",
+			type: "point",
+			startMs: 30000,
+			title: "Verse",
+			body: EMPTY_RICH_TEXT,
+			color: "var(--color-annotation-4)",
+			createdAt: "2026-04-16T00:00:00.000Z",
+			updatedAt: "2026-04-16T00:00:00.000Z",
+		});
+
+		const markerButton = screen.getByRole("button", {
+			name: /verse at 0:30/i,
+		});
+		const markerContainer = markerButton.parentElement;
+		expect(markerContainer).toBeTruthy();
+		expect(markerContainer?.className).toContain(
+			"bottom-[var(--waveform-marker-gutter-height)]",
+		);
+		expect(markerContainer?.className).not.toMatch(/(^|\s)bottom-0(\s|$)/);
 	});
 
 	it("restores pointer hit testing for range controls inside the overlay", () => {
