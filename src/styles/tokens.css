@@ -315,7 +315,7 @@
 	);
 	--canvas-waveform-progress-line: color-mix(
 		in srgb,
-		var(--accent-light-primary-base) 94%,
+		var(--color-slate-900) 92%,
 		transparent
 	);
 	--canvas-waveform-range: rgba(217, 119, 6, 0.9);
@@ -352,10 +352,6 @@
 		var(--accent-dark-primary-base) 5%,
 		transparent
 	);
-	--canvas-waveform-progress-line: color-mix(
-		in srgb,
-		var(--accent-dark-primary-base) 92%,
-		transparent
-	);
+	--canvas-waveform-progress-line: var(--color-white);
 	--canvas-waveform-range: rgba(244, 182, 79, 0.88);
 }

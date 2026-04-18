@@ -91,7 +91,8 @@ export function useWaveformCanvas({
 			context.fillStyle = readColor("--canvas-waveform-progress");
 			context.fillRect(0, 0, progressX, height);
 			context.strokeStyle = readColor("--canvas-waveform-progress-line");
-			context.lineWidth = 2;
+			context.lineWidth = 2.5;
+			context.lineCap = "butt";
 			context.beginPath();
 			context.moveTo(progressX, 0);
 			context.lineTo(progressX, height);

@@ -623,7 +623,7 @@ describe("WaveformCard", () => {
 		expect(onSeek).not.toHaveBeenCalled();
 	});
 
-	it("removes the waveform mode selectors", () => {
+	it("removes the legacy waveform mode selectors but exposes header quick-add buttons", () => {
 		renderWaveformCard({
 			currentTimeMs: 45000,
 		});
@@ -644,13 +644,18 @@ describe("WaveformCard", () => {
 			}),
 		).toBeNull();
 		expect(
-			screen.queryByRole("button", {
-				name: /add marker at/i,
+			screen.getByRole("button", {
+				name: /add marker at playhead/i,
 			}),
-		).toBeNull();
+		).toBeTruthy();
+		expect(
+			screen.getByRole("button", {
+				name: /start range at playhead/i,
+			}),
+		).toBeTruthy();
 		expect(
 			screen.queryByRole("button", {
-				name: /add range at/i,
+				name: /end range at playhead/i,
 			}),
 		).toBeNull();
 	});

@@ -1,10 +1,13 @@
 import {
+	Brackets,
 	GripVertical,
+	MapPin,
 	Minus,
 	Pause,
 	Play,
 	Plus,
 	RotateCcw,
+	X,
 } from "lucide-react";
 import {
 	type MouseEvent as ReactMouseEvent,
@@ -122,6 +125,9 @@ export function WaveformCard({
 	const [gutterHover, setGutterHover] = useState<GutterHoverState | null>(null);
 	const [bottomGutterDrag, setBottomGutterDrag] =
 		useState<BottomGutterDragState | null>(null);
+	const [pendingRangeStartMs, setPendingRangeStartMs] = useState<number | null>(
+		null,
+	);
 	const bottomGutterDragStateRef = useRef<BottomGutterDragState | null>(null);
 	const articleRef = useRef<HTMLElement | null>(null);
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -343,6 +349,47 @@ export function WaveformCard({
 			color: "var(--color-annotation-2)",
 		});
 		onSelectAnnotation(annotation.id);
+	}
+
+	function clampPlayheadTimeMs(): number {
+		return Math.max(0, Math.min(currentTimeMs, audioFile.durationMs));
+	}
+
+	async function handleAddMarkerAtPlayhead() {
+		await createPointAnnotationAtTime(clampPlayheadTimeMs());
+	}
+
+	function handleStartRangeAtPlayhead() {
+		onSelectFile(audioFile.id);
+		setPendingRangeStartMs(clampPlayheadTimeMs());
+	}
+
+	async function handleEndRangeAtPlayhead() {
+		if (pendingRangeStartMs === null) {
+			return;
+		}
+
+		const startCandidate = pendingRangeStartMs;
+		const endCandidate = clampPlayheadTimeMs();
+		let startMs = Math.min(startCandidate, endCandidate);
+		let endMs = Math.max(startCandidate, endCandidate);
+
+		if (endMs - startMs < 1) {
+			endMs = Math.min(
+				audioFile.durationMs,
+				startMs + DEFAULT_RANGE_ANNOTATION_DURATION_MS,
+			);
+			if (endMs <= startMs) {
+				startMs = Math.max(0, endMs - DEFAULT_RANGE_ANNOTATION_DURATION_MS);
+			}
+		}
+
+		setPendingRangeStartMs(null);
+		await createRangeAnnotationFromBounds(startMs, endMs);
+	}
+
+	function handleCancelPendingRange() {
+		setPendingRangeStartMs(null);
 	}
 
 	function clearSeekDragState(
@@ -596,6 +643,54 @@ export function WaveformCard({
 				</div>
 
 				<div className="flex flex-wrap items-center gap-2">
+					<button
+						type="button"
+						aria-label={`Add marker at playhead for ${audioFile.title}`}
+						title={`Add marker at ${formatDuration(clampPlayheadTimeMs())}`}
+						onClick={() => {
+							void handleAddMarkerAtPlayhead();
+						}}
+						className="action-secondary inline-flex h-9 items-center gap-1.5 px-3 text-xs font-medium"
+					>
+						<MapPin size={14} />
+						<span>Add marker</span>
+					</button>
+					{pendingRangeStartMs === null ? (
+						<button
+							type="button"
+							aria-label={`Start range at playhead for ${audioFile.title}`}
+							title={`Start range at ${formatDuration(clampPlayheadTimeMs())}`}
+							onClick={handleStartRangeAtPlayhead}
+							className="action-secondary inline-flex h-9 items-center gap-1.5 px-3 text-xs font-medium"
+						>
+							<Brackets size={14} />
+							<span>Start range</span>
+						</button>
+					) : (
+						<>
+							<button
+								type="button"
+								aria-label={`End range at playhead for ${audioFile.title}`}
+								title={`End range (started at ${formatDuration(pendingRangeStartMs)})`}
+								onClick={() => {
+									void handleEndRangeAtPlayhead();
+								}}
+								className="action-primary inline-flex h-9 items-center gap-1.5 px-3 text-xs font-medium"
+							>
+								<Brackets size={14} />
+								<span>End range @ {formatDuration(pendingRangeStartMs)}</span>
+							</button>
+							<button
+								type="button"
+								aria-label={`Cancel pending range for ${audioFile.title}`}
+								title="Cancel pending range"
+								onClick={handleCancelPendingRange}
+								className="action-secondary inline-flex h-9 w-9 items-center justify-center p-0"
+							>
+								<X size={16} />
+							</button>
+						</>
+					)}
 					<button
 						type="button"
 						aria-label={`Reset playhead for ${audioFile.title}`}

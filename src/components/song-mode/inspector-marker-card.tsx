@@ -55,6 +55,7 @@ export function InspectorMarkerCard({
 		}
 
 		activateAnnotation();
+		event.currentTarget.blur();
 	}
 
 	return (

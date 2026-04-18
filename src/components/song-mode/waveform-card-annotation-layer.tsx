@@ -237,11 +237,14 @@ export function WaveformCardAnnotationLayer({
 									onSelectAnnotation(annotation.id);
 									void onSeek(annotation.startMs, true);
 								}}
-								className="pointer-events-auto absolute inset-x-0 bottom-0 cursor-grab border-0 p-0 active:cursor-grabbing"
+								className={`pointer-events-auto absolute inset-x-0 bottom-0 cursor-grab border-0 p-0 transition-opacity duration-150 active:cursor-grabbing ${
+									activeAnnotationId === annotation.id
+										? "opacity-[0.34] hover:opacity-[0.5]"
+										: "opacity-[0.2] hover:opacity-[0.34]"
+								}`}
 								style={{
 									height: "var(--waveform-marker-gutter-height)",
 									backgroundColor: rangeColor,
-									opacity: activeAnnotationId === annotation.id ? 0.34 : 0.2,
 								}}
 							/>
 							<button
@@ -386,7 +389,7 @@ export function WaveformCardAnnotationLayer({
 									)
 								}
 								onPointerLeave={() => setHoveredAnnotation(null)}
-								className="absolute left-1/2 top-0 -translate-x-1/2 cursor-pointer leading-none"
+								className="absolute left-1/2 top-0 -translate-x-1/2 cursor-pointer leading-none transition-[filter] duration-150 hover:brightness-125 hover:saturate-150"
 							>
 								<svg
 									width={21}
