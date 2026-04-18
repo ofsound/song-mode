@@ -90,11 +90,11 @@ export function InspectorPane({
 
 	return (
 		<div className="flex h-full min-h-0 flex-col gap-4">
-			<section className="inspector-echo-section">
+			<section className="relative border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0">
 						<h3 className="text-lg font-semibold text-[var(--color-text)]">
-							<span className="inspector-echo-filename">
+							<span className="font-bold text-[var(--color-accent)]">
 								{selectedFile?.title ?? song.title}
 							</span>
 							{annotations.length > 0 && (

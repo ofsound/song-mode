@@ -13,8 +13,8 @@ export function SongWorkspaceHeaderControls({
 	onUpdateSong,
 }: SongWorkspaceHeaderControlsProps) {
 	return (
-		<div className="song-workspace-header-controls">
-			<div className="song-workspace-header-controls__title">
+		<div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-center xl:justify-start">
+			<div className="min-w-0 max-w-[450px] xl:min-w-72 xl:flex-[1.35]">
 				<input
 					value={song.title}
 					onChange={(event) =>
@@ -28,7 +28,7 @@ export function SongWorkspaceHeaderControls({
 				/>
 			</div>
 
-			<div className="song-workspace-header-controls__meta">
+			<div className="min-w-0 xl:w-40 xl:shrink-0">
 				<input
 					value={song.artist}
 					onChange={(event) =>
@@ -42,7 +42,7 @@ export function SongWorkspaceHeaderControls({
 				/>
 			</div>
 
-			<div className="song-workspace-header-controls__meta">
+			<div className="min-w-0 xl:w-40 xl:shrink-0">
 				<input
 					value={song.project}
 					onChange={(event) =>
@@ -56,7 +56,7 @@ export function SongWorkspaceHeaderControls({
 				/>
 			</div>
 
-			<div className="song-workspace-header-controls__actions">
+			<div className="flex shrink-0 flex-wrap items-center gap-3">
 				<button
 					type="button"
 					onClick={onOpenUpload}

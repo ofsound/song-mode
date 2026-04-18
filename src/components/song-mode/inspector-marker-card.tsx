@@ -98,7 +98,10 @@ export function InspectorMarkerCard({
 				/>
 				{annotation.type === "range" ? (
 					<>
-						<span aria-hidden="true" className="marker-time-sep">
+						<span
+							aria-hidden="true"
+							className="shrink-0 text-xs text-[var(--color-text-subtle)]"
+						>
 							→
 						</span>
 						<MarkerTimeField
@@ -121,7 +124,7 @@ export function InspectorMarkerCard({
 							title: event.target.value,
 						})
 					}
-					className="field-input field-input--compact marker-title-input"
+					className="field-input field-input--compact w-auto min-w-0 flex-1"
 					placeholder="Untitled marker"
 					aria-label="Title"
 				/>

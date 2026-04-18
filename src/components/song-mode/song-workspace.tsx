@@ -214,7 +214,7 @@ export function SongWorkspace({
 
 	if (!ready) {
 		return (
-			<main className="song-mode-main">
+			<main className="w-full px-3 py-8">
 				<section className="panel-shell px-6 py-8 text-sm text-[var(--color-text-muted)]">
 					Loading song workspace...
 				</section>
@@ -224,7 +224,7 @@ export function SongWorkspace({
 
 	if (!song) {
 		return (
-			<main className="song-mode-main">
+			<main className="w-full px-3 py-8">
 				<section className="panel-shell px-6 py-8">
 					<p className="eyebrow mb-3">Missing song</p>
 					<h1 className="text-3xl font-semibold text-[var(--color-text)]">
@@ -260,13 +260,13 @@ export function SongWorkspace({
 		<>
 			{renderedSongHeaderControls}
 			<main
-				className={`song-workspace-main ${
+				className={`flex min-h-0 w-full flex-1 flex-col gap-6 overflow-y-auto px-3 py-8 [transition:filter_200ms_ease,opacity_200ms_ease] xl:overflow-hidden ${
 					isUploadOpen ? "pointer-events-none blur-[3px] opacity-45" : ""
 				}`}
 				aria-hidden={isUploadOpen}
 			>
-				<section className="song-workspace-main-grid grid gap-5 xl:min-h-0 xl:flex-1 xl:overflow-hidden">
-					<div className="song-workspace-waveform-column flex min-w-0 flex-col gap-4 xl:min-h-0">
+				<section className="grid gap-5 xl:min-h-0 xl:flex-1 xl:overflow-hidden xl:[grid-template-columns:minmax(0,50%)_420px_minmax(280px,1fr)] xl:[grid-template-rows:minmax(0,1fr)] xl:items-stretch">
+					<div className="flex min-w-0 flex-col gap-4 xl:min-h-0 xl:overflow-x-hidden xl:overflow-y-auto xl:pr-[calc(0.25rem+var(--song-workspace-waveform-tab-width))]">
 						<SongWorkspaceWaveformList
 							activeAnnotationId={activeAnnotationId}
 							audioFiles={audioFiles}

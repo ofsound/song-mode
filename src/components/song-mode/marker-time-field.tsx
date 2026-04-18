@@ -184,7 +184,7 @@ export function MarkerTimeField({
 					(event.target as HTMLInputElement).blur();
 				}
 			}}
-			className="field-input field-input--compact marker-time-input"
+			className="field-input field-input--compact w-[3.25rem] flex-[0_0_3.25rem] text-center font-mono tabular-nums"
 		/>
 	);
 }

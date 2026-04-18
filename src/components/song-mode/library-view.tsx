@@ -113,7 +113,7 @@ export function LibraryView() {
 		<>
 			{renderedCreateSongTrigger}
 			<main
-				className={`library-main ${
+				className={`flex w-full flex-col gap-8 px-3 py-8 [transition:filter_200ms_ease,opacity_200ms_ease] ${
 					isCreateSongOpen ? "pointer-events-none blur-[3px] opacity-45" : ""
 				}`}
 				aria-hidden={isCreateSongOpen}
