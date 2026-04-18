@@ -102,6 +102,7 @@ function renderWaveformCard({
 	onSeek = vi.fn().mockResolvedValue(undefined),
 	onUpdateAnnotation = vi.fn().mockResolvedValue(undefined),
 	onDeleteAnnotation = vi.fn().mockResolvedValue(undefined),
+	onOpenFileDetails = vi.fn(),
 	onSelectFile = vi.fn(),
 	onSelectAnnotation = vi.fn(),
 	onDragStart = vi.fn(),
@@ -121,6 +122,7 @@ function renderWaveformCard({
 		patch: Partial<Annotation>,
 	) => Promise<void>;
 	onDeleteAnnotation?: (annotationId: string) => Promise<void>;
+	onOpenFileDetails?: (fileId: string) => void;
 	onSelectFile?: (fileId: string) => void;
 	onSelectAnnotation?: (annotationId: string) => void;
 	onDragStart?: () => void;
@@ -148,11 +150,18 @@ function renderWaveformCard({
 			onRegisterAudioElement={vi.fn()}
 			onReportPlayback={onReportPlayback}
 			onStepVolume={onStepVolume}
+			onOpenFileDetails={onOpenFileDetails}
 			onDragStart={onDragStart}
 			onDragEnd={vi.fn()}
 			onDrop={vi.fn()}
 		/>,
 	);
+}
+
+function getEditDetailsButton(title: string) {
+	return screen.getByRole("button", {
+		name: new RegExp(`^edit details for ${title}$`, "i"),
+	});
 }
 
 const WAVEFORM_MARKER_GUTTER_HEIGHT_PX = 16.5;
@@ -331,6 +340,7 @@ describe("WaveformCard", () => {
 				onRegisterAudioElement={vi.fn()}
 				onReportPlayback={vi.fn()}
 				onStepVolume={onStepVolume}
+				onOpenFileDetails={vi.fn()}
 				onDragStart={vi.fn()}
 				onDragEnd={vi.fn()}
 				onDrop={vi.fn()}
@@ -386,6 +396,7 @@ describe("WaveformCard", () => {
 				onRegisterAudioElement={vi.fn()}
 				onReportPlayback={vi.fn()}
 				onStepVolume={vi.fn().mockResolvedValue(undefined)}
+				onOpenFileDetails={vi.fn()}
 				onDragStart={vi.fn()}
 				onDragEnd={vi.fn()}
 				onDrop={vi.fn()}
@@ -526,7 +537,7 @@ describe("WaveformCard", () => {
 			startMs: 45000,
 			title: "Marker 0:45",
 			body: EMPTY_RICH_TEXT,
-			color: "var(--color-annotation-4)",
+			color: "var(--color-marker-point)",
 			createdAt: "2026-04-16T00:00:00.000Z",
 			updatedAt: "2026-04-16T00:00:00.000Z",
 		} satisfies Annotation);
@@ -557,7 +568,7 @@ describe("WaveformCard", () => {
 				startMs: 45000,
 				title: "Marker 0:45",
 				body: EMPTY_RICH_TEXT,
-				color: "var(--color-annotation-4)",
+				color: "var(--color-marker-point)",
 			});
 		});
 		expect(onSelectFile).toHaveBeenCalledWith("file-1");
@@ -575,7 +586,7 @@ describe("WaveformCard", () => {
 			endMs: 55000,
 			title: "Range 0:45",
 			body: EMPTY_RICH_TEXT,
-			color: "var(--color-annotation-2)",
+			color: "var(--color-marker-range)",
 			createdAt: "2026-04-16T00:00:00.000Z",
 			updatedAt: "2026-04-16T00:00:00.000Z",
 		} satisfies Annotation);
@@ -615,7 +626,7 @@ describe("WaveformCard", () => {
 				endMs: 55000,
 				title: "Range 0:45",
 				body: EMPTY_RICH_TEXT,
-				color: "var(--color-annotation-2)",
+				color: "var(--color-marker-range)",
 			});
 		});
 		expect(onSelectFile).toHaveBeenCalledWith("file-1");
@@ -658,6 +669,18 @@ describe("WaveformCard", () => {
 				name: /end range at playhead/i,
 			}),
 		).toBeNull();
+	});
+
+	it("opens file details from the gear button in the title row", () => {
+		const onOpenFileDetails = vi.fn();
+
+		renderWaveformCard({
+			onOpenFileDetails,
+		});
+
+		fireEvent.click(getEditDetailsButton("Mix v1"));
+
+		expect(onOpenFileDetails).toHaveBeenCalledWith("file-1");
 	});
 
 	it("selects the file when clicking non-interactive row space", () => {
@@ -756,7 +779,7 @@ describe("WaveformCard", () => {
 					startMs: 30000,
 					title: "Verse",
 					body: EMPTY_RICH_TEXT,
-					color: "var(--color-annotation-4)",
+					color: "var(--color-marker-point)",
 					createdAt: "2026-04-16T00:00:00.000Z",
 					updatedAt: "2026-04-16T00:00:00.000Z",
 				},
@@ -788,7 +811,7 @@ describe("WaveformCard", () => {
 					startMs: 30000,
 					title: "Verse",
 					body: plainTextToRichText("Lead vocal starts"),
-					color: "var(--color-annotation-4)",
+					color: "var(--color-marker-point)",
 					createdAt: "2026-04-16T00:00:00.000Z",
 					updatedAt: "2026-04-16T00:00:00.000Z",
 				},
@@ -838,7 +861,7 @@ describe("WaveformCard", () => {
 					endMs: 45000,
 					title: "Chorus",
 					body: plainTextToRichText("Main hook"),
-					color: "var(--color-annotation-2)",
+					color: "var(--color-marker-range)",
 					createdAt: "2026-04-16T00:00:00.000Z",
 					updatedAt: "2026-04-16T00:00:00.000Z",
 				},
@@ -888,7 +911,7 @@ describe("WaveformCard", () => {
 					endMs: 45000,
 					title: "Chorus",
 					body: plainTextToRichText("Main hook"),
-					color: "var(--color-annotation-2)",
+					color: "var(--color-marker-range)",
 					createdAt: "2026-04-16T00:00:00.000Z",
 					updatedAt: "2026-04-16T00:00:00.000Z",
 				},
@@ -932,7 +955,7 @@ describe("WaveformCard", () => {
 					endMs: 45000,
 					title: "Chorus",
 					body: EMPTY_RICH_TEXT,
-					color: "var(--color-annotation-2)",
+					color: "var(--color-marker-range)",
 					createdAt: "2026-04-16T00:00:00.000Z",
 					updatedAt: "2026-04-16T00:00:00.000Z",
 				},
@@ -990,7 +1013,7 @@ describe("WaveformCard", () => {
 					endMs: 45000,
 					title: "Chorus",
 					body: EMPTY_RICH_TEXT,
-					color: "var(--color-annotation-2)",
+					color: "var(--color-marker-range)",
 					createdAt: "2026-04-16T00:00:00.000Z",
 					updatedAt: "2026-04-16T00:00:00.000Z",
 				},
@@ -1052,7 +1075,7 @@ describe("WaveformCard", () => {
 					startMs: 30000,
 					title: "Verse",
 					body: EMPTY_RICH_TEXT,
-					color: "var(--color-annotation-4)",
+					color: "var(--color-marker-point)",
 					createdAt: "2026-04-16T00:00:00.000Z",
 					updatedAt: "2026-04-16T00:00:00.000Z",
 				},
@@ -1112,7 +1135,7 @@ describe("WaveformCard", () => {
 					startMs: 30000,
 					title: "Verse",
 					body: EMPTY_RICH_TEXT,
-					color: "var(--color-annotation-4)",
+					color: "var(--color-marker-point)",
 					createdAt: "2026-04-16T00:00:00.000Z",
 					updatedAt: "2026-04-16T00:00:00.000Z",
 				},
@@ -1168,7 +1191,7 @@ describe("WaveformCard", () => {
 					startMs: 30000,
 					title: "Verse",
 					body: plainTextToRichText("Lead vocal starts"),
-					color: "var(--color-annotation-4)",
+					color: "var(--color-marker-point)",
 					createdAt: "2026-04-16T00:00:00.000Z",
 					updatedAt: "2026-04-16T00:00:00.000Z",
 				},
@@ -1234,7 +1257,7 @@ describe("WaveformCard", () => {
 					startMs: 30000,
 					title: "Verse",
 					body: EMPTY_RICH_TEXT,
-					color: "var(--color-annotation-4)",
+					color: "var(--color-marker-point)",
 					createdAt: "2026-04-16T00:00:00.000Z",
 					updatedAt: "2026-04-16T00:00:00.000Z",
 				},
@@ -1298,7 +1321,7 @@ describe("WaveformCard", () => {
 					startMs: 30000,
 					title: "Verse",
 					body: EMPTY_RICH_TEXT,
-					color: "var(--color-annotation-4)",
+					color: "var(--color-marker-point)",
 					createdAt: "2026-04-16T00:00:00.000Z",
 					updatedAt: "2026-04-16T00:00:00.000Z",
 				},
@@ -1360,7 +1383,7 @@ describe("WaveformCard", () => {
 					startMs: 30000,
 					title: "Verse",
 					body: EMPTY_RICH_TEXT,
-					color: "var(--color-annotation-4)",
+					color: "var(--color-marker-point)",
 					createdAt: "2026-04-16T00:00:00.000Z",
 					updatedAt: "2026-04-16T00:00:00.000Z",
 				},
@@ -1426,7 +1449,7 @@ describe("WaveformCard", () => {
 					endMs: 45000,
 					title: "Chorus",
 					body: EMPTY_RICH_TEXT,
-					color: "var(--color-annotation-2)",
+					color: "var(--color-marker-range)",
 					createdAt: "2026-04-16T00:00:00.000Z",
 					updatedAt: "2026-04-16T00:00:00.000Z",
 				},
@@ -1489,7 +1512,7 @@ describe("WaveformCard", () => {
 					endMs: 45000,
 					title: "Chorus",
 					body: EMPTY_RICH_TEXT,
-					color: "var(--color-annotation-2)",
+					color: "var(--color-marker-range)",
 					createdAt: "2026-04-16T00:00:00.000Z",
 					updatedAt: "2026-04-16T00:00:00.000Z",
 				},
@@ -1550,7 +1573,7 @@ describe("WaveformCard", () => {
 					endMs: 45000,
 					title: "Chorus",
 					body: EMPTY_RICH_TEXT,
-					color: "var(--color-annotation-2)",
+					color: "var(--color-marker-range)",
 					createdAt: "2026-04-16T00:00:00.000Z",
 					updatedAt: "2026-04-16T00:00:00.000Z",
 				},
@@ -1615,7 +1638,7 @@ describe("WaveformCard", () => {
 					endMs: 45000,
 					title: "Chorus",
 					body: EMPTY_RICH_TEXT,
-					color: "var(--color-annotation-2)",
+					color: "var(--color-marker-range)",
 					createdAt: "2026-04-16T00:00:00.000Z",
 					updatedAt: "2026-04-16T00:00:00.000Z",
 				},

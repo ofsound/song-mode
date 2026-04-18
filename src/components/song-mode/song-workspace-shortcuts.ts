@@ -3,8 +3,10 @@ import { isEditableElement } from "#/lib/song-mode/dom";
 import type { Annotation } from "#/lib/song-mode/types";
 
 interface UseSongWorkspaceShortcutsOptions {
+	activeAnnotationId?: string;
 	isUploadOpen: boolean;
 	onCloseUpload: () => void;
+	onDeleteActiveAnnotation: () => Promise<void>;
 	selectedFileId?: string;
 	songId: string;
 	togglePlayback: (fileId: string) => Promise<void>;
@@ -22,8 +24,10 @@ interface UseSongWorkspaceShortcutsOptions {
 }
 
 export function useSongWorkspaceShortcuts({
+	activeAnnotationId,
 	isUploadOpen,
 	onCloseUpload,
+	onDeleteActiveAnnotation,
 	selectedFileId,
 	songId,
 	togglePlayback,
@@ -42,6 +46,22 @@ export function useSongWorkspaceShortcuts({
 			}
 
 			if (isEditableElement(event.target) || !selectedFileId) {
+				return;
+			}
+
+			if (
+				(event.key === "Delete" || event.key === "Backspace") &&
+				activeAnnotationId &&
+				!event.repeat &&
+				!event.metaKey &&
+				!event.ctrlKey &&
+				!event.altKey
+			) {
+				event.preventDefault();
+				if (!window.confirm("Delete this marker?")) {
+					return;
+				}
+				void onDeleteActiveAnnotation();
 				return;
 			}
 
@@ -119,9 +139,11 @@ export function useSongWorkspaceShortcuts({
 			window.removeEventListener("keydown", handleKeyDown);
 		};
 	}, [
+		activeAnnotationId,
 		isUploadOpen,
 		jumpBetweenAnnotations,
 		onCloseUpload,
+		onDeleteActiveAnnotation,
 		patchRouteSelection,
 		seekActiveBy,
 		selectedFileId,

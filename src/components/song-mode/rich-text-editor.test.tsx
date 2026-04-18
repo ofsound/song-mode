@@ -231,4 +231,28 @@ describe("RichTextEditor", () => {
 		});
 		expect(openSpy).not.toHaveBeenCalled();
 	});
+
+	it("blurs the editor when Escape is pressed and blurOnEscape is enabled", async () => {
+		const { container } = render(
+			<RichTextEditor
+				value={plainTextToRichText("Note")}
+				onChange={() => {}}
+				blurOnEscape
+				showToolbar={false}
+				compact
+				dense
+			/>,
+		);
+
+		const prose = await waitFor(() =>
+			container.querySelector(".ProseMirror[contenteditable='true']"),
+		);
+		expect(prose).toBeTruthy();
+		(prose as HTMLElement).focus();
+		expect(document.activeElement).toBe(prose);
+
+		fireEvent.keyDown(prose as HTMLElement, { key: "Escape" });
+
+		expect(document.activeElement).not.toBe(prose);
+	});
 });

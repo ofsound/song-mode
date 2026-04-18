@@ -154,6 +154,24 @@ export interface CreateAnnotationInput {
 	color?: string;
 }
 
+const POINT_MARKER_COLOR = "var(--color-marker-point)";
+const RANGE_MARKER_COLOR = "var(--color-marker-range)";
+
+const LEGACY_ANNOTATION_COLOR_BY_COLOR: Record<string, string> = {
+	"var(--color-annotation-4)": POINT_MARKER_COLOR,
+	"var(--color-annotation-2)": RANGE_MARKER_COLOR,
+};
+
+export function normalizeAnnotationColor(
+	color: string | undefined,
+): string | undefined {
+	if (!color) {
+		return color;
+	}
+
+	return LEGACY_ANNOTATION_COLOR_BY_COLOR[color] ?? color;
+}
+
 export function createDefaultWorkspaceState(): WorkspaceState {
 	return {
 		playheadMsByFileId: {},

@@ -7,7 +7,7 @@ import {
 	screen,
 	waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_RICH_TEXT } from "#/lib/song-mode/rich-text";
 import type { Annotation, AudioFileRecord, Song } from "#/lib/song-mode/types";
 import { InspectorPane } from "./inspector-pane";
@@ -77,7 +77,6 @@ function renderInspector(
 	const onOpenTarget = vi.fn();
 	const onUpdateAnnotation = vi.fn().mockResolvedValue(undefined);
 	const onDeleteAnnotation = vi.fn().mockResolvedValue(undefined);
-	const onDeleteFile = vi.fn().mockResolvedValue(undefined);
 	const onSelectAnnotation = vi.fn();
 	const onUpdateFile = vi.fn().mockResolvedValue(undefined);
 
@@ -90,7 +89,6 @@ function renderInspector(
 			onUpdateFile={onUpdateFile}
 			onUpdateAnnotation={onUpdateAnnotation}
 			onDeleteAnnotation={onDeleteAnnotation}
-			onDeleteFile={onDeleteFile}
 			onSelectAnnotation={onSelectAnnotation}
 			{...overrides}
 		/>,
@@ -100,13 +98,16 @@ function renderInspector(
 		onOpenTarget,
 		onUpdateAnnotation,
 		onDeleteAnnotation,
-		onDeleteFile,
 		onSelectAnnotation,
 		onUpdateFile,
 	};
 }
 
 describe("InspectorPane", () => {
+	beforeEach(() => {
+		Element.prototype.scrollIntoView = vi.fn();
+	});
+
 	it("renders each annotation as an inline editor and updates the title directly from the card", () => {
 		const { onUpdateAnnotation } = renderInspector();
 
@@ -119,6 +120,80 @@ describe("InspectorPane", () => {
 
 		expect(onUpdateAnnotation).toHaveBeenCalledWith("annotation-1", {
 			title: "Intro marker",
+		});
+	});
+
+	it("scrolls the active marker card into view when the active annotation changes", () => {
+		const scrollSpy = vi.fn();
+		Element.prototype.scrollIntoView = scrollSpy;
+
+		const secondAnnotation: Annotation = {
+			...baseAnnotation,
+			id: "annotation-2",
+			startMs: 90000,
+			title: "Marker 1:30",
+		};
+
+		const props = {
+			song: baseSong,
+			annotations: [baseAnnotation, secondAnnotation],
+			activeAnnotation: baseAnnotation,
+			onOpenTarget: vi.fn(),
+			onUpdateFile: vi.fn().mockResolvedValue(undefined),
+			onUpdateAnnotation: vi.fn().mockResolvedValue(undefined),
+			onDeleteAnnotation: vi.fn().mockResolvedValue(undefined),
+			onDeleteFile: vi.fn().mockResolvedValue(undefined),
+			onSelectAnnotation: vi.fn(),
+		};
+
+		const { rerender } = render(<InspectorPane {...props} />);
+		scrollSpy.mockClear();
+
+		rerender(<InspectorPane {...props} activeAnnotation={secondAnnotation} />);
+
+		const secondCard = screen.getByTestId("marker-card-annotation-2");
+		const calledOnSecondCard = scrollSpy.mock.instances.some(
+			(instance) => instance === secondCard,
+		);
+		expect(calledOnSecondCard).toBe(true);
+	});
+
+	it("focuses and selects the title when annotationTitleFocusId matches the card", async () => {
+		const onAnnotationTitleFocusHandled = vi.fn();
+		const onOpenTarget = vi.fn();
+		const onUpdateFile = vi.fn().mockResolvedValue(undefined);
+		const onUpdateAnnotation = vi.fn().mockResolvedValue(undefined);
+		const onDeleteAnnotation = vi.fn().mockResolvedValue(undefined);
+		const onSelectAnnotation = vi.fn();
+
+		const props = {
+			song: baseSong,
+			selectedFile: baseAudioFile,
+			annotations: [baseAnnotation],
+			activeAnnotation: baseAnnotation,
+			annotationTitleFocusId: null as string | null,
+			onAnnotationTitleFocusHandled,
+			onOpenTarget,
+			onUpdateFile,
+			onUpdateAnnotation,
+			onDeleteAnnotation,
+			onSelectAnnotation,
+		};
+
+		const { rerender } = render(<InspectorPane {...props} />);
+
+		rerender(
+			<InspectorPane {...props} annotationTitleFocusId="annotation-1" />,
+		);
+
+		await waitFor(() => {
+			const input = screen.getByLabelText("Title") as HTMLInputElement;
+			expect(document.activeElement).toBe(input);
+			expect(input.selectionStart).toBe(0);
+			expect(input.selectionEnd).toBe(input.value.length);
+		});
+		await waitFor(() => {
+			expect(onAnnotationTitleFocusHandled).toHaveBeenCalled();
 		});
 	});
 
@@ -175,7 +250,7 @@ describe("InspectorPane", () => {
 		expect(startInput.value).toBe("0:56");
 	});
 
-	it("keeps scrub interactions at whole-second granularity", () => {
+	it("applies sub-second scrub steps when Shift is held while keeping the display rounded to whole seconds", () => {
 		const { onUpdateAnnotation } = renderInspector();
 
 		const startInput = screen.getByLabelText("Start time") as HTMLInputElement;
@@ -196,9 +271,9 @@ describe("InspectorPane", () => {
 		});
 
 		expect(onUpdateAnnotation).toHaveBeenCalledWith("annotation-1", {
-			startMs: 55000,
+			startMs: 54100,
 		});
-		expect(startInput.value).toBe("0:55");
+		expect(startInput.value).toBe("0:54");
 	});
 
 	it("keeps form controls from seeking while the marker card background activates the marker", () => {
@@ -223,12 +298,6 @@ describe("InspectorPane", () => {
 		const markerCard = screen.getByTestId("marker-card-annotation-1");
 		fireEvent.click(markerCard);
 
-		expect(
-			markerCard.classList.contains("border-[var(--color-border-strong)]"),
-		).toBe(true);
-		expect(
-			markerCard.classList.contains("bg-[var(--color-surface-selected)]"),
-		).toBe(true);
 		expect(markerCard.classList.contains("marker-card--selected")).toBe(true);
 		expect(
 			markerCard.classList.contains("border-[var(--color-accent-strong)]"),
@@ -402,32 +471,5 @@ describe("InspectorPane", () => {
 		expect(screen.getByText(/^notes$/i)).toBeTruthy();
 		expect(screen.queryByText(/mastering note/i)).toBeNull();
 		expect(screen.getAllByTestId("rich-text-editor")).toHaveLength(2);
-	});
-
-	it("renders the delete-file control below the Date field", () => {
-		renderInspector({
-			selectedFile: baseAudioFile,
-		});
-
-		const dateLabel = screen.getByText(/^date$/i);
-		const deleteButton = screen.getByTitle("Delete file");
-		const relation = dateLabel.compareDocumentPosition(deleteButton);
-		expect(relation & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-	});
-
-	it("confirms before deleting the selected file from the details panel", () => {
-		const confirmSpy = vi.fn(() => false);
-		vi.stubGlobal("confirm", confirmSpy);
-		const { onDeleteFile } = renderInspector({
-			selectedFile: baseAudioFile,
-		});
-
-		fireEvent.click(screen.getByTitle("Delete file"));
-		expect(confirmSpy).toHaveBeenCalledWith("Delete this file?");
-		expect(onDeleteFile).not.toHaveBeenCalled();
-
-		confirmSpy.mockReturnValue(true);
-		fireEvent.click(screen.getByTitle("Delete file"));
-		expect(onDeleteFile).toHaveBeenCalledTimes(1);
 	});
 });

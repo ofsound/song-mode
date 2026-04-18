@@ -2,6 +2,7 @@ import { normalizeRichText } from "#/lib/song-mode/rich-text";
 import {
 	type AudioFileRecord,
 	createEmptySettings,
+	normalizeAnnotationColor,
 	normalizeSongModeSettings,
 	type SongModeSnapshot,
 } from "#/lib/song-mode/types";
@@ -78,6 +79,7 @@ export async function normalizeLoadedSnapshot(
 			annotations: loadedSnapshot.annotations.map((annotation) => ({
 				...annotation,
 				body: normalizeRichText(annotation.body),
+				color: normalizeAnnotationColor(annotation.color),
 			})),
 			settings: normalizeSongModeSettings(
 				loadedSnapshot.settings ?? createEmptySettings(),

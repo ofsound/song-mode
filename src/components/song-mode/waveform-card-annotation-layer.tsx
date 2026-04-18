@@ -170,7 +170,7 @@ export function WaveformCardAnnotationLayer({
 						: undefined;
 
 				if (annotation.type === "range" && annotation.endMs) {
-					const rangeColor = annotation.color ?? "var(--color-annotation-2)";
+					const rangeColor = annotation.color ?? "var(--color-marker-range)";
 					const rangeBodyHandlers = attachReshapeTracking(
 						annotation.id,
 						getRangeBodyDragHandlers(
@@ -297,7 +297,7 @@ export function WaveformCardAnnotationLayer({
 										)
 									}
 									onPointerLeave={() => setHoveredAnnotation(null)}
-									className="absolute bottom-0 left-1/2 h-[var(--waveform-marker-gutter-height)] w-3 -translate-x-full cursor-ew-resize"
+									className="absolute bottom-0 left-1/2 h-[var(--waveform-marker-gutter-height)] w-3 -translate-x-1/2 cursor-ew-resize"
 								/>
 							</button>
 							<button
@@ -332,7 +332,7 @@ export function WaveformCardAnnotationLayer({
 										)
 									}
 									onPointerLeave={() => setHoveredAnnotation(null)}
-									className="absolute bottom-0 left-1/2 h-[var(--waveform-marker-gutter-height)] w-3 cursor-ew-resize"
+									className="absolute bottom-0 left-1/2 h-[var(--waveform-marker-gutter-height)] w-3 -translate-x-1/2 cursor-ew-resize"
 								/>
 							</button>
 						</div>
@@ -381,7 +381,7 @@ export function WaveformCardAnnotationLayer({
 								}`}
 								style={{
 									backgroundColor:
-										annotation.color ?? "var(--color-annotation-4)",
+										annotation.color ?? "var(--color-marker-point)",
 								}}
 							/>
 							<span
@@ -412,11 +412,7 @@ export function WaveformCardAnnotationLayer({
 								>
 									<polygon
 										points="7,11 0,0 14,0"
-										className="fill-[var(--color-waveform-marker-dot-border)]"
-									/>
-									<polygon
-										points="7,9.5 1.1,1.1 12.9,1.1"
-										fill={annotation.color ?? "var(--color-annotation-4)"}
+										fill={annotation.color ?? "var(--color-marker-point)"}
 									/>
 								</svg>
 							</span>

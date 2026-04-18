@@ -103,4 +103,40 @@ describe("useWaveformCanvas", () => {
 			).toBe("92px");
 		});
 	});
+
+	it("redraws when the theme class on <html> changes", async () => {
+		const clearRectSpy = vi.fn();
+		HTMLCanvasElement.prototype.getContext = vi.fn(
+			() =>
+				({
+					beginPath: vi.fn(),
+					clearRect: clearRectSpy,
+					fillRect: vi.fn(),
+					lineTo: vi.fn(),
+					moveTo: vi.fn(),
+					setLineDash: vi.fn(),
+					setTransform: vi.fn(),
+					stroke: vi.fn(),
+					fillStyle: "",
+					strokeStyle: "",
+					lineWidth: 1,
+				}) as unknown as CanvasRenderingContext2D,
+		) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+
+		render(<WaveformCanvasHarness />);
+
+		await waitFor(() => {
+			expect(clearRectSpy).toHaveBeenCalled();
+		});
+
+		const beforeThemeChange = clearRectSpy.mock.calls.length;
+		document.documentElement.classList.remove("light");
+		document.documentElement.classList.add("dark");
+
+		await waitFor(() => {
+			expect(clearRectSpy.mock.calls.length).toBeGreaterThan(beforeThemeChange);
+		});
+
+		document.documentElement.classList.remove("dark");
+	});
 });

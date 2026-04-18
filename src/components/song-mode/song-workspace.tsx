@@ -1,12 +1,13 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronLeft } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { SongLinkTarget, SongRouteSearch } from "#/lib/song-mode/types";
 import { useSongMode } from "#/providers/song-mode-provider";
 import { useSongRouteHeaderSlot } from "./app-chrome";
 import { InspectorPane } from "./inspector-pane";
 import { RichTextEditor, type RichTextToolbarAction } from "./rich-text-editor";
+import { SongWorkspaceFileDetailsDialog } from "./song-workspace-file-details-dialog";
 import { SongWorkspaceHeaderControls } from "./song-workspace-header-controls";
 import { useSongWorkspaceShortcuts } from "./song-workspace-shortcuts";
 import { SongWorkspaceUploadDialog } from "./song-workspace-upload-dialog";
@@ -94,6 +95,13 @@ export function SongWorkspace({
 	});
 
 	const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+	const [editingFileId, setEditingFileId] = useState<string | null>(null);
+	const [annotationTitleFocusId, setAnnotationTitleFocusId] = useState<
+		string | null
+	>(null);
+	const handleAnnotationTitleFocusHandled = useCallback(() => {
+		setAnnotationTitleFocusId(null);
+	}, []);
 	const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
 	useEffect(() => {
@@ -106,6 +114,24 @@ export function SongWorkspace({
 			block: "center",
 		});
 	}, [selectedFileId]);
+
+	const editingFile = useMemo(
+		() =>
+			editingFileId
+				? (audioFiles.find((audioFile) => audioFile.id === editingFileId) ??
+					null)
+				: null,
+		[audioFiles, editingFileId],
+	);
+
+	useEffect(() => {
+		if (editingFileId && !editingFile) {
+			setEditingFileId(null);
+		}
+	}, [editingFile, editingFileId]);
+
+	const isFileDetailsOpen = Boolean(editingFile);
+	const isModalOpen = isUploadOpen || isFileDetailsOpen;
 
 	const currentTimeMs =
 		(selectedFileId
@@ -160,10 +186,38 @@ export function SongWorkspace({
 		};
 	}, [persistedSecond, selectedFileId, songId, updateWorkspaceState]);
 
+	const handleDeleteActiveAnnotation = useCallback(async () => {
+		if (!activeAnnotationId) {
+			return;
+		}
+
+		await deleteAnnotation(activeAnnotationId);
+		if (selectedFileId) {
+			patchRouteSelection({
+				fileId: selectedFileId,
+				clearPlaybackParams: true,
+			});
+		}
+	}, [
+		activeAnnotationId,
+		deleteAnnotation,
+		patchRouteSelection,
+		selectedFileId,
+	]);
+
 	useSongWorkspaceShortcuts({
-		isUploadOpen,
+		activeAnnotationId,
+		isUploadOpen: isModalOpen,
 		jumpBetweenAnnotations,
-		onCloseUpload: () => setIsUploadOpen(false),
+		onCloseUpload: () => {
+			if (isFileDetailsOpen) {
+				setEditingFileId(null);
+				return;
+			}
+
+			setIsUploadOpen(false);
+		},
+		onDeleteActiveAnnotation: handleDeleteActiveAnnotation,
 		patchRouteSelection,
 		seekActiveBy,
 		selectedFileId,
@@ -181,38 +235,46 @@ export function SongWorkspace({
 			annotationId: annotation.id,
 			clearPlaybackParams: true,
 		});
+		setAnnotationTitleFocusId(annotation.id);
 		return annotation;
 	}
 
-	async function handleDeleteSelectedFile() {
-		if (!selectedFileId) {
-			return;
-		}
+	const handleOpenFileDetails = useCallback(
+		(fileId: string) => {
+			if (fileId !== selectedFileId) {
+				patchRouteSelection({
+					fileId,
+					clearPlaybackParams: true,
+				});
+			}
+			setEditingFileId(fileId);
+		},
+		[patchRouteSelection, selectedFileId],
+	);
 
+	async function handleDeleteFile(fileId: string) {
 		if (!window.confirm("Delete this file?")) {
 			return;
 		}
 
 		const selectedIndex = audioFiles.findIndex(
-			(audioFile) => audioFile.id === selectedFileId,
+			(audioFile) => audioFile.id === fileId,
 		);
 		const fallbackFileId =
 			audioFiles[selectedIndex + 1]?.id ?? audioFiles[selectedIndex - 1]?.id;
 
-		setDeletingFileId(selectedFileId);
+		setDeletingFileId(fileId);
 		try {
-			await deleteAudioFile(selectedFileId);
+			await deleteAudioFile(fileId);
+			setEditingFileId((current) => (current === fileId ? null : current));
 			patchRouteSelection({
 				fileId: fallbackFileId,
 				clearPlaybackParams: true,
 			});
 		} finally {
-			setDeletingFileId((current) =>
-				current === selectedFileId ? null : current,
-			);
+			setDeletingFileId((current) => (current === fileId ? null : current));
 		}
 	}
-
 	if (!ready) {
 		return (
 			<main className="w-full px-3 py-8">
@@ -264,9 +326,9 @@ export function SongWorkspace({
 			{renderedSongHeaderControls}
 			<main
 				className={`flex min-h-0 w-full flex-1 flex-col gap-6 overflow-y-auto px-3 py-8 [transition:filter_200ms_ease,opacity_200ms_ease] xl:overflow-hidden ${
-					isUploadOpen ? "pointer-events-none blur-[3px] opacity-45" : ""
+					isModalOpen ? "pointer-events-none blur-[3px] opacity-45" : ""
 				}`}
-				aria-hidden={isUploadOpen}
+				aria-hidden={isModalOpen}
 			>
 				<section className="grid gap-5 xl:min-h-0 xl:flex-1 xl:overflow-hidden xl:[grid-template-columns:minmax(0,50%)_420px_minmax(280px,1fr)] xl:[grid-template-rows:minmax(0,1fr)] xl:items-stretch">
 					<div className="flex min-w-0 flex-col gap-4 xl:min-h-0 xl:overflow-x-hidden xl:overflow-y-auto xl:pr-[calc(0.25rem+var(--song-workspace-waveform-tab-width))]">
@@ -295,6 +357,7 @@ export function SongWorkspace({
 							deleteAnnotation={deleteAnnotation}
 							updateAudioFile={updateAudioFile}
 							workspacePlayheadMsByFileId={workspace.playheadMsByFileId}
+							onOpenFileDetails={handleOpenFileDetails}
 							onSelectFile={(fileId) =>
 								patchRouteSelection({
 									fileId,
@@ -312,12 +375,16 @@ export function SongWorkspace({
 					</div>
 
 					<div className="flex min-w-0 flex-col xl:min-h-0 xl:overflow-hidden">
-						<div className="min-h-0 flex-1 overflow-y-auto pr-1">
+						<div className="flex min-h-0 flex-1 flex-col pr-1">
 							<InspectorPane
 								song={song}
 								selectedFile={selectedFile}
 								annotations={selectedAnnotations}
 								activeAnnotation={activeAnnotation}
+								annotationTitleFocusId={annotationTitleFocusId}
+								onAnnotationTitleFocusHandled={
+									handleAnnotationTitleFocusHandled
+								}
 								onOpenTarget={(target: SongLinkTarget) => openTarget(target)}
 								onUpdateFile={(patch) =>
 									selectedFile
@@ -326,11 +393,6 @@ export function SongWorkspace({
 								}
 								onUpdateAnnotation={updateAnnotation}
 								onDeleteAnnotation={deleteAnnotation}
-								onDeleteFile={handleDeleteSelectedFile}
-								deletingFile={
-									Boolean(selectedFileId) && deletingFileId === selectedFileId
-								}
-								confirmFileDelete={false}
 								onSelectAnnotation={(annotationId) => {
 									if (!selectedFileId) {
 										return;
@@ -385,6 +447,16 @@ export function SongWorkspace({
 					onUploadSessionDateChange={setUploadSessionDate}
 				/>
 			)}
+
+			{editingFile ? (
+				<SongWorkspaceFileDetailsDialog
+					audioFile={editingFile}
+					deletingFile={deletingFileId === editingFile.id}
+					onClose={() => setEditingFileId(null)}
+					onDeleteFile={() => handleDeleteFile(editingFile.id)}
+					onUpdateFile={(patch) => updateAudioFile(editingFile.id, patch)}
+				/>
+			) : null}
 		</>
 	);
 }

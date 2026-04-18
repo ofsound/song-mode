@@ -35,26 +35,11 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 vi.mock("./inspector-pane", () => ({
-	InspectorPane: ({
-		selectedFile,
-		onDeleteFile,
-		deletingFile,
-	}: {
-		selectedFile?: AudioFileRecord;
-		onDeleteFile: () => Promise<void> | void;
-		deletingFile?: boolean;
-	}) => (
+	InspectorPane: ({ selectedFile }: { selectedFile?: AudioFileRecord }) => (
 		<div data-testid="inspector-pane">
 			<div data-testid="inspector-selected-file">
 				{selectedFile?.id ?? "none"}
 			</div>
-			<button
-				type="button"
-				onClick={() => void onDeleteFile()}
-				disabled={!selectedFile || deletingFile}
-			>
-				Delete file
-			</button>
 		</div>
 	),
 }));
@@ -70,12 +55,14 @@ vi.mock("./waveform-card", () => ({
 		audioFile,
 		isSelected,
 		currentTimeMs,
+		onOpenFileDetails,
 		onStepVolume,
 		onSelectFile,
 	}: {
 		audioFile: AudioFileRecord;
 		isSelected: boolean;
 		currentTimeMs: number;
+		onOpenFileDetails: (fileId: string) => void;
 		onStepVolume: (deltaDb: number) => Promise<void>;
 		onSelectFile: (fileId: string) => void;
 	}) => (
@@ -91,6 +78,13 @@ vi.mock("./waveform-card", () => ({
 				onClick={() => onSelectFile(audioFile.id)}
 			>
 				Select file
+			</button>
+			<button
+				type="button"
+				aria-label={`Edit details for ${audioFile.title}`}
+				onClick={() => onOpenFileDetails(audioFile.id)}
+			>
+				Edit details
 			</button>
 			<button
 				type="button"
@@ -187,6 +181,14 @@ function createAudioFile(
 		updatedAt: "2026-04-16T00:00:00.000Z",
 		...overrides,
 	};
+}
+
+function openFileDetails(title: string) {
+	fireEvent.click(
+		screen.getByRole("button", {
+			name: new RegExp(`^edit details for ${title}$`, "i"),
+		}),
+	);
 }
 
 vi.mock("#/providers/song-mode-provider", () => ({
@@ -404,6 +406,7 @@ describe("SongWorkspace", () => {
 		updateWorkspaceStateMock.mockClear();
 		navigateMock.mockClear();
 
+		openFileDetails("Mix B");
 		fireEvent.click(screen.getByRole("button", { name: /^delete file$/i }));
 
 		await waitFor(() => {
@@ -463,6 +466,7 @@ describe("SongWorkspace", () => {
 		updateWorkspaceStateMock.mockClear();
 		navigateMock.mockClear();
 
+		openFileDetails("Mix B");
 		fireEvent.click(screen.getByRole("button", { name: /^delete file$/i }));
 
 		await waitFor(() => {
@@ -493,6 +497,7 @@ describe("SongWorkspace", () => {
 		updateWorkspaceStateMock.mockClear();
 		navigateMock.mockClear();
 
+		openFileDetails("Only Mix");
 		fireEvent.click(screen.getByRole("button", { name: /^delete file$/i }));
 
 		await waitFor(() => {
@@ -536,6 +541,7 @@ describe("SongWorkspace", () => {
 		updateWorkspaceStateMock.mockClear();
 		navigateMock.mockClear();
 
+		openFileDetails("Mix A");
 		fireEvent.click(screen.getByRole("button", { name: /^delete file$/i }));
 
 		await waitFor(() => {
@@ -557,6 +563,43 @@ describe("SongWorkspace", () => {
 		await waitFor(() => {
 			expect(updateAudioFile).toHaveBeenCalledWith("file-1", {
 				volumeDb: 1,
+			});
+		});
+	});
+
+	it("opens the file details modal from the waveform card and edits file metadata there", async () => {
+		currentAudioFiles = [createAudioFile({ title: "Mix A" })];
+		updateAudioFile.mockResolvedValue(undefined);
+
+		render(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+
+		expect(
+			screen.queryByRole("dialog", {
+				name: /file details/i,
+			}),
+		).toBeNull();
+
+		openFileDetails("Mix A");
+
+		expect(
+			screen.getByRole("dialog", {
+				name: /file details/i,
+			}),
+		).toBeTruthy();
+
+		fireEvent.change(screen.getByLabelText(/file title/i), {
+			target: { value: "Mix A - Print" },
+		});
+		fireEvent.change(screen.getByLabelText(/file date/i), {
+			target: { value: "2026-04-18" },
+		});
+
+		await waitFor(() => {
+			expect(updateAudioFile).toHaveBeenCalledWith("file-1", {
+				title: "Mix A - Print",
+			});
+			expect(updateAudioFile).toHaveBeenCalledWith("file-1", {
+				sessionDate: "2026-04-18",
 			});
 		});
 	});
@@ -595,6 +638,151 @@ describe("SongWorkspace", () => {
 
 		expect(seekActiveBy).toHaveBeenNthCalledWith(1, -1000);
 		expect(seekActiveBy).toHaveBeenNthCalledWith(2, 1000);
+	});
+
+	it("deletes the active marker from the keyboard with the same confirmation as drag-delete", async () => {
+		currentAudioFiles = [createAudioFile()];
+		currentAnnotationsByFileId = {
+			"file-1": [
+				{
+					id: "annotation-keyboard",
+					songId: baseSong.id,
+					audioFileId: "file-1",
+					type: "point",
+					startMs: 1000,
+					title: "Hit",
+					body: EMPTY_RICH_TEXT,
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+		};
+		const confirmSpy = vi.fn(() => true);
+		vi.stubGlobal("confirm", confirmSpy);
+		deleteAnnotation.mockClear();
+		navigateMock.mockClear();
+
+		render(
+			<SongWorkspace
+				songId={baseSong.id}
+				search={{
+					fileId: "file-1",
+					annotationId: "annotation-keyboard",
+					autoplay: false,
+				}}
+			/>,
+		);
+
+		fireEvent.keyDown(window, { key: "Delete" });
+
+		await waitFor(() => {
+			expect(confirmSpy).toHaveBeenCalledWith("Delete this marker?");
+			expect(deleteAnnotation).toHaveBeenCalledWith("annotation-keyboard");
+		});
+		await waitFor(() => {
+			expect(navigateMock).toHaveBeenCalled();
+		});
+
+		const navigateArg = navigateMock.mock.calls.find(
+			(call) =>
+				call[0] &&
+				typeof call[0] === "object" &&
+				"search" in call[0] &&
+				typeof (call[0] as { search?: unknown }).search === "function",
+		)?.[0] as {
+			search: (prev: SongRouteSearch) => SongRouteSearch;
+		};
+		const nextSearch = navigateArg.search({
+			fileId: "file-1",
+			annotationId: "annotation-keyboard",
+			autoplay: false,
+		});
+		expect(nextSearch.fileId).toBe("file-1");
+		expect(nextSearch.annotationId).toBeUndefined();
+		expect(nextSearch.timeMs).toBeUndefined();
+		expect(nextSearch.autoplay).toBe(false);
+	});
+
+	it("deletes the active range marker when pressing Backspace", async () => {
+		currentAudioFiles = [createAudioFile()];
+		currentAnnotationsByFileId = {
+			"file-1": [
+				{
+					id: "annotation-range-kb",
+					songId: baseSong.id,
+					audioFileId: "file-1",
+					type: "range",
+					startMs: 1000,
+					endMs: 5000,
+					title: "Section",
+					body: EMPTY_RICH_TEXT,
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+		};
+		vi.stubGlobal(
+			"confirm",
+			vi.fn(() => true),
+		);
+		deleteAnnotation.mockClear();
+
+		render(
+			<SongWorkspace
+				songId={baseSong.id}
+				search={{
+					fileId: "file-1",
+					annotationId: "annotation-range-kb",
+					autoplay: false,
+				}}
+			/>,
+		);
+
+		fireEvent.keyDown(window, { key: "Backspace" });
+
+		await waitFor(() => {
+			expect(deleteAnnotation).toHaveBeenCalledWith("annotation-range-kb");
+		});
+	});
+
+	it("does not delete the active marker when keyboard confirmation is canceled", async () => {
+		currentAudioFiles = [createAudioFile()];
+		currentAnnotationsByFileId = {
+			"file-1": [
+				{
+					id: "annotation-nope",
+					songId: baseSong.id,
+					audioFileId: "file-1",
+					type: "point",
+					startMs: 1000,
+					title: "Hit",
+					body: EMPTY_RICH_TEXT,
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+		};
+		const confirmSpy = vi.fn(() => false);
+		vi.stubGlobal("confirm", confirmSpy);
+		deleteAnnotation.mockClear();
+
+		render(
+			<SongWorkspace
+				songId={baseSong.id}
+				search={{
+					fileId: "file-1",
+					annotationId: "annotation-nope",
+					autoplay: false,
+				}}
+			/>,
+		);
+
+		fireEvent.keyDown(window, { key: "Delete" });
+
+		await waitFor(() => {
+			expect(confirmSpy).toHaveBeenCalledWith("Delete this marker?");
+		});
+		expect(deleteAnnotation).not.toHaveBeenCalled();
 	});
 
 	it("keeps a zero live playhead instead of falling back to workspace playhead", () => {
@@ -862,6 +1050,23 @@ describe("SongWorkspace", () => {
 		).toBeTruthy();
 		expect(screen.getByLabelText(/audio file/i)).toBeTruthy();
 		expect(screen.getByPlaceholderText(/context for this file/i)).toBeTruthy();
+	});
+
+	it("closes the file details modal when dismiss is clicked", () => {
+		currentAudioFiles = [createAudioFile({ title: "Mix A" })];
+
+		render(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+
+		openFileDetails("Mix A");
+		fireEvent.click(
+			screen.getByRole("button", { name: /dismiss file details dialog/i }),
+		);
+
+		expect(
+			screen.queryByRole("dialog", {
+				name: /file details/i,
+			}),
+		).toBeNull();
 	});
 
 	it("renders the journal editor without an outer journal shell", () => {

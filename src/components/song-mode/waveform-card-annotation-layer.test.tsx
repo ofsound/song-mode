@@ -57,7 +57,7 @@ describe("WaveformCardAnnotationLayer", () => {
 			startMs: 30000,
 			title: "Verse",
 			body: EMPTY_RICH_TEXT,
-			color: "var(--color-annotation-4)",
+			color: "var(--color-marker-point)",
 			createdAt: "2026-04-16T00:00:00.000Z",
 			updatedAt: "2026-04-16T00:00:00.000Z",
 		});
@@ -80,7 +80,7 @@ describe("WaveformCardAnnotationLayer", () => {
 			startMs: 30000,
 			title: "Verse",
 			body: EMPTY_RICH_TEXT,
-			color: "var(--color-annotation-4)",
+			color: "var(--color-marker-point)",
 			createdAt: "2026-04-16T00:00:00.000Z",
 			updatedAt: "2026-04-16T00:00:00.000Z",
 		});
@@ -106,7 +106,7 @@ describe("WaveformCardAnnotationLayer", () => {
 			endMs: 45000,
 			title: "Chorus",
 			body: EMPTY_RICH_TEXT,
-			color: "var(--color-annotation-2)",
+			color: "var(--color-marker-range)",
 			createdAt: "2026-04-16T00:00:00.000Z",
 			updatedAt: "2026-04-16T00:00:00.000Z",
 		});

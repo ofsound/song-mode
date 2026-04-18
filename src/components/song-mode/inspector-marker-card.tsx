@@ -1,5 +1,10 @@
 import { Copy, Trash2 } from "lucide-react";
-import type { MouseEvent as ReactMouseEvent } from "react";
+import {
+	type MouseEvent as ReactMouseEvent,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+} from "react";
 import type {
 	Annotation,
 	AudioFileRecord,
@@ -22,6 +27,8 @@ interface InspectorMarkerCardProps {
 	) => Promise<void>;
 	onDeleteAnnotation: (annotationId: string) => Promise<void>;
 	onCopyLink: (target: SongLinkTarget, label: string) => Promise<void>;
+	requestTitleFocus?: boolean;
+	onTitleFocusHandled?: () => void;
 }
 
 export function InspectorMarkerCard({
@@ -34,7 +41,40 @@ export function InspectorMarkerCard({
 	onUpdateAnnotation,
 	onDeleteAnnotation,
 	onCopyLink,
+	requestTitleFocus = false,
+	onTitleFocusHandled,
 }: InspectorMarkerCardProps) {
+	const cardRef = useRef<HTMLDivElement>(null);
+	const titleInputRef = useRef<HTMLInputElement>(null);
+
+	useLayoutEffect(() => {
+		if (!requestTitleFocus || !onTitleFocusHandled) {
+			return;
+		}
+
+		const card = cardRef.current;
+		const input = titleInputRef.current;
+		if (card) {
+			card.scrollIntoView({ block: "nearest", behavior: "auto" });
+		}
+		if (input) {
+			input.focus();
+			input.select();
+		}
+		queueMicrotask(onTitleFocusHandled);
+	}, [requestTitleFocus, onTitleFocusHandled]);
+
+	useEffect(() => {
+		if (!isActive) {
+			return;
+		}
+
+		cardRef.current?.scrollIntoView({
+			block: "nearest",
+			behavior: "smooth",
+		});
+	}, [isActive]);
+
 	const maxStartMs =
 		annotation.type === "range"
 			? (annotation.endMs ??
@@ -50,7 +90,7 @@ export function InspectorMarkerCard({
 
 	function handleMarkerCardClick(event: ReactMouseEvent<HTMLDivElement>) {
 		const node = event.target as HTMLElement | null;
-		if (node?.closest(".marker-row") || node?.closest(".marker-editor")) {
+		if (node?.closest(".marker-interactive")) {
 			return;
 		}
 
@@ -61,14 +101,13 @@ export function InspectorMarkerCard({
 	return (
 		/* biome-ignore lint/a11y/useSemanticElements: marker cards contain nested inputs and editors, so a semantic button wrapper is not valid */
 		<div
+			ref={cardRef}
 			data-testid={`marker-card-${annotation.id}`}
 			role="button"
-			tabIndex={0}
+			tabIndex={-1}
 			aria-pressed={isActive}
-			className={`marker-card border text-left transition-[border-color,background-color,box-shadow] duration-150 ${
-				isActive
-					? "marker-card--selected border-[var(--color-border-strong)] bg-[var(--color-surface-selected)]"
-					: "border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)]"
+			className={`marker-card text-left ${
+				isActive ? "marker-card--selected" : ""
 			}`}
 			onClick={handleMarkerCardClick}
 			onKeyDown={(event) => {
@@ -85,87 +124,100 @@ export function InspectorMarkerCard({
 			}}
 		>
 			<div className="marker-play-cell" aria-hidden="true" />
-			<div className="marker-row">
-				<MarkerTimeField
-					ariaLabel="Start time"
-					valueMs={annotation.startMs}
-					minMs={0}
-					maxMs={maxStartMs}
-					onCommit={(value) =>
-						void onUpdateAnnotation(annotation.id, {
-							startMs: value,
-						})
-					}
-				/>
-				{annotation.type === "range" ? (
-					<>
-						<span
-							aria-hidden="true"
-							className="shrink-0 text-xs text-[var(--color-text-subtle)]"
-						>
-							→
-						</span>
-						<MarkerTimeField
-							ariaLabel="End time"
-							valueMs={annotation.endMs ?? annotation.startMs}
-							minMs={annotation.startMs}
-							maxMs={maxEndMs}
-							onCommit={(value) =>
-								void onUpdateAnnotation(annotation.id, {
-									endMs: value,
-								})
+			<div className="marker-footer">
+				<div className="marker-interactive marker-times-row">
+					<MarkerTimeField
+						ariaLabel="Start time"
+						valueMs={annotation.startMs}
+						minMs={0}
+						maxMs={maxStartMs}
+						onCommit={(value) =>
+							void onUpdateAnnotation(annotation.id, {
+								startMs: value,
+							})
+						}
+					/>
+					{annotation.type === "range" ? (
+						<>
+							<span
+								aria-hidden="true"
+								className="shrink-0 text-xs text-[var(--color-text-subtle)]"
+							>
+								→
+							</span>
+							<MarkerTimeField
+								ariaLabel="End time"
+								valueMs={annotation.endMs ?? annotation.startMs}
+								minMs={annotation.startMs}
+								maxMs={maxEndMs}
+								onCommit={(value) =>
+									void onUpdateAnnotation(annotation.id, {
+										endMs: value,
+									})
+								}
+							/>
+						</>
+					) : null}
+				</div>
+				<div className="marker-interactive marker-actions">
+					<button
+						type="button"
+						onClick={(event) => {
+							event.stopPropagation();
+							const fileLabel = selectedFile?.title.trim() || "Untitled file";
+							const markerLabel =
+								annotation.title.trim() ||
+								(annotation.type === "range"
+									? "Untitled range"
+									: "Untitled marker");
+							void onCopyLink(
+								buildAnnotationTarget(songId, annotation),
+								`${fileLabel} - ${markerLabel}`,
+							);
+						}}
+						className="icon-button icon-button--sm shrink-0"
+						title="Copy link"
+					>
+						<Copy size={12} />
+					</button>
+					<button
+						type="button"
+						onClick={(event) => {
+							event.stopPropagation();
+							if (!window.confirm("Delete this marker?")) {
+								return;
 							}
-						/>
-					</>
-				) : null}
+
+							void onDeleteAnnotation(annotation.id);
+						}}
+						className="icon-button icon-button--sm shrink-0 text-[var(--color-danger)]"
+						title="Delete annotation"
+					>
+						<Trash2 size={12} />
+					</button>
+				</div>
+			</div>
+			<div className="marker-interactive marker-title-row">
 				<input
+					ref={titleInputRef}
 					value={annotation.title}
 					onChange={(event) =>
 						void onUpdateAnnotation(annotation.id, {
 							title: event.target.value,
 						})
 					}
-					className="field-input field-input--compact w-auto min-w-0 flex-1"
+					onKeyDown={(event) => {
+						if (event.key === "Escape") {
+							event.preventDefault();
+							event.currentTarget.blur();
+						}
+					}}
+					className="field-input field-input--compact min-w-0 flex-1"
 					placeholder="Untitled marker"
 					aria-label="Title"
 				/>
-				<button
-					type="button"
-					onClick={(event) => {
-						event.stopPropagation();
-						const fileLabel = selectedFile?.title.trim() || "Untitled file";
-						const markerLabel =
-							annotation.title.trim() ||
-							(annotation.type === "range"
-								? "Untitled range"
-								: "Untitled marker");
-						void onCopyLink(
-							buildAnnotationTarget(songId, annotation),
-							`${fileLabel} - ${markerLabel}`,
-						);
-					}}
-					className="icon-button icon-button--sm shrink-0"
-					title="Copy link"
-				>
-					<Copy size={12} />
-				</button>
-				<button
-					type="button"
-					onClick={(event) => {
-						event.stopPropagation();
-						if (!window.confirm("Delete this marker?")) {
-							return;
-						}
-
-						void onDeleteAnnotation(annotation.id);
-					}}
-					className="icon-button icon-button--sm shrink-0 text-[var(--color-danger)]"
-					title="Delete annotation"
-				>
-					<Trash2 size={12} />
-				</button>
 			</div>
-			<div className="marker-editor">
+			<div className="marker-interactive marker-editor">
 				<RichTextEditor
 					value={annotation.body as RichTextDoc}
 					onChange={(nextValue) =>
@@ -174,6 +226,8 @@ export function InspectorMarkerCard({
 						})
 					}
 					onInternalLink={onOpenTarget}
+					blurOnEscape
+					seamless
 					compact
 					dense
 					showToolbar={false}

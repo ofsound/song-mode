@@ -1,6 +1,4 @@
-import { Trash2 } from "lucide-react";
-import { useState } from "react";
-import { resolveAudioFileSessionDateInputValue } from "#/lib/song-mode/dates";
+import { useEffect, useRef, useState } from "react";
 import { buildSongTargetPath } from "#/lib/song-mode/links";
 import type {
 	Annotation,
@@ -32,10 +30,9 @@ interface InspectorPaneProps {
 		patch: Partial<Annotation>,
 	) => Promise<void>;
 	onDeleteAnnotation: (annotationId: string) => Promise<void>;
-	onDeleteFile: () => Promise<void> | void;
-	deletingFile?: boolean;
-	confirmFileDelete?: boolean;
 	onSelectAnnotation: (annotationId: string) => void;
+	annotationTitleFocusId?: string | null;
+	onAnnotationTitleFocusHandled?: () => void;
 }
 
 export function InspectorPane({
@@ -47,12 +44,35 @@ export function InspectorPane({
 	onUpdateFile,
 	onUpdateAnnotation,
 	onDeleteAnnotation,
-	onDeleteFile,
-	deletingFile = false,
-	confirmFileDelete = true,
 	onSelectAnnotation,
+	annotationTitleFocusId = null,
+	onAnnotationTitleFocusHandled = () => {},
 }: InspectorPaneProps) {
 	const [copiedMessage, setCopiedMessage] = useState<string | null>(null);
+	const scrollerRef = useRef<HTMLDivElement>(null);
+	const [hasContentBelow, setHasContentBelow] = useState(false);
+
+	useEffect(() => {
+		const el = scrollerRef.current;
+		if (!el) return;
+
+		const update = () => {
+			const distanceFromBottom =
+				el.scrollHeight - el.scrollTop - el.clientHeight;
+			setHasContentBelow(distanceFromBottom > 1);
+		};
+
+		update();
+		el.addEventListener("scroll", update, { passive: true });
+		const ro =
+			typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+		ro?.observe(el);
+
+		return () => {
+			el.removeEventListener("scroll", update);
+			ro?.disconnect();
+		};
+	}, []);
 
 	async function copyLink(target: SongLinkTarget, label: string) {
 		const relativePath = buildSongTargetPath(target);
@@ -85,8 +105,8 @@ export function InspectorPane({
 
 	return (
 		<div className="flex h-full min-h-0 flex-col gap-4">
-			<section className="relative border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
-				<div className="flex items-start justify-between gap-3">
+			<section className="relative flex h-full min-h-0 flex-col border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-4">
+				<div className="flex shrink-0 items-start justify-between gap-3">
 					<div className="min-w-0">
 						<h3 className="text-lg font-semibold text-[var(--color-text)]">
 							<span className="font-bold text-[var(--color-accent)]">
@@ -96,7 +116,10 @@ export function InspectorPane({
 					</div>
 				</div>
 
-				<div className="mt-3 flex flex-col gap-2">
+				<div
+					ref={scrollerRef}
+					className="-mx-4 mt-1 flex min-h-0 flex-col gap-4 overflow-y-auto px-4 py-5 [mask-image:linear-gradient(to_bottom,transparent_0,black_20px,black_calc(100%-20px),transparent_100%)]"
+				>
 					{annotations.length === 0 ? (
 						<p className="border border-dashed border-[var(--color-border-subtle)] px-4 py-5 text-sm text-[var(--color-text-muted)]">
 							Create point markers or regions from the waveform to build the
@@ -110,6 +133,8 @@ export function InspectorPane({
 								isActive={activeAnnotation?.id === annotation.id}
 								selectedFile={selectedFile}
 								songId={song.id}
+								requestTitleFocus={annotationTitleFocusId === annotation.id}
+								onTitleFocusHandled={onAnnotationTitleFocusHandled}
 								onOpenTarget={onOpenTarget}
 								onSelectAnnotation={onSelectAnnotation}
 								onUpdateAnnotation={onUpdateAnnotation}
@@ -119,8 +144,14 @@ export function InspectorPane({
 						))
 					)}
 				</div>
+				<div
+					aria-hidden
+					className={`-mx-4 h-px shrink-0 bg-[var(--color-border-subtle)] transition-opacity duration-200 ${
+						hasContentBelow ? "opacity-100" : "opacity-0"
+					}`}
+				/>
 				{copiedMessage ? (
-					<div className="mb-2 flex justify-end">
+					<div className="mt-2 flex shrink-0 justify-end">
 						<span className="surface-chip px-3 py-1 text-xs">
 							{copiedMessage}
 						</span>
@@ -128,56 +159,20 @@ export function InspectorPane({
 				) : null}
 
 				{selectedFile ? (
-					<div className="mt-4 pt-4">
-						<div className="grid gap-4">
-							<div className="grid gap-2">
-								<span className="field-label">Notes</span>
-								<RichTextEditor
-									value={selectedFile.notes}
-									onChange={(nextValue) =>
-										void onUpdateFile({
-											notes: nextValue,
-										})
-									}
-									onInternalLink={onOpenTarget}
-									compact
-									showToolbar={false}
-								/>
-							</div>
-							<label className="grid gap-2">
-								<span className="field-label">Date</span>
-								<input
-									type="date"
-									value={resolveAudioFileSessionDateInputValue(selectedFile)}
-									onChange={(event) =>
-										void onUpdateFile({
-											sessionDate: event.target.value,
-										})
-									}
-									className="field-input"
-								/>
-							</label>
-							<div className="flex justify-end">
-								<button
-									type="button"
-									onClick={() => {
-										if (
-											confirmFileDelete &&
-											!window.confirm("Delete this file?")
-										) {
-											return;
-										}
-
-										void onDeleteFile();
-									}}
-									disabled={deletingFile}
-									className="icon-button icon-button--sm shrink-0 text-[var(--color-danger)] disabled:cursor-not-allowed disabled:opacity-55"
-									title="Delete file"
-									aria-label={`Delete ${selectedFile.title}`}
-								>
-									<Trash2 size={12} />
-								</button>
-							</div>
+					<div className="mt-3 shrink-0">
+						<div className="grid gap-2">
+							<span className="field-label">Notes</span>
+							<RichTextEditor
+								value={selectedFile.notes}
+								onChange={(nextValue) =>
+									void onUpdateFile({
+										notes: nextValue,
+									})
+								}
+								onInternalLink={onOpenTarget}
+								compact
+								showToolbar={false}
+							/>
 						</div>
 					</div>
 				) : (

@@ -1,12 +1,13 @@
 import {
+	Bookmark,
 	Brackets,
 	GripVertical,
-	MapPin,
 	Minus,
 	Pause,
 	Play,
 	Plus,
 	RotateCcw,
+	Settings2,
 	X,
 } from "lucide-react";
 import {
@@ -92,6 +93,7 @@ interface WaveformCardProps {
 		currentTimeMs?: number;
 	}) => void;
 	onStepVolume: (deltaDb: number) => Promise<void>;
+	onOpenFileDetails: (fileId: string) => void;
 	onDragStart: () => void;
 	onDragEnd: () => void;
 	onDrop: () => void;
@@ -115,6 +117,7 @@ export function WaveformCard({
 	onRegisterAudioElement,
 	onReportPlayback,
 	onStepVolume,
+	onOpenFileDetails,
 	onDragStart,
 	onDragEnd,
 	onDrop,
@@ -319,7 +322,7 @@ export function WaveformCard({
 			startMs: timeMs,
 			title: `Marker ${formatDuration(timeMs)}`,
 			body: EMPTY_RICH_TEXT,
-			color: "var(--color-annotation-4)",
+			color: "var(--color-marker-point)",
 		});
 		onSelectAnnotation(annotation.id);
 	}
@@ -346,7 +349,7 @@ export function WaveformCard({
 			endMs,
 			title: `Range ${formatDuration(startMs)}`,
 			body: EMPTY_RICH_TEXT,
-			color: "var(--color-annotation-2)",
+			color: "var(--color-marker-range)",
 		});
 		onSelectAnnotation(annotation.id);
 	}
@@ -630,7 +633,7 @@ export function WaveformCard({
 						<button
 							type="button"
 							onClick={() => onSelectFile(audioFile.id)}
-							className="min-w-0 truncate text-left text-lg font-semibold text-[var(--color-text)]"
+							className="min-w-0 flex-1 truncate text-left text-lg font-semibold text-[var(--color-text)]"
 						>
 							{audioFile.title}
 						</button>
@@ -639,6 +642,15 @@ export function WaveformCard({
 								{sessionDateLabel}
 							</span>
 						) : null}
+						<button
+							type="button"
+							onClick={() => onOpenFileDetails(audioFile.id)}
+							className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-[var(--color-text-muted)] transition-opacity hover:opacity-100 focus-visible:opacity-100 opacity-70"
+							title="Edit file details"
+							aria-label={`Edit details for ${audioFile.title}`}
+						>
+							<Settings2 size={12} />
+						</button>
 					</div>
 				</div>
 
@@ -652,7 +664,7 @@ export function WaveformCard({
 						}}
 						className="action-secondary inline-flex h-9 items-center gap-1.5 px-3 text-xs font-medium"
 					>
-						<MapPin size={14} />
+						<Bookmark size={14} />
 						<span>Add marker</span>
 					</button>
 					{pendingRangeStartMs === null ? (
@@ -898,7 +910,7 @@ export function WaveformCard({
 											Math.max(audioFile.durationMs, 1)) *
 										100
 									}%`,
-									backgroundColor: "var(--color-annotation-2)",
+									backgroundColor: "var(--color-marker-range)",
 									opacity: 0.45,
 								}}
 							/>

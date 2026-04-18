@@ -27,6 +27,10 @@ interface RichTextEditorProps {
 	/** When false, formatting toolbar is hidden (editor still supports rich content). */
 	showToolbar?: boolean;
 	toolbarActions?: RichTextToolbarAction[];
+	/** When true, Escape blurs the editor (used in marker cards). */
+	blurOnEscape?: boolean;
+	/** When true, drops the wrapper border so the editor blends into its parent surface. */
+	seamless?: boolean;
 }
 
 export interface RichTextToolbarAction {
@@ -44,6 +48,8 @@ export function RichTextEditor({
 	focusId,
 	showToolbar = true,
 	toolbarActions = [],
+	blurOnEscape = false,
+	seamless = false,
 }: RichTextEditorProps) {
 	const wrapperRef = useRef<HTMLDivElement | null>(null);
 	const serializedValue = useMemo(
@@ -159,7 +165,9 @@ export function RichTextEditor({
 	return (
 		<div
 			ref={wrapperRef}
-			className="min-h-0 border border-[var(--color-border-strong)] bg-[var(--color-surface)] shadow-[var(--shadow-control)]"
+			className={`min-h-0 bg-[var(--color-surface)]${
+				seamless ? "" : " border border-[var(--color-border-strong)]"
+			}`}
 			data-song-mode-editor={focusId}
 			data-testid={focusId ? `rich-text-editor-${focusId}` : undefined}
 		>
@@ -253,7 +261,16 @@ export function RichTextEditor({
 					))}
 				</div>
 			) : null}
-			<div className="song-editor-scroll-region min-h-0 flex-1 overflow-hidden">
+			<div
+				className="song-editor-scroll-region min-h-0 flex-1 overflow-hidden"
+				onKeyDownCapture={(event) => {
+					if (!blurOnEscape || event.key !== "Escape") {
+						return;
+					}
+					event.preventDefault();
+					editor.view.dom.blur();
+				}}
+			>
 				<EditorContent editor={editor} />
 			</div>
 		</div>

@@ -8,7 +8,6 @@
 	border: 1px solid var(--color-border-strong);
 	background: var(--color-surface-elevated);
 	color: var(--color-text);
-	box-shadow: var(--shadow-control);
 }
 
 .action-secondary:hover {
@@ -22,7 +21,6 @@
 .action-primary {
 	background: var(--background-image-button-accent);
 	color: var(--color-text-inverse);
-	box-shadow: var(--shadow-control);
 }
 
 .theme-toggle-button {
@@ -33,7 +31,6 @@
 	border: 1px solid var(--color-border-strong);
 	background: var(--color-surface);
 	color: var(--color-text-muted);
-	box-shadow: var(--shadow-control);
 }
 
 .theme-toggle-button:hover {
@@ -56,7 +53,6 @@
 .search-shell {
 	border: 1px solid var(--color-border-strong);
 	background: var(--color-surface);
-	box-shadow: var(--shadow-control);
 }
 
 .search-popover {
@@ -71,12 +67,13 @@
 }
 
 .waveform-surface__gutter {
-	background: var(--background-image-waveform), var(--canvas-waveform-surface);
+	background:
+		var(--background-image-waveform), var(--color-waveform-gutter-surface);
 }
 
 .waveform-card {
 	position: relative;
-	border: 1px solid var(--color-border-strong);
+	border: 1.5px solid var(--color-border-strong);
 	background: var(--color-surface);
 	opacity: 0.6;
 	padding: 1rem;
@@ -84,19 +81,16 @@
 	transition:
 		box-shadow 200ms ease,
 		border-color 200ms ease,
-		border-width 200ms ease,
 		background-color 200ms ease,
 		opacity 200ms ease;
 }
 
 .waveform-card--selected {
 	border-color: var(--color-waveform-selected);
-	border-width: 1.5px 1.5px 1.5px 1px;
 	opacity: 1;
 	box-shadow:
-		inset 4px 0 0 0 var(--color-waveform-selected),
-		0 18px 36px -24px
-		color-mix(in srgb, var(--color-waveform-selected) 55%, transparent),
+		0 12px 24px -16px
+		color-mix(in srgb, var(--color-waveform-selected) 37%, transparent),
 		var(--shadow-panel);
 }
 
@@ -144,33 +138,101 @@
 
 .marker-card {
 	display: grid;
-	grid-template-columns: 2.5rem minmax(0, 1fr);
+	grid-template-columns: 1.25rem minmax(0, 1fr);
 	column-gap: 0.5rem;
-	row-gap: 0.375rem;
-	padding: 0.4375rem 0.5rem;
+	row-gap: 0.5rem;
+	padding: 0.5625rem 1rem 0.5625rem 0.5rem;
 	align-items: start;
 	cursor: pointer;
+	background: var(--color-surface-muted);
+	border: 1px solid var(--color-border-subtle);
+	transition:
+		background-color 160ms ease,
+		border-color 160ms ease,
+		box-shadow 160ms ease;
 }
 
 .marker-card:hover {
-	border-color: var(--color-border-strong);
+	background: color-mix(
+		in srgb,
+		var(--color-surface-muted) 82%,
+		var(--color-accent-surface)
+	);
 }
 
-.marker-card--selected {
-	box-shadow: inset 4px 0 0 0 var(--color-waveform-selected);
+.marker-card--selected,
+.marker-card--selected:hover {
+	background: color-mix(
+		in srgb,
+		var(--color-surface-muted) 65%,
+		var(--color-accent-surface)
+	);
+	border-color: var(--color-waveform-selected);
+	box-shadow: inset 6px 0 0 0 var(--color-waveform-selected);
+}
+
+.marker-card .field-input {
+	border-color: transparent;
+}
+
+.marker-card .field-input:focus-visible {
+	border-color: var(--color-accent-strong);
+}
+
+.marker-times-row .field-input {
+	padding: 0.1875rem 0;
+	font-size: 0.75rem;
+}
+
+.marker-card .icon-button {
+	border-color: transparent;
+}
+
+.marker-editor > div {
+	background: var(--color-field);
+}
+
+.marker-card .icon-button:hover {
+	border-color: transparent;
+	background: color-mix(in srgb, var(--color-text) 8%, transparent);
 }
 
 .marker-play-cell {
 	grid-column: 1;
-	grid-row: 1 / span 2;
+	grid-row: 1 / span 3;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	min-height: 100%;
 }
 
-.marker-row {
+.marker-title-row {
 	grid-column: 2;
+	display: flex;
+	min-width: 0;
+	cursor: auto;
+}
+
+.marker-title-row .field-input {
+	width: 100%;
+	min-width: 0;
+}
+
+.marker-editor {
+	grid-column: 2;
+	min-width: 0;
+	cursor: auto;
+}
+
+.marker-footer {
+	grid-column: 2;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	min-width: 0;
+}
+
+.marker-times-row {
 	display: flex;
 	align-items: center;
 	gap: 0.375rem;
@@ -178,9 +240,11 @@
 	cursor: auto;
 }
 
-.marker-editor {
-	grid-column: 2;
-	min-width: 0;
+.marker-actions {
+	display: flex;
+	align-items: center;
+	gap: 0.375rem;
+	margin-left: auto;
 	cursor: auto;
 }
 

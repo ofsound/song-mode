@@ -163,7 +163,7 @@ describe("song mode search", () => {
 				startMs: 54200,
 				title: "Snare transient",
 				body: plainTextToRichText("Transient needs more crack here"),
-				color: "var(--color-annotation-4)",
+				color: "var(--color-marker-point)",
 				createdAt: "2026-04-15T00:00:00.000Z",
 				updatedAt: "2026-04-15T00:00:00.000Z",
 			},

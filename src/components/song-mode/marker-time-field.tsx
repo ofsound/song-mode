@@ -9,6 +9,7 @@ import { formatDuration } from "#/lib/song-mode/waveform";
 const DRAG_STEP_PX = 8;
 const DRAG_THRESHOLD_PX = 4;
 const SCRUB_STEP_MS = 1000;
+const FINE_SCRUB_STEP_MS = 100;
 const SECOND_MS = 1000;
 
 interface MarkerTimeFieldProps {
@@ -53,8 +54,8 @@ export function MarkerTimeField({
 			return;
 		}
 
-		const clamped = clampToRange(parsed, minMs, maxMs);
-		if (clamped !== clampedValueMs) {
+		const clamped = snapToSecond(clampToRange(parsed, minMs, maxMs));
+		if (clamped !== snapToSecond(clampedValueMs)) {
 			onCommit(clamped);
 			setDraft(formatMarkerTime(clamped));
 		} else {
@@ -93,7 +94,7 @@ export function MarkerTimeField({
 
 		const parsedDraft = parseMarkerTime(draft);
 		const nextValue =
-			parsedDraft == null
+			parsedDraft == null || draft === formatted
 				? clampedValueMs
 				: clampToRange(parsedDraft, minMs, maxMs);
 		dragStateRef.current = {
@@ -137,8 +138,9 @@ export function MarkerTimeField({
 		}
 
 		state.carryPx -= stepCount * DRAG_STEP_PX;
+		const stepMs = event.shiftKey ? FINE_SCRUB_STEP_MS : SCRUB_STEP_MS;
 		const nextValue = clampToRange(
-			state.valueMs + stepCount * SCRUB_STEP_MS,
+			state.valueMs + stepCount * stepMs,
 			minMs,
 			maxMs,
 		);
@@ -183,7 +185,7 @@ export function MarkerTimeField({
 					(event.target as HTMLInputElement).blur();
 				}
 			}}
-			className="field-input field-input--compact w-[3.25rem] flex-[0_0_3.25rem] text-center font-mono tabular-nums"
+			className="field-input field-input--compact w-[2.625rem] flex-[0_0_2.625rem] text-center font-mono tabular-nums"
 		/>
 	);
 }
@@ -191,9 +193,11 @@ export function MarkerTimeField({
 function clampToRange(value: number, minMs: number, maxMs: number): number {
 	const safeMin = Math.max(0, Math.round(minMs));
 	const safeMax = Math.max(safeMin, Math.round(maxMs));
-	const clamped = Math.max(safeMin, Math.min(safeMax, Math.round(value)));
-	const snapped = Math.round(clamped / SECOND_MS) * SECOND_MS;
-	return Math.max(safeMin, Math.min(safeMax, snapped));
+	return Math.max(safeMin, Math.min(safeMax, Math.round(value)));
+}
+
+function snapToSecond(valueMs: number): number {
+	return Math.round(valueMs / SECOND_MS) * SECOND_MS;
 }
 
 function formatMarkerTime(valueMs: number): string {

@@ -91,7 +91,7 @@ export function useWaveformCanvas({
 			context.fillStyle = readColor("--canvas-waveform-progress");
 			context.fillRect(0, 0, progressX, height);
 			context.strokeStyle = readColor("--canvas-waveform-progress-line");
-			context.lineWidth = 2.5;
+			context.lineWidth = 1;
 			context.lineCap = "butt";
 			context.beginPath();
 			context.moveTo(progressX, 0);
@@ -118,10 +118,23 @@ export function useWaveformCanvas({
 
 		const observer = new ResizeObserver(scheduleDraw);
 		observer.observe(surface);
+
+		// Canvas colors are sampled from CSS custom properties at draw time, so
+		// toggling the `light`/`dark` class on <html> must trigger a redraw.
+		let themeObserver: MutationObserver | null = null;
+		if (typeof MutationObserver !== "undefined") {
+			themeObserver = new MutationObserver(scheduleDraw);
+			themeObserver.observe(document.documentElement, {
+				attributes: true,
+				attributeFilter: ["class"],
+			});
+		}
+
 		scheduleDraw();
 
 		return () => {
 			observer.disconnect();
+			themeObserver?.disconnect();
 			if (frameId) {
 				window.cancelAnimationFrame(frameId);
 			}

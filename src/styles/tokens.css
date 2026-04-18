@@ -30,6 +30,10 @@
 		color-mix(in srgb, var(--color-white) 90%, transparent),
 		color-mix(in srgb, var(--color-zinc-950) 78%, transparent)
 	);
+	--color-surface-muted: light-dark(
+		color-mix(in srgb, var(--color-slate-200) 55%, var(--color-white)),
+		color-mix(in srgb, var(--color-zinc-950) 78%, var(--color-black))
+	);
 	--color-header-surface: light-dark(
 		color-mix(in srgb, var(--color-slate-100) 58%, var(--color-white)),
 		color-mix(in srgb, var(--color-slate-900) 66%, var(--color-zinc-950))
@@ -112,37 +116,29 @@
 		var(--accent-light-primary-base),
 		var(--accent-dark-primary-base)
 	);
-	--color-waveform-range: light-dark(
-		var(--color-amber-500),
-		var(--color-amber-300)
+	--color-marker-point: light-dark(
+		color-mix(in srgb, var(--color-zinc-400) 94%, var(--color-sky-700)),
+		color-mix(in srgb, var(--color-zinc-400) 94%, var(--color-sky-400))
+	);
+	--color-marker-range: light-dark(
+		color-mix(in srgb, var(--color-zinc-600) 88%, var(--color-amber-700)),
+		color-mix(in srgb, var(--color-zinc-300) 88%, var(--color-amber-300))
 	);
 	--color-waveform-surface: light-dark(
 		color-mix(in srgb, var(--color-white) 92%, var(--color-slate-50)),
 		color-mix(in srgb, var(--color-white) 5%, transparent)
 	);
-	--color-waveform-annotation-active: light-dark(
-		color-mix(in srgb, var(--color-zinc-950) 22%, transparent),
-		color-mix(in srgb, var(--color-white) 82%, transparent)
-	);
-	--color-waveform-annotation-inactive: light-dark(
-		color-mix(in srgb, var(--color-zinc-950) 14%, transparent),
-		color-mix(in srgb, var(--color-white) 20%, transparent)
-	);
-	--color-waveform-marker-track: light-dark(
-		var(--accent-light-strong-base),
-		var(--accent-dark-strong-base)
-	);
-	--color-waveform-marker-dot-border: light-dark(
-		color-mix(in srgb, var(--color-white) 80%, transparent),
-		color-mix(in srgb, var(--color-white) 35%, transparent)
+	--color-waveform-gutter-surface: light-dark(
+		color-mix(in srgb, var(--color-slate-200) 65%, var(--color-white)),
+		color-mix(in srgb, var(--color-white) 12%, transparent)
 	);
 	--color-range-hint-border: light-dark(
-		var(--color-amber-300),
-		var(--color-amber-700)
+		color-mix(in srgb, var(--color-marker-range) 28%, var(--color-white)),
+		color-mix(in srgb, var(--color-marker-range) 42%, var(--color-zinc-950))
 	);
 	--color-range-hint-surface: light-dark(
-		color-mix(in srgb, var(--color-amber-100) 86%, transparent),
-		color-mix(in srgb, var(--color-amber-950) 38%, transparent)
+		color-mix(in srgb, var(--color-marker-range) 14%, transparent),
+		color-mix(in srgb, var(--color-marker-range) 18%, transparent)
 	);
 	--color-annotation-1: light-dark(var(--color-red-400), var(--color-red-500));
 	--color-annotation-2: light-dark(
@@ -179,11 +175,6 @@
 		light-dark(
 			color-mix(in srgb, var(--color-zinc-950) 14%, transparent),
 			color-mix(in srgb, var(--color-black) 52%, transparent)
-		);
-	--shadow-control: 0 1px 2px 0
-		light-dark(
-			color-mix(in srgb, var(--color-zinc-950) 12%, transparent),
-			color-mix(in srgb, var(--color-black) 30%, transparent)
 		);
 	--background-image-shell-grid:
 		linear-gradient(
