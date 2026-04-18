@@ -29,6 +29,7 @@ import { WaveformCardAnnotationLayer } from "./waveform-card-annotation-layer";
 
 type WaveformMode = "seek" | "point" | "range";
 const PLAYHEAD_ADD_MARKER_HOTSPOT_HEIGHT_PX = 36;
+const DEFAULT_RANGE_ANNOTATION_DURATION_MS = 10_000;
 
 interface HoveredAnnotationState {
 	annotationId: string;
@@ -249,6 +250,23 @@ export function WaveformCard({
 			title: `Marker ${formatDuration(timeMs)}`,
 			body: EMPTY_RICH_TEXT,
 			color: "var(--color-annotation-4)",
+		});
+		onSelectAnnotation(annotation.id);
+	}
+
+	async function createRangeAnnotationAtTime(timeMs: number) {
+		onSelectFile(audioFile.id);
+
+		const annotation = await onCreateAnnotation({
+			type: "range",
+			startMs: timeMs,
+			endMs: Math.min(
+				audioFile.durationMs,
+				timeMs + DEFAULT_RANGE_ANNOTATION_DURATION_MS,
+			),
+			title: `Range ${formatDuration(timeMs)}`,
+			body: EMPTY_RICH_TEXT,
+			color: "var(--color-annotation-2)",
 		});
 		onSelectAnnotation(annotation.id);
 	}
@@ -483,7 +501,7 @@ export function WaveformCard({
 							mode !== "seek" ||
 							event.button !== 0 ||
 							(event.target as HTMLElement).closest(
-								"[data-annotation-hit], [data-playhead-add-marker-hit]",
+								"[data-annotation-hit], [data-playhead-add-marker-hit], [data-playhead-add-range-hit]",
 							)
 						) {
 							return;
@@ -548,7 +566,7 @@ export function WaveformCard({
 
 						if (
 							(event.target as HTMLElement).closest(
-								"[data-annotation-hit], [data-playhead-add-marker-hit]",
+								"[data-annotation-hit], [data-playhead-add-marker-hit], [data-playhead-add-range-hit]",
 							)
 						) {
 							return;
@@ -645,6 +663,44 @@ export function WaveformCard({
 							>
 								<Plus size={14} />
 							</button>
+							<button
+								type="button"
+								data-playhead-add-range-hit
+								data-testid="playhead-add-range-button"
+								data-visible={isPlayheadAddMarkerVisible}
+								aria-label={`Add range at ${formatDuration(playheadTimeMs)} for ${audioFile.title}`}
+								title="Add range at playhead"
+								onPointerDown={(event) => {
+									event.stopPropagation();
+								}}
+								onPointerEnter={() => setIsPlayheadAddMarkerVisible(true)}
+								onPointerLeave={() => setIsPlayheadAddMarkerVisible(false)}
+								onFocus={() => setIsPlayheadAddMarkerVisible(true)}
+								onBlur={(event) => {
+									if (
+										event.relatedTarget instanceof Node &&
+										event.currentTarget.contains(event.relatedTarget)
+									) {
+										return;
+									}
+
+									setIsPlayheadAddMarkerVisible(false);
+								}}
+								onClick={(event) => {
+									event.stopPropagation();
+									void createRangeAnnotationAtTime(playheadTimeMs);
+								}}
+								className={`pointer-events-auto absolute bottom-1 left-1/2 inline-flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border shadow-sm transition-all duration-150 focus-visible:opacity-100 focus-visible:scale-100 ${
+									isPlayheadAddMarkerVisible
+										? "border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] text-[var(--color-text)] opacity-100 scale-100"
+										: "border-transparent bg-transparent text-[var(--color-text-muted)] opacity-0 scale-95"
+								}`}
+								style={{
+									height: `${PLAYHEAD_ADD_MARKER_HOTSPOT_HEIGHT_PX}px`,
+								}}
+							>
+								<UnfoldHorizontal size={14} />
+							</button>
 						</div>
 					) : null}
 					<WaveformCardAnnotationLayer
@@ -659,6 +715,7 @@ export function WaveformCard({
 						onUpdateAnnotation={onUpdateAnnotation}
 						getTimePerPixel={getTimePerPixel}
 						setHoveredAnnotation={setHoveredAnnotation}
+						showPointMarkerConvertControl={mode === "seek"}
 						updateHoveredAnnotationPosition={updateHoveredAnnotationPosition}
 					/>
 					{mode === "range" && rangeAnchorMs !== null && (
@@ -668,7 +725,7 @@ export function WaveformCard({
 					)}
 				</div>
 
-				<div className="flex min-w-[5.75rem] flex-col items-stretch justify-center border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] px-2 py-3">
+				<div className="flex min-w-[5.75rem] flex-col items-stretch justify-center bg-[var(--color-surface-elevated)] px-2 py-3">
 					<span className="field-label text-center text-[0.56rem]">Volume</span>
 					<div className="mt-2 flex items-center justify-between gap-2">
 						<button

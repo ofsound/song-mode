@@ -23,8 +23,9 @@ export function useScrubDrag({
 	onSelectFile,
 	onUpdateAnnotation,
 }: UseScrubDragOptions) {
-	const markerDragStateRef = useRef<{
+	const annotationDragStateRef = useRef<{
 		annotationId: string;
+		field: "startMs" | "endMs";
 		pointerId: number;
 		lastX: number;
 		valueMs: number;
@@ -34,7 +35,7 @@ export function useScrubDrag({
 
 	const endMarkerDrag = useCallback(
 		(event: PointerEvent<HTMLButtonElement>, preserveFocus = true) => {
-			const dragState = markerDragStateRef.current;
+			const dragState = annotationDragStateRef.current;
 			if (!dragState || dragState.pointerId !== event.pointerId) {
 				return;
 			}
@@ -44,7 +45,7 @@ export function useScrubDrag({
 				suppressAnnotationClickRef.current = dragState.annotationId;
 			}
 
-			markerDragStateRef.current = null;
+			annotationDragStateRef.current = null;
 			document.body.style.removeProperty("user-select");
 			if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
 				event.currentTarget.releasePointerCapture(event.pointerId);
@@ -65,34 +66,50 @@ export function useScrubDrag({
 		return true;
 	}, []);
 
-	const getMarkerDragHandlers = useCallback(
-		(annotationId: string, startMs: number) => ({
+	const getAnnotationDragHandlers = useCallback(
+		({
+			annotationId,
+			field,
+			handleSelector,
+			maxMs,
+			minMs,
+			valueMs,
+		}: {
+			annotationId: string;
+			field: "startMs" | "endMs";
+			handleSelector: string;
+			maxMs: number;
+			minMs: number;
+			valueMs: number;
+		}) => ({
 			onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
 				if (
 					event.button !== 0 ||
 					!(event.target instanceof HTMLElement) ||
-					!event.target.closest("[data-marker-handle]")
+					!event.target.closest(handleSelector)
 				) {
 					return;
 				}
 
 				event.stopPropagation();
 				onClearHover();
-				markerDragStateRef.current = {
+				annotationDragStateRef.current = {
 					annotationId,
+					field,
 					pointerId: event.pointerId,
 					lastX: event.clientX,
-					valueMs: startMs,
+					valueMs,
 					dragging: false,
 				};
 				event.currentTarget.setPointerCapture?.(event.pointerId);
 			},
 			onPointerMove: (event: PointerEvent<HTMLButtonElement>) => {
-				const dragState = markerDragStateRef.current;
+				const dragState = annotationDragStateRef.current;
 				if (
 					!dragState ||
 					dragState.pointerId !== event.pointerId ||
-					dragState.annotationId !== annotationId
+					dragState.annotationId !== annotationId ||
+					dragState.field !== field
 				) {
 					return;
 				}
@@ -110,9 +127,9 @@ export function useScrubDrag({
 
 				const sensitivity = event.shiftKey ? 0.25 : 1;
 				const nextValue = Math.max(
-					0,
+					minMs,
 					Math.min(
-						durationMs,
+						maxMs,
 						Math.round(dragState.valueMs + deltaX * timePerPixel * sensitivity),
 					),
 				);
@@ -130,9 +147,10 @@ export function useScrubDrag({
 				event.preventDefault();
 				event.stopPropagation();
 				dragState.valueMs = nextValue;
-				void onUpdateAnnotation(annotationId, {
-					startMs: nextValue,
-				});
+				void onUpdateAnnotation(
+					annotationId,
+					field === "startMs" ? { startMs: nextValue } : { endMs: nextValue },
+				);
 			},
 			onPointerUp: (event: PointerEvent<HTMLButtonElement>) =>
 				endMarkerDrag(event),
@@ -141,7 +159,6 @@ export function useScrubDrag({
 		}),
 		[
 			audioFileId,
-			durationMs,
 			endMarkerDrag,
 			getTimePerPixel,
 			onClearHover,
@@ -151,8 +168,40 @@ export function useScrubDrag({
 		],
 	);
 
+	const getMarkerDragHandlers = useCallback(
+		(annotationId: string, startMs: number) =>
+			getAnnotationDragHandlers({
+				annotationId,
+				field: "startMs",
+				handleSelector: "[data-marker-handle]",
+				maxMs: durationMs,
+				minMs: 0,
+				valueMs: startMs,
+			}),
+		[durationMs, getAnnotationDragHandlers],
+	);
+
+	const getRangeEdgeDragHandlers = useCallback(
+		(
+			annotationId: string,
+			edge: "start" | "end",
+			startMs: number,
+			endMs: number,
+		) =>
+			getAnnotationDragHandlers({
+				annotationId,
+				field: edge === "start" ? "startMs" : "endMs",
+				handleSelector: `[data-range-handle="${edge}"]`,
+				maxMs: edge === "start" ? endMs : durationMs,
+				minMs: edge === "start" ? 0 : startMs,
+				valueMs: edge === "start" ? startMs : endMs,
+			}),
+		[durationMs, getAnnotationDragHandlers],
+	);
+
 	return {
 		consumeSuppressedClick,
 		getMarkerDragHandlers,
+		getRangeEdgeDragHandlers,
 	};
 }
