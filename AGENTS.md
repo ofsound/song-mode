@@ -21,6 +21,7 @@
 - **Strict Scope:** Change only what is requested.
 - **No Side Effects:** Do not "improve" or refactor adjacent code, comments, or formatting.
 - **Style Match:** Mirror existing patterns, even if suboptimal.
+- **No Eyebrows:** Never add or create eyebrow/kicker text (`eyebrow`, overline labels, tiny uppercase section headers above titles) unless the user explicitly asks for one.
 - **Orphan Policy:** Remove imports/variables/functions rendered unused by _your_ changes. Leave pre-existing dead code alone.
 
 ### C. Goal-Driven Loop

@@ -146,7 +146,7 @@ describe("InspectorPane", () => {
 		fireEvent.keyDown(startInput, { key: "Enter" });
 
 		expect(onUpdateAnnotation).toHaveBeenCalledWith("annotation-1", {
-			startMs: 62250,
+			startMs: 62000,
 		});
 	});
 
@@ -175,7 +175,7 @@ describe("InspectorPane", () => {
 		expect(startInput.value).toBe("0:56");
 	});
 
-	it("uses Shift for fine scrub adjustment and shows sub-second precision", () => {
+	it("keeps scrub interactions at whole-second granularity", () => {
 		const { onUpdateAnnotation } = renderInspector();
 
 		const startInput = screen.getByLabelText("Start time") as HTMLInputElement;
@@ -196,9 +196,9 @@ describe("InspectorPane", () => {
 		});
 
 		expect(onUpdateAnnotation).toHaveBeenCalledWith("annotation-1", {
-			startMs: 54250,
+			startMs: 55000,
 		});
-		expect(startInput.value).toBe("0:54.25");
+		expect(startInput.value).toBe("0:55");
 	});
 
 	it("keeps form controls from seeking while the marker card background activates the marker", () => {

@@ -9,7 +9,7 @@ import { formatDuration } from "#/lib/song-mode/waveform";
 const DRAG_STEP_PX = 8;
 const DRAG_THRESHOLD_PX = 4;
 const SCRUB_STEP_MS = 1000;
-const SCRUB_FINE_STEP_MS = 250;
+const SECOND_MS = 1000;
 
 interface MarkerTimeFieldProps {
 	ariaLabel: string;
@@ -137,9 +137,8 @@ export function MarkerTimeField({
 		}
 
 		state.carryPx -= stepCount * DRAG_STEP_PX;
-		const stepSize = event.shiftKey ? SCRUB_FINE_STEP_MS : SCRUB_STEP_MS;
 		const nextValue = clampToRange(
-			state.valueMs + stepCount * stepSize,
+			state.valueMs + stepCount * SCRUB_STEP_MS,
 			minMs,
 			maxMs,
 		);
@@ -192,21 +191,13 @@ export function MarkerTimeField({
 function clampToRange(value: number, minMs: number, maxMs: number): number {
 	const safeMin = Math.max(0, Math.round(minMs));
 	const safeMax = Math.max(safeMin, Math.round(maxMs));
-	return Math.max(safeMin, Math.min(safeMax, Math.round(value)));
+	const clamped = Math.max(safeMin, Math.min(safeMax, Math.round(value)));
+	const snapped = Math.round(clamped / SECOND_MS) * SECOND_MS;
+	return Math.max(safeMin, Math.min(safeMax, snapped));
 }
 
 function formatMarkerTime(valueMs: number): string {
-	const totalHundredths = Math.max(0, Math.round(valueMs / 10));
-	const totalSeconds = Math.floor(totalHundredths / 100);
-	const minutes = Math.floor(totalSeconds / 60);
-	const seconds = totalSeconds % 60;
-	const hundredths = totalHundredths % 100;
-
-	if (hundredths === 0) {
-		return formatDuration(totalHundredths * 10);
-	}
-
-	return `${minutes}:${String(seconds).padStart(2, "0")}.${String(hundredths).padStart(2, "0")}`;
+	return formatDuration(valueMs);
 }
 
 function parseMarkerTime(input: string): number | null {

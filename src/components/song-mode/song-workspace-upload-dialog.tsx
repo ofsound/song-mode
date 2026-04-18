@@ -45,7 +45,6 @@ export function SongWorkspaceUploadDialog({
 			>
 				<div className="flex items-start justify-between gap-4 border-b border-[var(--color-border-subtle)] px-5 py-4 sm:px-6">
 					<div className="min-w-0">
-						<p className="eyebrow mb-2">Audio import</p>
 						<h2
 							id="upload-audio-title"
 							className="text-2xl font-semibold text-[var(--color-text)]"
