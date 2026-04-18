@@ -68,7 +68,8 @@
 
 .waveform-surface__gutter {
 	background:
-		var(--background-image-waveform), var(--color-waveform-gutter-surface);
+		var(--background-image-waveform-gutter),
+		var(--color-waveform-gutter-surface);
 }
 
 .waveform-card {

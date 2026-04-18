@@ -892,7 +892,7 @@ export function WaveformCard({
 							<span
 								aria-hidden
 								data-testid="gutter-add-range-preview"
-								className="pointer-events-none absolute inset-y-0"
+								className="pointer-events-none absolute top-[var(--waveform-marker-gutter-padding)] bottom-[var(--waveform-marker-gutter-padding)]"
 								style={{
 									left: `${
 										(Math.min(

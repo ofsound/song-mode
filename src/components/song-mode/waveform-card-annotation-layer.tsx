@@ -261,7 +261,9 @@ export function WaveformCardAnnotationLayer({
 										: "opacity-[0.2] hover:opacity-[0.34]"
 								}`}
 								style={{
-									height: "var(--waveform-marker-gutter-height)",
+									bottom: "var(--waveform-marker-gutter-padding)",
+									height:
+										"calc(var(--waveform-marker-gutter-height) - 2 * var(--waveform-marker-gutter-padding))",
 									backgroundColor: rangeColor,
 								}}
 							/>
@@ -273,11 +275,11 @@ export function WaveformCardAnnotationLayer({
 								onPointerMove={rangeStartDragHandlers.onPointerMove}
 								onPointerUp={rangeStartDragHandlers.onPointerUp}
 								onPointerCancel={rangeStartDragHandlers.onPointerCancel}
-								className="pointer-events-auto absolute bottom-0 left-0 h-[var(--waveform-marker-gutter-height)] w-3 -translate-x-1/2"
+								className="pointer-events-auto absolute bottom-[var(--waveform-marker-gutter-padding)] left-0 h-[calc(var(--waveform-marker-gutter-height)-2*var(--waveform-marker-gutter-padding))] w-3 -translate-x-1/2"
 							>
 								<span
 									aria-hidden
-									className="absolute top-[var(--waveform-marker-gutter-height)] bottom-0 left-1/2 w-0.5 -translate-x-1/2 opacity-0"
+									className="absolute top-[var(--waveform-marker-gutter-height)] bottom-[var(--waveform-marker-gutter-padding)] left-1/2 w-0.5 -translate-x-1/2 opacity-0"
 									style={{ backgroundColor: rangeColor }}
 								/>
 								<span
@@ -297,7 +299,7 @@ export function WaveformCardAnnotationLayer({
 										)
 									}
 									onPointerLeave={() => setHoveredAnnotation(null)}
-									className="absolute bottom-0 left-1/2 h-[var(--waveform-marker-gutter-height)] w-3 -translate-x-1/2 cursor-ew-resize"
+									className="absolute bottom-0 left-1/2 h-full w-3 -translate-x-1/2 cursor-ew-resize"
 								/>
 							</button>
 							<button
@@ -308,11 +310,11 @@ export function WaveformCardAnnotationLayer({
 								onPointerMove={rangeEndDragHandlers.onPointerMove}
 								onPointerUp={rangeEndDragHandlers.onPointerUp}
 								onPointerCancel={rangeEndDragHandlers.onPointerCancel}
-								className="pointer-events-auto absolute bottom-0 left-full h-[var(--waveform-marker-gutter-height)] w-3 -translate-x-1/2"
+								className="pointer-events-auto absolute bottom-[var(--waveform-marker-gutter-padding)] left-full h-[calc(var(--waveform-marker-gutter-height)-2*var(--waveform-marker-gutter-padding))] w-3 -translate-x-1/2"
 							>
 								<span
 									aria-hidden
-									className="absolute top-[var(--waveform-marker-gutter-height)] bottom-0 left-1/2 w-0.5 -translate-x-1/2 opacity-0"
+									className="absolute top-[var(--waveform-marker-gutter-height)] bottom-[var(--waveform-marker-gutter-padding)] left-1/2 w-0.5 -translate-x-1/2 opacity-0"
 									style={{ backgroundColor: rangeColor }}
 								/>
 								<span
@@ -332,7 +334,7 @@ export function WaveformCardAnnotationLayer({
 										)
 									}
 									onPointerLeave={() => setHoveredAnnotation(null)}
-									className="absolute bottom-0 left-1/2 h-[var(--waveform-marker-gutter-height)] w-3 -translate-x-1/2 cursor-ew-resize"
+									className="absolute bottom-0 left-1/2 h-full w-3 -translate-x-1/2 cursor-ew-resize"
 								/>
 							</button>
 						</div>
@@ -401,7 +403,7 @@ export function WaveformCardAnnotationLayer({
 									)
 								}
 								onPointerLeave={() => setHoveredAnnotation(null)}
-								className="absolute left-1/2 top-0 -translate-x-1/2 cursor-pointer leading-none transition-[filter] duration-150 hover:brightness-125 hover:saturate-150"
+								className="absolute left-1/2 top-[var(--waveform-marker-gutter-padding)] -translate-x-1/2 cursor-pointer leading-none transition-[filter] duration-150 hover:brightness-125 hover:saturate-150"
 							>
 								<svg
 									width={21}

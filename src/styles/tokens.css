@@ -132,6 +132,24 @@
 		color-mix(in srgb, var(--color-slate-200) 65%, var(--color-white)),
 		color-mix(in srgb, var(--color-white) 12%, transparent)
 	);
+	--background-image-waveform-gutter: linear-gradient(
+		180deg,
+		light-dark(
+				color-mix(in srgb, var(--color-white) 32%, transparent),
+				color-mix(in srgb, var(--color-white) 5%, transparent)
+			)
+			0%,
+		light-dark(
+				color-mix(in srgb, var(--color-slate-500) 4%, transparent),
+				color-mix(in srgb, var(--color-black) 6%, transparent)
+			)
+			50%,
+		light-dark(
+				color-mix(in srgb, var(--color-slate-600) 9%, transparent),
+				color-mix(in srgb, var(--color-black) 18%, transparent)
+			)
+			100%
+	);
 	--color-range-hint-border: light-dark(
 		color-mix(in srgb, var(--color-marker-range) 28%, var(--color-white)),
 		color-mix(in srgb, var(--color-marker-range) 42%, var(--color-zinc-950))
@@ -277,7 +295,8 @@
 	--accent-dark-primary-base: #6ee7b7;
 	--accent-dark-strong-base: #38bdf8;
 	--song-workspace-waveform-tab-width: 14px;
-	--waveform-marker-gutter-height: 16.5px;
+	--waveform-marker-gutter-height: 20.5px;
+	--waveform-marker-gutter-padding: 2px;
 	--song-workspace-waveform-height: 164px;
 	--canvas-waveform-surface: color-mix(
 		in srgb,
