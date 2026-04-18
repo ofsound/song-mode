@@ -5,10 +5,6 @@ import { useSongMode } from "#/providers/song-mode-provider";
 import { GlobalSearch } from "./global-search";
 import { ThemeToggle } from "./theme-toggle";
 
-interface SongModeHeaderState {
-	showLibraryLink: boolean;
-}
-
 interface SongRouteHeaderSlotValue {
 	enabled: boolean;
 	slot: HTMLDivElement | null;
@@ -35,33 +31,13 @@ export function useLibraryHeaderActionSlot() {
 
 export function getSongModeHeaderState({
 	songId,
-	ready,
-	songTitle,
 }: {
 	songId?: string;
 	ready: boolean;
 	songTitle?: string;
-}): SongModeHeaderState {
-	if (!songId) {
-		return {
-			showLibraryLink: false,
-		};
-	}
-
-	if (!ready) {
-		return {
-			showLibraryLink: true,
-		};
-	}
-
-	if (songTitle !== undefined) {
-		return {
-			showLibraryLink: true,
-		};
-	}
-
+}) {
 	return {
-		showLibraryLink: true,
+		showLibraryLink: Boolean(songId),
 	};
 }
 
@@ -79,7 +55,7 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 	);
 	const [libraryHeaderActionSlot, setLibraryHeaderActionSlot] =
 		useState<HTMLDivElement | null>(null);
-	const headerState = getSongModeHeaderState({
+	const { showLibraryLink } = getSongModeHeaderState({
 		songId,
 		ready,
 		songTitle,
@@ -121,7 +97,7 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 										</Link>
 									) : null}
 
-									{headerState.showLibraryLink && !isSongRoute ? (
+									{showLibraryLink && !isSongRoute ? (
 										<button
 											type="button"
 											onClick={() => navigate({ to: "/" })}

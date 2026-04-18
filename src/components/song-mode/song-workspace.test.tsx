@@ -282,13 +282,6 @@ describe("SongWorkspace", () => {
 		expect(
 			screen.queryByText(/Shift\+↑ \/ Shift\+↓ jumps markers/i),
 		).toBeNull();
-
-		await waitFor(() => {
-			expect(updateWorkspaceStateMock).toHaveBeenCalledWith(baseSong.id, {
-				selectedFileId: "file-1",
-				activeAnnotationId: undefined,
-			});
-		});
 	});
 
 	it("remembers the song on route entry without re-running on plain rerenders", async () => {
@@ -344,22 +337,10 @@ describe("SongWorkspace", () => {
 			rerender(<SongWorkspace songId={baseSong.id} search={search} />);
 		rerenderWorkspace();
 
-		await waitFor(() => {
-			expect(updateWorkspaceStateMock).toHaveBeenCalledWith(
-				baseSong.id,
-				expect.objectContaining({ selectedFileId: "file-1" }),
-			);
-		});
-
 		updateWorkspaceStateMock.mockClear();
 		navigateMock.mockClear();
 
 		fireEvent.click(screen.getByRole("button", { name: "Select file-2" }));
-
-		await waitFor(() => {
-			expect(screen.getByText("Mix B:true")).toBeTruthy();
-			expect(screen.getByText("Mix A:false")).toBeTruthy();
-		});
 
 		await waitFor(() => {
 			expect(navigateMock).toHaveBeenCalled();
@@ -376,22 +357,15 @@ describe("SongWorkspace", () => {
 		};
 		expect(navigateArg?.replace).toBe(true);
 		const nextSearch = navigateArg.search(search);
+		rerender(<SongWorkspace songId={baseSong.id} search={nextSearch} />);
+		await waitFor(() => {
+			expect(screen.getByText("Mix B:true")).toBeTruthy();
+			expect(screen.getByText("Mix A:false")).toBeTruthy();
+		});
 		expect(nextSearch.fileId).toBe("file-2");
 		expect(nextSearch.annotationId).toBeUndefined();
 		expect(nextSearch.timeMs).toBeUndefined();
 		expect(nextSearch.autoplay).toBe(false);
-
-		const objectPatches = updateWorkspaceStateMock.mock.calls
-			.map((call) => call[1])
-			.filter(
-				(patch): patch is { selectedFileId?: string } =>
-					typeof patch === "object" &&
-					patch !== null &&
-					"selectedFileId" in patch,
-			);
-		expect(
-			objectPatches.some((patch) => patch.selectedFileId === "file-1"),
-		).toBe(false);
 	});
 
 	it("deletes the selected file, falls forward to the next file, and clears stale playback search params", async () => {
@@ -402,8 +376,6 @@ describe("SongWorkspace", () => {
 		];
 		currentWorkspace = {
 			playheadMsByFileId: {},
-			selectedFileId: "file-2",
-			activeAnnotationId: "annotation-2",
 			inspectorRatio: 0.56,
 			lastVisitedAt: null,
 		};
@@ -431,12 +403,6 @@ describe("SongWorkspace", () => {
 		await waitFor(() => {
 			expect(confirmSpy).toHaveBeenCalledWith("Delete this file?");
 			expect(deleteAudioFile).toHaveBeenCalledWith("file-2");
-		});
-		await waitFor(() => {
-			expect(updateWorkspaceStateMock).toHaveBeenCalledWith(baseSong.id, {
-				selectedFileId: "file-3",
-				activeAnnotationId: undefined,
-			});
 		});
 		await waitFor(() => {
 			expect(navigateMock).toHaveBeenCalled();
@@ -472,7 +438,6 @@ describe("SongWorkspace", () => {
 		];
 		currentWorkspace = {
 			playheadMsByFileId: {},
-			selectedFileId: "file-2",
 			inspectorRatio: 0.56,
 			lastVisitedAt: null,
 		};
@@ -481,7 +446,12 @@ describe("SongWorkspace", () => {
 			vi.fn(() => true),
 		);
 
-		render(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+		render(
+			<SongWorkspace
+				songId={baseSong.id}
+				search={{ fileId: "file-2", autoplay: false }}
+			/>,
+		);
 
 		deleteAudioFile.mockClear();
 		updateWorkspaceStateMock.mockClear();
@@ -491,10 +461,6 @@ describe("SongWorkspace", () => {
 
 		await waitFor(() => {
 			expect(deleteAudioFile).toHaveBeenCalledWith("file-2");
-			expect(updateWorkspaceStateMock).toHaveBeenCalledWith(baseSong.id, {
-				selectedFileId: "file-1",
-				activeAnnotationId: undefined,
-			});
 		});
 	});
 
@@ -502,7 +468,6 @@ describe("SongWorkspace", () => {
 		currentAudioFiles = [createAudioFile({ id: "file-1", title: "Only Mix" })];
 		currentWorkspace = {
 			playheadMsByFileId: {},
-			selectedFileId: "file-1",
 			inspectorRatio: 0.56,
 			lastVisitedAt: null,
 		};
@@ -526,10 +491,6 @@ describe("SongWorkspace", () => {
 
 		await waitFor(() => {
 			expect(deleteAudioFile).toHaveBeenCalledWith("file-1");
-			expect(updateWorkspaceStateMock).toHaveBeenCalledWith(baseSong.id, {
-				selectedFileId: undefined,
-				activeAnnotationId: undefined,
-			});
 		});
 
 		const navigateArg = navigateMock.mock.calls.find(
@@ -557,7 +518,6 @@ describe("SongWorkspace", () => {
 		currentAudioFiles = [createAudioFile({ id: "file-1", title: "Mix A" })];
 		currentWorkspace = {
 			playheadMsByFileId: {},
-			selectedFileId: "file-1",
 			inspectorRatio: 0.56,
 			lastVisitedAt: null,
 		};
@@ -661,7 +621,7 @@ describe("SongWorkspace", () => {
 			<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />,
 		);
 
-		updateWorkspaceStateMock.mockClear();
+		navigateMock.mockClear();
 		currentPlayback = {
 			...currentPlayback,
 			currentTimeByFileId: {
@@ -673,10 +633,14 @@ describe("SongWorkspace", () => {
 		);
 
 		await waitFor(() => {
-			expect(updateWorkspaceStateMock).toHaveBeenCalledWith(baseSong.id, {
-				activeAnnotationId: "annotation-1",
-			});
+			expect(navigateMock).toHaveBeenCalled();
 		});
+		const navigateArg = navigateMock.mock.calls.at(-1)?.[0] as {
+			search: (prev: SongRouteSearch) => SongRouteSearch;
+		};
+		const nextSearch = navigateArg.search({ autoplay: false });
+		expect(nextSearch.fileId).toBe("file-1");
+		expect(nextSearch.annotationId).toBe("annotation-1");
 	});
 
 	it("activates the crossed marker when playback moves backward across it", async () => {
@@ -719,7 +683,7 @@ describe("SongWorkspace", () => {
 			<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />,
 		);
 
-		updateWorkspaceStateMock.mockClear();
+		navigateMock.mockClear();
 		currentPlayback = {
 			...currentPlayback,
 			currentTimeByFileId: {
@@ -731,10 +695,14 @@ describe("SongWorkspace", () => {
 		);
 
 		await waitFor(() => {
-			expect(updateWorkspaceStateMock).toHaveBeenCalledWith(baseSong.id, {
-				activeAnnotationId: "annotation-2",
-			});
+			expect(navigateMock).toHaveBeenCalled();
 		});
+		const navigateArg = navigateMock.mock.calls.at(-1)?.[0] as {
+			search: (prev: SongRouteSearch) => SongRouteSearch;
+		};
+		const nextSearch = navigateArg.search({ autoplay: false });
+		expect(nextSearch.fileId).toBe("file-1");
+		expect(nextSearch.annotationId).toBe("annotation-2");
 	});
 
 	it("resets the crossing baseline when the active playback file changes", async () => {
@@ -769,7 +737,7 @@ describe("SongWorkspace", () => {
 			<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />,
 		);
 
-		updateWorkspaceStateMock.mockClear();
+		navigateMock.mockClear();
 		currentPlayback = {
 			activeFileId: "file-2",
 			isPlaying: true,
@@ -783,9 +751,7 @@ describe("SongWorkspace", () => {
 		);
 
 		await waitFor(() => {
-			expect(updateWorkspaceStateMock).not.toHaveBeenCalledWith(baseSong.id, {
-				activeAnnotationId: "annotation-2",
-			});
+			expect(navigateMock).not.toHaveBeenCalled();
 		});
 	});
 
@@ -796,7 +762,6 @@ describe("SongWorkspace", () => {
 		];
 		currentWorkspace = {
 			playheadMsByFileId: {},
-			selectedFileId: "file-2",
 			inspectorRatio: 0.56,
 			lastVisitedAt: null,
 		};
@@ -824,13 +789,16 @@ describe("SongWorkspace", () => {
 		};
 
 		const { rerender } = render(
-			<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />,
+			<SongWorkspace
+				songId={baseSong.id}
+				search={{ fileId: "file-2", autoplay: false }}
+			/>,
 		);
 
 		expect(screen.getByText("Mix A:false")).toBeTruthy();
 		expect(screen.getByText("Mix B:true")).toBeTruthy();
 
-		updateWorkspaceStateMock.mockClear();
+		navigateMock.mockClear();
 		currentPlayback = {
 			...currentPlayback,
 			currentTimeByFileId: {
@@ -838,13 +806,14 @@ describe("SongWorkspace", () => {
 			},
 		};
 		rerender(
-			<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />,
+			<SongWorkspace
+				songId={baseSong.id}
+				search={{ fileId: "file-2", autoplay: false }}
+			/>,
 		);
 
 		await waitFor(() => {
-			expect(updateWorkspaceStateMock).toHaveBeenCalledWith(baseSong.id, {
-				activeAnnotationId: "annotation-1",
-			});
+			expect(navigateMock).not.toHaveBeenCalled();
 		});
 		expect(screen.getByText("Mix A:false")).toBeTruthy();
 		expect(screen.getByText("Mix B:true")).toBeTruthy();

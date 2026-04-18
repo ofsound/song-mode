@@ -1,11 +1,7 @@
-import {
-	hasRichTextContent,
-	normalizeRichText,
-} from "#/lib/song-mode/rich-text";
+import { normalizeRichText } from "#/lib/song-mode/rich-text";
 import {
 	type AudioFileRecord,
 	createEmptySettings,
-	type RichTextDoc,
 	type SongModeSnapshot,
 } from "#/lib/song-mode/types";
 import {
@@ -23,41 +19,28 @@ export const EMPTY_SNAPSHOT: SongModeSnapshot = {
 	settings: createEmptySettings(),
 };
 
-type LegacyAudioFileRecord = AudioFileRecord & {
-	masteringNote?: RichTextDoc | null;
-};
-
 export async function normalizeLoadedSnapshot(
 	loadedSnapshot: SongModeSnapshot,
 ) {
 	const audioFilesToPersist: AudioFileRecord[] = [];
 	const audioFiles = await Promise.all(
 		loadedSnapshot.audioFiles.map(async (audioFile) => {
-			const legacyAudioFile = audioFile as LegacyAudioFileRecord;
-			const { masteringNote, ...restAudioFile } = legacyAudioFile;
 			const normalizedAudioFile: AudioFileRecord = {
-				...restAudioFile,
-				notes: mergeAudioFileNotes(legacyAudioFile.notes, masteringNote),
+				...audioFile,
+				notes: normalizeRichText(audioFile.notes),
 				volumeDb: normalizeVolumeDb(audioFile.volumeDb),
 				waveform: normalizeWaveformData(
 					audioFile.waveform,
 					audioFile.durationMs,
 				),
 			};
-			const hadLegacyMasteringNote = typeof masteringNote !== "undefined";
 
 			if (hasRenderableWaveform(audioFile.waveform)) {
-				if (hadLegacyMasteringNote) {
-					audioFilesToPersist.push(normalizedAudioFile);
-				}
 				return normalizedAudioFile;
 			}
 
 			const blob = loadedSnapshot.blobsByAudioId[audioFile.id];
 			if (!(blob instanceof Blob)) {
-				if (hadLegacyMasteringNote) {
-					audioFilesToPersist.push(normalizedAudioFile);
-				}
 				return normalizedAudioFile;
 			}
 
@@ -97,29 +80,5 @@ export async function normalizeLoadedSnapshot(
 			})),
 			settings: loadedSnapshot.settings ?? createEmptySettings(),
 		},
-	};
-}
-
-function mergeAudioFileNotes(
-	notes?: RichTextDoc | null,
-	legacyMasteringNote?: RichTextDoc | null,
-): RichTextDoc {
-	const normalizedNotes = normalizeRichText(notes);
-	const normalizedLegacyMastering = normalizeRichText(legacyMasteringNote);
-
-	if (!hasRichTextContent(normalizedNotes)) {
-		return normalizedLegacyMastering;
-	}
-
-	if (!hasRichTextContent(normalizedLegacyMastering)) {
-		return normalizedNotes;
-	}
-
-	return {
-		type: "doc",
-		content: [
-			...(normalizedNotes.content ?? []),
-			...(normalizedLegacyMastering.content ?? []),
-		],
 	};
 }

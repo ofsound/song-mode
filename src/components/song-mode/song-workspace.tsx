@@ -55,15 +55,10 @@ export function SongWorkspace({
 	const song = getSongById(songId);
 	const audioFiles = getSongAudioFiles(songId);
 	const workspace = getWorkspaceState(songId);
-	const workspaceRef = useRef(workspace);
-	workspaceRef.current = workspace;
-	const audioFileListKey = audioFiles
-		.map((audioFile) => audioFile.id)
-		.join("|");
 	const selectedFileId =
-		(workspace.selectedFileId &&
-		audioFiles.some((audioFile) => audioFile.id === workspace.selectedFileId)
-			? workspace.selectedFileId
+		(search.fileId &&
+		audioFiles.some((audioFile) => audioFile.id === search.fileId)
+			? search.fileId
 			: audioFiles[0]?.id) ?? undefined;
 	const selectedFile = audioFiles.find(
 		(audioFile) => audioFile.id === selectedFileId,
@@ -71,10 +66,17 @@ export function SongWorkspace({
 	const selectedAnnotations = selectedFile
 		? getAnnotationsForFile(selectedFile.id)
 		: [];
+	const activeAnnotationId =
+		search.annotationId &&
+		selectedAnnotations.some(
+			(annotation) => annotation.id === search.annotationId,
+		)
+			? search.annotationId
+			: undefined;
 	const activeAnnotation =
 		selectedAnnotations.find(
-			(annotation) => annotation.id === workspace.activeAnnotationId,
-		) ?? selectedAnnotations[0];
+			(annotation) => annotation.id === activeAnnotationId,
+		) ?? undefined;
 
 	const [isUploadOpen, setIsUploadOpen] = useState(false);
 	const [uploading, setUploading] = useState(false);
@@ -153,44 +155,31 @@ export function SongWorkspace({
 		}
 	}, [isUploadOpen]);
 
-	// Sync route search → workspace when the URL (or loaded files) change — not
-	// when workspace alone changes. Otherwise a stale ?fileId=… keeps winning
-	// over an in-UI waveform selection on every workspace update.
 	useEffect(() => {
-		if (!ready || !audioFileListKey) {
+		if (!ready) {
 			return;
 		}
 
-		const w = workspaceRef.current;
-		const fallbackFirstFileId = audioFileListKey.split("|")[0] ?? "";
-		const nextSelectedFileId =
-			search.fileId ?? w.selectedFileId ?? fallbackFirstFileId;
-		const nextActiveAnnotationId =
-			search.annotationId ??
-			(w.activeAnnotationId &&
-			getAnnotationsForFile(nextSelectedFileId ?? "").some(
-				(annotation) => annotation.id === w.activeAnnotationId,
-			)
-				? w.activeAnnotationId
-				: undefined);
+		if (search.fileId && search.fileId !== selectedFileId) {
+			patchRouteSelection({
+				fileId: selectedFileId,
+			});
+			return;
+		}
 
-		if (
-			nextSelectedFileId !== w.selectedFileId ||
-			nextActiveAnnotationId !== w.activeAnnotationId
-		) {
-			void updateWorkspaceState(songId, {
-				selectedFileId: nextSelectedFileId,
-				activeAnnotationId: nextActiveAnnotationId,
+		if (search.annotationId && search.annotationId !== activeAnnotationId) {
+			patchRouteSelection({
+				fileId: selectedFileId,
+				annotationId: activeAnnotationId,
 			});
 		}
 	}, [
-		audioFileListKey,
-		getAnnotationsForFile,
+		activeAnnotationId,
+		patchRouteSelection,
 		ready,
 		search.annotationId,
 		search.fileId,
-		songId,
-		updateWorkspaceState,
+		selectedFileId,
 	]);
 
 	useEffect(() => {
@@ -258,20 +247,26 @@ export function SongWorkspace({
 			timeMs: nextTimeMs,
 		};
 
-		if (!crossed || workspace.activeAnnotationId === crossed.id) {
+		if (
+			!crossed ||
+			activeFileId !== selectedFileId ||
+			search.annotationId === crossed.id
+		) {
 			return;
 		}
 
-		void updateWorkspaceState(songId, {
-			activeAnnotationId: crossed.id,
+		patchRouteSelection({
+			fileId: activeFileId,
+			annotationId: crossed.id,
+			clearPlaybackParams: true,
 		});
 	}, [
 		getAnnotationsForFile,
+		patchRouteSelection,
 		playback.activeFileId,
 		playback.currentTimeByFileId,
-		songId,
-		updateWorkspaceState,
-		workspace.activeAnnotationId,
+		search.annotationId,
+		selectedFileId,
 	]);
 
 	const currentTimeMs =
@@ -315,8 +310,6 @@ export function SongWorkspace({
 		const handle = window.setTimeout(() => {
 			void updateWorkspaceState(songId, (current) => ({
 				...current,
-				selectedFileId,
-				activeAnnotationId: activeAnnotation?.id,
 				playheadMsByFileId: {
 					...current.playheadMsByFileId,
 					[selectedFileId]: persistedSecond * 1000,
@@ -327,13 +320,7 @@ export function SongWorkspace({
 		return () => {
 			window.clearTimeout(handle);
 		};
-	}, [
-		activeAnnotation?.id,
-		persistedSecond,
-		selectedFileId,
-		songId,
-		updateWorkspaceState,
-	]);
+	}, [persistedSecond, selectedFileId, songId, updateWorkspaceState]);
 
 	useEffect(() => {
 		if (!isUploadOpen) {
@@ -357,7 +344,6 @@ export function SongWorkspace({
 		selectedFileId,
 		songId,
 		togglePlayback,
-		updateWorkspaceState,
 	});
 
 	async function openTarget(target: SongLinkTarget) {
@@ -373,13 +359,6 @@ export function SongWorkspace({
 		}
 
 		const nextFileId = target.fileId ?? selectedFileId;
-		if (nextFileId) {
-			await updateWorkspaceState(songId, {
-				selectedFileId: nextFileId,
-				activeAnnotationId: target.annotationId,
-			});
-		}
-
 		if (nextFileId && typeof target.timeMs === "number") {
 			await seekFile(nextFileId, target.timeMs, target.autoplay ?? true);
 		}
@@ -398,10 +377,6 @@ export function SongWorkspace({
 		input: Parameters<typeof createAnnotation>[0],
 	) {
 		const annotation = await createAnnotation(input);
-		await updateWorkspaceState(songId, {
-			selectedFileId: fileId,
-			activeAnnotationId: annotation.id,
-		});
 		patchRouteSelection({
 			fileId,
 			annotationId: annotation.id,
@@ -428,10 +403,6 @@ export function SongWorkspace({
 		setDeletingFileId(selectedFileId);
 		try {
 			await deleteAudioFile(selectedFileId);
-			await updateWorkspaceState(songId, {
-				selectedFileId: fallbackFileId,
-				activeAnnotationId: undefined,
-			});
 			patchRouteSelection({
 				fileId: fallbackFileId,
 				clearPlaybackParams: true,
@@ -457,10 +428,6 @@ export function SongWorkspace({
 				title: uploadTitle,
 				sessionDate: uploadSessionDate,
 				notes: plainTextToRichText(uploadNotes),
-			});
-			await updateWorkspaceState(songId, {
-				selectedFileId: audioFile.id,
-				activeAnnotationId: undefined,
 			});
 			patchRouteSelection({
 				fileId: audioFile.id,
@@ -536,7 +503,7 @@ export function SongWorkspace({
 				aria-hidden={isUploadOpen}
 			>
 				<section className="song-workspace-main-grid grid gap-5 xl:min-h-0 xl:flex-1 xl:overflow-hidden">
-					<div className="song-workspace-waveform-column min-w-0 space-y-4 xl:min-h-0">
+					<div className="song-workspace-waveform-column flex min-w-0 flex-col gap-4 xl:min-h-0">
 						{audioFiles.length === 0 ? (
 							<div className="border border-dashed border-[var(--color-border-subtle)] px-6 py-10 text-sm leading-7 text-[var(--color-text-muted)]">
 								Add audio to start the stacked waveform review. Each file gets
@@ -565,22 +532,14 @@ export function SongWorkspace({
 											playback.isPlaying
 										}
 										isSelected={selectedFileId === audioFile.id}
-										activeAnnotationId={workspace.activeAnnotationId}
+										activeAnnotationId={activeAnnotationId}
 										onSelectFile={(fileId) => {
-											void updateWorkspaceState(songId, {
-												selectedFileId: fileId,
-												activeAnnotationId: undefined,
-											});
 											patchRouteSelection({
 												fileId,
 												clearPlaybackParams: true,
 											});
 										}}
 										onSelectAnnotation={(annotationId) => {
-											void updateWorkspaceState(songId, {
-												selectedFileId: audioFile.id,
-												activeAnnotationId: annotationId,
-											});
 											patchRouteSelection({
 												fileId: audioFile.id,
 												annotationId,
@@ -664,10 +623,6 @@ export function SongWorkspace({
 										return;
 									}
 
-									void updateWorkspaceState(songId, {
-										selectedFileId,
-										activeAnnotationId: annotationId,
-									});
 									patchRouteSelection({
 										fileId: selectedFileId,
 										annotationId,

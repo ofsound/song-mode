@@ -9,7 +9,6 @@ interface UseWaveformCanvasOptions {
 	isSelected: boolean;
 	mode: "seek" | "point" | "range";
 	rangeAnchorMs: number | null;
-	theme: string;
 }
 
 export function useWaveformCanvas({
@@ -20,12 +19,10 @@ export function useWaveformCanvas({
 	isSelected,
 	mode,
 	rangeAnchorMs,
-	theme,
 }: UseWaveformCanvasOptions) {
 	useEffect(() => {
 		const canvas = canvasRef.current;
 		const surface = surfaceRef.current;
-		void theme;
 		if (!canvas || !surface) {
 			return;
 		}
@@ -140,7 +137,6 @@ export function useWaveformCanvas({
 		mode,
 		rangeAnchorMs,
 		surfaceRef,
-		theme,
 		waveform.durationMs,
 		waveform.peaks,
 	]);

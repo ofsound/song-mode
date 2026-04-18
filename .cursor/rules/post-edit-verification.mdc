@@ -7,11 +7,11 @@ alwaysApply: true
 
 After editing any `.ts` or `.tsx` file in `src/`, or changing **`package.json`** / **[`knip.json`](knip.json)** / **[`vite.config.ts`](vite.config.ts)** / **[`vitest.config.ts`](vitest.config.ts)** / **[`tsconfig.json`](tsconfig.json)**:
 
-1. Run **`pnpm verify`** — runs, in order:
-   - **`pnpm check`** — Biome (`biome check`: format + lint)
-   - **`pnpm typecheck`** — TypeScript (`tsc --noEmit` using [`tsconfig.json`](tsconfig.json))
-   - **`pnpm test`** — Vitest
-   - **`pnpm knip`** — unused dependencies, unused exports, unreachable files ([`knip.json`](knip.json) maps `#/*` to `./src/*` for path-alias resolution)
+1. Run **`npm run verify`** — runs, in order:
+   - **`npm run check`** — Biome (`biome check`: format + lint)
+   - **`npm run typecheck`** — TypeScript (`tsc --noEmit` using [`tsconfig.json`](tsconfig.json))
+   - **`npm test`** — Vitest
+   - **`npm run knip`** — unused dependencies, unused exports, unreachable files ([`knip.json`](knip.json) maps `#/*` to `./src/*` for path-alias resolution)
 
 2. Fix any reported issues — do not consider the task complete until **`verify`** passes.
 

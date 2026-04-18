@@ -23,7 +23,6 @@ import {
 	MIN_VOLUME_DB,
 	normalizeWaveformData,
 } from "#/lib/song-mode/waveform";
-import { useTheme } from "#/providers/theme-provider";
 import { useWaveformAudioGraph } from "./use-waveform-audio-graph";
 import { useWaveformCanvas } from "./use-waveform-canvas";
 
@@ -86,7 +85,6 @@ export function WaveformCard({
 	onDragEnd,
 	onDrop,
 }: WaveformCardProps) {
-	const { theme } = useTheme();
 	const [objectUrl, setObjectUrl] = useState<string | null>(null);
 	const [mode, setMode] = useState<WaveformMode>("seek");
 	const [rangeAnchorMs, setRangeAnchorMs] = useState<number | null>(null);
@@ -186,7 +184,6 @@ export function WaveformCard({
 		mode,
 		rangeAnchorMs,
 		surfaceRef,
-		theme,
 		waveform,
 	});
 

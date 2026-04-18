@@ -4,7 +4,7 @@
 
 - **Scan:** Read all `.cursor/rules/*.mdc` before first output.
 - **Stack:** This repo is **React 19 + TanStack Router / TanStack Start** (no Svelte). Ignore Svelte-specific MCP tools and skills unless the codebase gains `.svelte` files.
-- **Validation:** After substantive edits, run the full gate: **`pnpm verify`** — Biome **`check`**, **`typecheck`** (`tsc --noEmit`), Vitest **`test`**, then **Knip**. Equivalent: `pnpm check && pnpm typecheck && pnpm test && pnpm knip`. Do not block on tools that do not apply here (e.g. `svelte-autofixer`). **Knip** enforces lean `package.json` dependencies and reachable exports/files—fix unused dependency/export findings or justify with Knip config/JSDoc `@public` per [Knip docs](https://knip.dev).
+- **Validation:** After substantive edits, run the full gate: **`npm run verify`** — Biome **`check`**, **`typecheck`** (`tsc --noEmit`), Vitest **`test`**, then **Knip**. Equivalent: `npm run check && npm run typecheck && npm test && npm run knip`. Do not block on tools that do not apply here (e.g. `svelte-autofixer`). **Knip** enforces lean `package.json` dependencies and reachable exports/files—fix unused dependency/export findings or justify with Knip config/JSDoc `@public` per [Knip docs](https://knip.dev).
 
 ---
 
@@ -33,10 +33,10 @@
 
 ## 3. Tech Stack Specifics
 
-- **Package manager:** Use **pnpm** (see `package.json`).
+- **Package manager:** Use **npm** (see `package.json`).
 - **React 19 + TypeScript:** Functional components and hooks; follow patterns in `src/components/` and `src/providers/`.
 - **TanStack Router / Start:** File-based routes under `src/routes/`. Use `createFileRoute`, `Link`, `useNavigate`, and patterns in `src/routes/__root.tsx` and `src/router.tsx`. Treat `src/routeTree.gen.ts` as generated—do not hand-edit unless the tooling workflow requires it.
-- **Imports:** Prefer **`#/...`** for app code (`#/lib/...`, `#/components/...`). `tsconfig` also defines `@/*`; new code should stay consistent with existing `#/` usage.
+- **Imports:** Prefer **`#/...`** for app code (`#/lib/...`, `#/components/...`).
 - **Styling:** Tailwind utility classes plus semantic tokens in `src/styles.css`. Follow the Tailwind Cursor rule (theme colors, `gap-*` not `space-*`, etc.).
 - **Persistence:** Local **IndexedDB** via `idb` in `src/lib/song-mode/db.ts`—not Supabase unless explicitly added to the project.
 - **Rich text:** **TipTap** (`@tiptap/*`); extend in line with `src/components/song-mode/rich-text-editor.tsx`.

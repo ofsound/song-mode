@@ -88,7 +88,7 @@ export function GlobalSearch() {
 							No local matches yet.
 						</div>
 					) : (
-						<div className="space-y-2">
+						<div className="flex flex-col gap-2">
 							{results.map((result) => (
 								<button
 									key={result.id}

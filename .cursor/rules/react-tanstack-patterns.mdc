@@ -27,5 +27,5 @@ alwaysApply: false
 
 ## Knip (dead code & dependencies)
 
-- Run **`pnpm knip`** (or **`pnpm verify`**) after dependency or export changes. Vite + Vitest plugins supply entry patterns; [`knip.json`](knip.json) aligns **`#/*`** with `./src/*` so alias imports resolve.
+- Run **`npm run knip`** (or **`npm run verify`**) after dependency or export changes. Vite + Vitest plugins supply entry patterns; [`knip.json`](knip.json) aligns **`#/*`** with `./src/*` so alias imports resolve.
 - Prefer **fixing** unused exports and dependencies over suppressing. Use **`/** @public */`** on intentional library exports when Knip should ignore them (see [Knip JSDoc tags](https://knip.dev/reference/jsdoc-tsdoc-tags)).

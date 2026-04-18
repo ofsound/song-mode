@@ -11,7 +11,6 @@ alwaysApply: true
 ## Import aliases
 
 - **`#/*`** maps to `src/*` (primary style for new code—see `package.json` `imports` and `tsconfig.json` paths).
-- **`@/*`** is also defined in `tsconfig.json`; prefer **`#/`** in new imports to match the rest of the repo.
 
 ## Import order
 

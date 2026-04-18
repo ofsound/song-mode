@@ -8,10 +8,7 @@ import {
 	waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-	EMPTY_RICH_TEXT,
-	plainTextToRichText,
-} from "#/lib/song-mode/rich-text";
+import { EMPTY_RICH_TEXT } from "#/lib/song-mode/rich-text";
 import { createEmptySettings } from "#/lib/song-mode/types";
 import { SongModeProvider, useSongMode } from "./song-mode-provider";
 
@@ -79,7 +76,7 @@ function MutationProbe() {
 				{ready
 					? JSON.stringify({
 							title: song?.title,
-							selectedFileId: workspace.selectedFileId,
+							playheadMs: workspace.playheadMsByFileId["file-2"] ?? null,
 						})
 					: "loading"}
 			</div>
@@ -92,7 +89,13 @@ function MutationProbe() {
 			<button
 				type="button"
 				onClick={() =>
-					void updateWorkspaceState("song-1", { selectedFileId: "file-2" })
+					void updateWorkspaceState("song-1", (current) => ({
+						...current,
+						playheadMsByFileId: {
+							...current.playheadMsByFileId,
+							"file-2": 123000,
+						},
+					}))
 				}
 			>
 				Update workspace
@@ -166,46 +169,6 @@ describe("SongModeProvider", () => {
 		});
 	});
 
-	it("merges legacy mastering notes into the remaining notes field on hydration", async () => {
-		loadSnapshotMock.mockResolvedValue({
-			songs: [],
-			audioFiles: [
-				{
-					id: "file-1",
-					songId: "song-1",
-					title: "Legacy mix",
-					notes: plainTextToRichText("Mix note"),
-					masteringNote: plainTextToRichText("Mastering reminder"),
-					durationMs: 180000,
-					waveform: {
-						peaks: [0.2, 0.6, 0.4],
-						peakCount: 3,
-						durationMs: 180000,
-						sampleRate: 44100,
-					},
-					createdAt: "2026-04-16T00:00:00.000Z",
-					updatedAt: "2026-04-16T00:00:00.000Z",
-				},
-			],
-			annotations: [],
-			blobsByAudioId: {},
-			settings: createEmptySettings(),
-		});
-
-		render(
-			<SongModeProvider>
-				<Probe />
-			</SongModeProvider>,
-		);
-
-		await waitFor(() => {
-			const stateText = screen.getByTestId("provider-state").textContent ?? "";
-			expect(stateText).toContain("Mix note");
-			expect(stateText).toContain("Mastering reminder");
-			expect(stateText).not.toContain("masteringNote");
-		});
-	});
-
 	it("keeps overlapping mutations merged while persistence finishes in order", async () => {
 		const saveSongDeferred = createDeferred();
 		loadSnapshotMock.mockResolvedValue({
@@ -262,7 +225,7 @@ describe("SongModeProvider", () => {
 
 		await waitFor(() => {
 			expect(screen.getByTestId("mutation-state").textContent).toContain(
-				'"selectedFileId":"file-2"',
+				'"playheadMs":123000',
 			);
 		});
 
@@ -279,7 +242,7 @@ describe("SongModeProvider", () => {
 			'"title":"Updated title"',
 		);
 		expect(screen.getByTestId("mutation-state").textContent).toContain(
-			'"selectedFileId":"file-2"',
+			'"playheadMs":123000',
 		);
 	});
 });

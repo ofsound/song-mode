@@ -65,8 +65,6 @@ export interface Annotation {
 }
 
 export interface WorkspaceState {
-	selectedFileId?: string;
-	activeAnnotationId?: string;
 	playheadMsByFileId: Record<string, number>;
 	inspectorRatio: number;
 	lastVisitedAt: string | null;

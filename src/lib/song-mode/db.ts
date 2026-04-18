@@ -1,8 +1,10 @@
 import { type DBSchema, type IDBPDatabase, openDB } from "idb";
+import { hasRichTextContent, normalizeRichText } from "./rich-text";
 import {
 	type Annotation,
 	type AudioFileRecord,
 	createEmptySettings,
+	type RichTextDoc,
 	type Song,
 	type SongModeSettings,
 	type SongModeSnapshot,
@@ -37,14 +39,18 @@ interface SongModeDB extends DBSchema {
 }
 
 const DB_NAME = "song-mode";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const SETTINGS_KEY = "app-settings";
 
 let dbPromise: Promise<IDBPDatabase<SongModeDB>> | null = null;
 
+type LegacyAudioFileRecord = AudioFileRecord & {
+	masteringNote?: RichTextDoc | null;
+};
+
 function getDb(): Promise<IDBPDatabase<SongModeDB>> {
 	dbPromise ??= openDB<SongModeDB>(DB_NAME, DB_VERSION, {
-		upgrade(database) {
+		async upgrade(database, oldVersion, _newVersion, transaction) {
 			if (!database.objectStoreNames.contains("songs")) {
 				database.createObjectStore("songs", { keyPath: "id" });
 			}
@@ -70,6 +76,26 @@ function getDb(): Promise<IDBPDatabase<SongModeDB>> {
 
 			if (!database.objectStoreNames.contains("settings")) {
 				database.createObjectStore("settings");
+			}
+
+			if (oldVersion < 2) {
+				const audioFilesStore = transaction.objectStore("audioFiles");
+				const audioFiles = await audioFilesStore.getAll();
+
+				await Promise.all(
+					audioFiles.map(async (audioFile) => {
+						const legacyAudioFile = audioFile as LegacyAudioFileRecord;
+						if (typeof legacyAudioFile.masteringNote === "undefined") {
+							return;
+						}
+
+						const { masteringNote, ...restAudioFile } = legacyAudioFile;
+						await audioFilesStore.put({
+							...restAudioFile,
+							notes: mergeAudioFileNotes(legacyAudioFile.notes, masteringNote),
+						});
+					}),
+				);
 			}
 		},
 	});
@@ -153,4 +179,28 @@ export async function deleteAudioBlob(audioFileId: string): Promise<void> {
 export async function saveSettings(settings: SongModeSettings): Promise<void> {
 	const db = await getDb();
 	await db.put("settings", settings, SETTINGS_KEY);
+}
+
+function mergeAudioFileNotes(
+	notes?: RichTextDoc | null,
+	legacyMasteringNote?: RichTextDoc | null,
+): RichTextDoc {
+	const normalizedNotes = normalizeRichText(notes);
+	const normalizedLegacyMastering = normalizeRichText(legacyMasteringNote);
+
+	if (!hasRichTextContent(normalizedNotes)) {
+		return normalizedLegacyMastering;
+	}
+
+	if (!hasRichTextContent(normalizedLegacyMastering)) {
+		return normalizedNotes;
+	}
+
+	return {
+		type: "doc",
+		content: [
+			...(normalizedNotes.content ?? []),
+			...(normalizedLegacyMastering.content ?? []),
+		],
+	};
 }

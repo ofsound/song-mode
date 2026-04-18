@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { isEditableElement } from "#/lib/song-mode/dom";
-import type { Annotation, WorkspaceState } from "#/lib/song-mode/types";
+import type { Annotation } from "#/lib/song-mode/types";
 
 interface UseSongWorkspaceShortcutsOptions {
 	isUploadOpen: boolean;
@@ -14,12 +14,6 @@ interface UseSongWorkspaceShortcutsOptions {
 		audioFileId: string,
 		direction: "previous" | "next",
 	) => Promise<Annotation | null>;
-	updateWorkspaceState: (
-		songId: string,
-		patch:
-			| Partial<WorkspaceState>
-			| ((current: WorkspaceState) => WorkspaceState),
-	) => Promise<void>;
 	patchRouteSelection: (options: {
 		fileId?: string;
 		annotationId?: string;
@@ -35,7 +29,6 @@ export function useSongWorkspaceShortcuts({
 	togglePlayback,
 	seekActiveBy,
 	jumpBetweenAnnotations,
-	updateWorkspaceState,
 	patchRouteSelection,
 }: UseSongWorkspaceShortcutsOptions) {
 	useEffect(() => {
@@ -83,9 +76,6 @@ export function useSongWorkspaceShortcuts({
 							return;
 						}
 
-						void updateWorkspaceState(songId, {
-							activeAnnotationId: annotation.id,
-						});
 						patchRouteSelection({
 							fileId: selectedFileId,
 							annotationId: annotation.id,
@@ -103,9 +93,6 @@ export function useSongWorkspaceShortcuts({
 							return;
 						}
 
-						void updateWorkspaceState(songId, {
-							activeAnnotationId: annotation.id,
-						});
 						patchRouteSelection({
 							fileId: selectedFileId,
 							annotationId: annotation.id,
@@ -140,6 +127,5 @@ export function useSongWorkspaceShortcuts({
 		selectedFileId,
 		songId,
 		togglePlayback,
-		updateWorkspaceState,
 	]);
 }
