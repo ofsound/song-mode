@@ -1,13 +1,8 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronLeft } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { isoDateInLocalCalendar } from "#/lib/song-mode/dates";
-import { targetToRouteSearch } from "#/lib/song-mode/links";
-import { findCrossedAnnotation } from "#/lib/song-mode/playback";
-import { plainTextToRichText } from "#/lib/song-mode/rich-text";
 import type { SongLinkTarget, SongRouteSearch } from "#/lib/song-mode/types";
-import { normalizeVolumeDb } from "#/lib/song-mode/waveform";
 import { useSongMode } from "#/providers/song-mode-provider";
 import { useSongRouteHeaderSlot } from "./app-chrome";
 import { InspectorPane } from "./inspector-pane";
@@ -15,7 +10,9 @@ import { RichTextEditor, type RichTextToolbarAction } from "./rich-text-editor";
 import { SongWorkspaceHeaderControls } from "./song-workspace-header-controls";
 import { useSongWorkspaceShortcuts } from "./song-workspace-shortcuts";
 import { SongWorkspaceUploadDialog } from "./song-workspace-upload-dialog";
-import { WaveformCard } from "./waveform-card";
+import { SongWorkspaceWaveformList } from "./song-workspace-waveform-list";
+import { useSongWorkspaceRouting } from "./use-song-workspace-routing";
+import { useSongWorkspaceUpload } from "./use-song-workspace-upload";
 
 export function SongWorkspace({
 	songId,
@@ -55,151 +52,48 @@ export function SongWorkspace({
 	const song = getSongById(songId);
 	const audioFiles = getSongAudioFiles(songId);
 	const workspace = getWorkspaceState(songId);
-	const selectedFileId =
-		(search.fileId &&
-		audioFiles.some((audioFile) => audioFile.id === search.fileId)
-			? search.fileId
-			: audioFiles[0]?.id) ?? undefined;
-	const selectedFile = audioFiles.find(
-		(audioFile) => audioFile.id === selectedFileId,
-	);
-	const selectedAnnotations = selectedFile
-		? getAnnotationsForFile(selectedFile.id)
-		: [];
-	const activeAnnotationId =
-		search.annotationId &&
-		selectedAnnotations.some(
-			(annotation) => annotation.id === search.annotationId,
-		)
-			? search.annotationId
-			: undefined;
-	const activeAnnotation =
-		selectedAnnotations.find(
-			(annotation) => annotation.id === activeAnnotationId,
-		) ?? undefined;
-
-	const [isUploadOpen, setIsUploadOpen] = useState(false);
-	const [uploading, setUploading] = useState(false);
-	const [uploadError, setUploadError] = useState<string | null>(null);
-	const [uploadFile, setUploadFile] = useState<File | null>(null);
-	const [uploadTitle, setUploadTitle] = useState("");
-	const [uploadNotes, setUploadNotes] = useState("");
-	const [uploadSessionDate, setUploadSessionDate] = useState(() =>
-		isoDateInLocalCalendar(),
-	);
-	const [draggingFileId, setDraggingFileId] = useState<string | null>(null);
-	const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
-
-	const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
-	const appliedSearchRef = useRef<string>("");
-	const lastPlaybackPositionRef = useRef<{
-		fileId?: string;
-		timeMs?: number;
-	}>({});
-	const rememberedSongIdRef = useRef<string | null>(null);
-
-	const patchRouteSelection = useCallback(
-		(options: {
-			fileId?: string;
-			annotationId?: string;
-			clearPlaybackParams?: boolean;
-		}) => {
-			const { fileId, annotationId, clearPlaybackParams } = options;
-			navigate({
-				to: "/songs/$songId",
-				params: { songId },
-				replace: true,
-				search: (prev: SongRouteSearch) => {
-					const next: SongRouteSearch = { ...prev };
-
-					if (fileId !== undefined) {
-						next.fileId = fileId;
-					} else {
-						delete next.fileId;
-					}
-
-					if (annotationId !== undefined) {
-						next.annotationId = annotationId;
-					} else {
-						delete next.annotationId;
-					}
-
-					if (clearPlaybackParams) {
-						delete next.timeMs;
-						next.autoplay = false;
-					}
-
-					return next;
-				},
-			});
-		},
-		[navigate, songId],
-	);
-
-	useEffect(() => {
-		if (!ready || !song) {
-			return;
-		}
-
-		if (rememberedSongIdRef.current === songId) {
-			return;
-		}
-
-		rememberedSongIdRef.current = songId;
-		void rememberSongOpened(songId);
-	}, [ready, rememberSongOpened, song, songId]);
-
-	useEffect(() => {
-		if (isUploadOpen) {
-			setUploadSessionDate(isoDateInLocalCalendar());
-		}
-	}, [isUploadOpen]);
-
-	useEffect(() => {
-		if (!ready) {
-			return;
-		}
-
-		if (search.fileId && search.fileId !== selectedFileId) {
-			patchRouteSelection({
-				fileId: selectedFileId,
-			});
-			return;
-		}
-
-		if (search.annotationId && search.annotationId !== activeAnnotationId) {
-			patchRouteSelection({
-				fileId: selectedFileId,
-				annotationId: activeAnnotationId,
-			});
-		}
-	}, [
+	const {
+		activeAnnotation,
 		activeAnnotationId,
+		openTarget,
 		patchRouteSelection,
-		ready,
-		search.annotationId,
-		search.fileId,
+		selectedAnnotations,
+		selectedFile,
 		selectedFileId,
-	]);
+	} = useSongWorkspaceRouting({
+		audioFiles,
+		getAnnotationsForFile,
+		navigate,
+		playback,
+		ready,
+		rememberSongOpened,
+		search,
+		seekFile,
+		song,
+		songId,
+	});
+	const {
+		handleUpload,
+		isUploadOpen,
+		setIsUploadOpen,
+		uploadError,
+		uploadFile,
+		uploadNotes,
+		uploadSessionDate,
+		uploadTitle,
+		uploading,
+		setUploadFile,
+		setUploadNotes,
+		setUploadSessionDate,
+		setUploadTitle,
+	} = useSongWorkspaceUpload({
+		addAudioFile,
+		patchRouteSelection,
+		songId,
+	});
 
-	useEffect(() => {
-		if (!ready || !song) {
-			return;
-		}
-
-		const signature = JSON.stringify(search);
-		if (appliedSearchRef.current === signature) {
-			return;
-		}
-
-		appliedSearchRef.current = signature;
-
-		if (!search.fileId || typeof search.timeMs !== "number") {
-			return;
-		}
-
-		void seekFile(search.fileId, search.timeMs, search.autoplay ?? true);
-	}, [ready, search, seekFile, song]);
+	const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+	const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
 	useEffect(() => {
 		if (!selectedFileId) {
@@ -211,63 +105,6 @@ export function SongWorkspace({
 			block: "center",
 		});
 	}, [selectedFileId]);
-
-	useEffect(() => {
-		const activeFileId = playback.activeFileId;
-		if (!activeFileId) {
-			lastPlaybackPositionRef.current = {};
-			return;
-		}
-
-		const nextTimeMs = playback.currentTimeByFileId[activeFileId];
-		if (typeof nextTimeMs !== "number") {
-			lastPlaybackPositionRef.current = { fileId: activeFileId };
-			return;
-		}
-
-		const previous = lastPlaybackPositionRef.current;
-		if (
-			previous.fileId !== activeFileId ||
-			typeof previous.timeMs !== "number"
-		) {
-			lastPlaybackPositionRef.current = {
-				fileId: activeFileId,
-				timeMs: nextTimeMs,
-			};
-			return;
-		}
-
-		const crossed = findCrossedAnnotation(
-			getAnnotationsForFile(activeFileId),
-			previous.timeMs,
-			nextTimeMs,
-		);
-		lastPlaybackPositionRef.current = {
-			fileId: activeFileId,
-			timeMs: nextTimeMs,
-		};
-
-		if (
-			!crossed ||
-			activeFileId !== selectedFileId ||
-			search.annotationId === crossed.id
-		) {
-			return;
-		}
-
-		patchRouteSelection({
-			fileId: activeFileId,
-			annotationId: crossed.id,
-			clearPlaybackParams: true,
-		});
-	}, [
-		getAnnotationsForFile,
-		patchRouteSelection,
-		playback.activeFileId,
-		playback.currentTimeByFileId,
-		search.annotationId,
-		selectedFileId,
-	]);
 
 	const currentTimeMs =
 		(selectedFileId
@@ -322,19 +159,6 @@ export function SongWorkspace({
 		};
 	}, [persistedSecond, selectedFileId, songId, updateWorkspaceState]);
 
-	useEffect(() => {
-		if (!isUploadOpen) {
-			return;
-		}
-
-		const { overflow } = document.body.style;
-		document.body.style.overflow = "hidden";
-
-		return () => {
-			document.body.style.overflow = overflow;
-		};
-	}, [isUploadOpen]);
-
 	useSongWorkspaceShortcuts({
 		isUploadOpen,
 		jumpBetweenAnnotations,
@@ -345,32 +169,6 @@ export function SongWorkspace({
 		songId,
 		togglePlayback,
 	});
-
-	async function openTarget(target: SongLinkTarget) {
-		if (target.songId !== songId) {
-			navigate({
-				to: "/songs/$songId",
-				params: {
-					songId: target.songId,
-				},
-				search: targetToRouteSearch(target),
-			});
-			return;
-		}
-
-		const nextFileId = target.fileId ?? selectedFileId;
-		if (nextFileId && typeof target.timeMs === "number") {
-			await seekFile(nextFileId, target.timeMs, target.autoplay ?? true);
-		}
-
-		navigate({
-			to: "/songs/$songId",
-			params: {
-				songId,
-			},
-			search: targetToRouteSearch(target),
-		});
-	}
 
 	async function handleCreateAnnotation(
 		fileId: string,
@@ -411,41 +209,6 @@ export function SongWorkspace({
 			setDeletingFileId((current) =>
 				current === selectedFileId ? null : current,
 			);
-		}
-	}
-
-	async function handleUpload(event: React.FormEvent<HTMLFormElement>) {
-		event.preventDefault();
-		if (!uploadFile) {
-			return;
-		}
-
-		setUploading(true);
-		setUploadError(null);
-		try {
-			const audioFile = await addAudioFile(songId, {
-				file: uploadFile,
-				title: uploadTitle,
-				sessionDate: uploadSessionDate,
-				notes: plainTextToRichText(uploadNotes),
-			});
-			patchRouteSelection({
-				fileId: audioFile.id,
-				clearPlaybackParams: true,
-			});
-
-			setUploadFile(null);
-			setUploadTitle("");
-			setUploadNotes("");
-			setIsUploadOpen(false);
-		} catch (uploadFailure) {
-			setUploadError(
-				uploadFailure instanceof Error
-					? uploadFailure.message
-					: "Song Mode could not import that audio file.",
-			);
-		} finally {
-			setUploading(false);
 		}
 	}
 
@@ -504,98 +267,44 @@ export function SongWorkspace({
 			>
 				<section className="song-workspace-main-grid grid gap-5 xl:min-h-0 xl:flex-1 xl:overflow-hidden">
 					<div className="song-workspace-waveform-column flex min-w-0 flex-col gap-4 xl:min-h-0">
-						{audioFiles.length === 0 ? (
-							<div className="border border-dashed border-[var(--color-border-subtle)] px-6 py-10 text-sm leading-7 text-[var(--color-text-muted)]">
-								Add audio to start the stacked waveform review. Each file gets
-								its own notes, time markers, range annotations, and immediate
-								seek-and-play links.
-							</div>
-						) : (
-							audioFiles.map((audioFile) => (
-								<div
-									key={audioFile.id}
-									ref={(node) => {
-										itemRefs.current[audioFile.id] = node;
-									}}
-								>
-									<WaveformCard
-										audioFile={audioFile}
-										annotations={getAnnotationsForFile(audioFile.id)}
-										blob={blobsByAudioId[audioFile.id]}
-										currentTimeMs={
-											playback.currentTimeByFileId[audioFile.id] ??
-											workspace.playheadMsByFileId[audioFile.id] ??
-											0
-										}
-										isPlaying={
-											playback.activeFileId === audioFile.id &&
-											playback.isPlaying
-										}
-										isSelected={selectedFileId === audioFile.id}
-										activeAnnotationId={activeAnnotationId}
-										onSelectFile={(fileId) => {
-											patchRouteSelection({
-												fileId,
-												clearPlaybackParams: true,
-											});
-										}}
-										onSelectAnnotation={(annotationId) => {
-											patchRouteSelection({
-												fileId: audioFile.id,
-												annotationId,
-												clearPlaybackParams: true,
-											});
-										}}
-										onCreateAnnotation={(annotationInput) =>
-											handleCreateAnnotation(audioFile.id, {
-												...annotationInput,
-												songId,
-												audioFileId: audioFile.id,
-											})
-										}
-										onUpdateAnnotation={updateAnnotation}
-										onSeek={(timeMs, autoplay) =>
-											seekFile(audioFile.id, timeMs, autoplay)
-										}
-										onTogglePlayback={() => togglePlayback(audioFile.id)}
-										onRegisterAudioElement={(element) =>
-											registerAudioElement(audioFile.id, element)
-										}
-										onReportPlayback={(patch) =>
-											reportPlaybackState(audioFile.id, patch)
-										}
-										onStepVolume={(deltaDb) =>
-											updateAudioFile(audioFile.id, {
-												volumeDb: normalizeVolumeDb(
-													audioFile.volumeDb + deltaDb,
-												),
-											})
-										}
-										onDragStart={() => setDraggingFileId(audioFile.id)}
-										onDragEnd={() => setDraggingFileId(null)}
-										onDrop={() => {
-											if (!draggingFileId || draggingFileId === audioFile.id) {
-												return;
-											}
-
-											const orderedIds = [...audioFiles].map(
-												(entry) => entry.id,
-											);
-											const fromIndex = orderedIds.indexOf(draggingFileId);
-											const toIndex = orderedIds.indexOf(audioFile.id);
-											if (fromIndex === -1 || toIndex === -1) {
-												return;
-											}
-
-											orderedIds.splice(fromIndex, 1);
-											orderedIds.splice(toIndex, 0, draggingFileId);
-											setDraggingFileId(null);
-											void reorderAudioFiles(songId, orderedIds);
-										}}
-									/>
-								</div>
-							))
-						)}
+						<SongWorkspaceWaveformList
+							activeAnnotationId={activeAnnotationId}
+							audioFiles={audioFiles}
+							blobsByAudioId={blobsByAudioId}
+							getAnnotationsForFile={getAnnotationsForFile}
+							handleCreateAnnotation={(fileId, annotationInput) =>
+								handleCreateAnnotation(fileId, {
+									...annotationInput,
+									songId,
+									audioFileId: fileId,
+								})
+							}
+							itemRefs={itemRefs}
+							playback={playback}
+							registerAudioElement={registerAudioElement}
+							reorderAudioFiles={reorderAudioFiles}
+							reportPlaybackState={reportPlaybackState}
+							seekFile={seekFile}
+							selectedFileId={selectedFileId}
+							songId={songId}
+							togglePlayback={togglePlayback}
+							updateAnnotation={updateAnnotation}
+							updateAudioFile={updateAudioFile}
+							workspacePlayheadMsByFileId={workspace.playheadMsByFileId}
+							onSelectFile={(fileId) =>
+								patchRouteSelection({
+									fileId,
+									clearPlaybackParams: true,
+								})
+							}
+							onSelectAnnotation={(fileId, annotationId) =>
+								patchRouteSelection({
+									fileId,
+									annotationId,
+									clearPlaybackParams: true,
+								})
+							}
+						/>
 					</div>
 
 					<div className="flex min-w-0 flex-col xl:min-h-0 xl:overflow-hidden">
@@ -605,7 +314,7 @@ export function SongWorkspace({
 								selectedFile={selectedFile}
 								annotations={selectedAnnotations}
 								activeAnnotation={activeAnnotation}
-								onOpenTarget={openTarget}
+								onOpenTarget={(target: SongLinkTarget) => openTarget(target)}
 								onUpdateFile={(patch) =>
 									selectedFile
 										? updateAudioFile(selectedFile.id, patch)

@@ -96,10 +96,7 @@ const SongModeContext = createContext<SongModeContextValue | null>(null);
 export function SongModeProvider({ children }: { children: ReactNode }) {
 	const { commitSnapshot, error, ready, setError, snapshot, snapshotRef } =
 		useSongModeSnapshotState();
-	const selectors = useSongModeSelectors({
-		snapshot,
-		snapshotRef,
-	});
+	const selectors = useSongModeSelectors({ snapshot });
 
 	const {
 		audioRefs,

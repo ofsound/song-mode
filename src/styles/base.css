@@ -1,0 +1,232 @@
+* {
+	box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+	min-height: 100%;
+}
+
+html {
+	background-color: var(--color-app);
+}
+
+body {
+	margin: 0;
+	color: var(--color-text);
+	font-family: var(--font-sans);
+	background-color: var(--color-app);
+	background-image: var(--background-image-shell);
+	overflow-x: hidden;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+body::before {
+	content: "";
+	position: fixed;
+	inset: 0;
+	pointer-events: none;
+	z-index: -1;
+	opacity: 0.72;
+	background-image: var(--background-image-shell-grid);
+	background-size: 34px 34px;
+	mask-image: linear-gradient(
+		180deg,
+		black 0%,
+		color-mix(in srgb, black 20%, transparent) 68%,
+		transparent 100%
+	);
+}
+
+body::after {
+	content: "";
+	position: fixed;
+	inset: 0;
+	pointer-events: none;
+	z-index: -1;
+	opacity: 0.56;
+	background:
+		radial-gradient(
+			circle at 18% 12%,
+			light-dark(
+					color-mix(in srgb, var(--color-white) 54%, transparent),
+					color-mix(in srgb, var(--color-white) 8%, transparent)
+				)
+				0,
+			transparent 28%
+		),
+		radial-gradient(
+			circle at 82% 16%,
+			light-dark(
+					color-mix(in srgb, var(--color-emerald-200) 34%, transparent),
+					color-mix(in srgb, var(--color-emerald-400) 10%, transparent)
+				)
+				0,
+			transparent 24%
+		),
+		radial-gradient(
+			circle at 40% 78%,
+			light-dark(
+					color-mix(in srgb, var(--color-sky-200) 34%, transparent),
+					color-mix(in srgb, var(--color-sky-500) 10%, transparent)
+				)
+				0,
+			transparent 32%
+		);
+}
+
+::selection {
+	background: var(--color-selection);
+	color: var(--color-text);
+}
+
+a {
+	color: var(--color-link);
+	text-decoration-color: color-mix(in srgb, var(--color-link) 40%, transparent);
+	text-decoration-thickness: 1px;
+	text-underline-offset: 2px;
+}
+
+a:hover {
+	color: var(--color-link-hover);
+}
+
+button,
+a,
+input,
+textarea {
+	transition:
+		background-color 180ms ease,
+		color 180ms ease,
+		border-color 180ms ease,
+		box-shadow 180ms ease,
+		transform 180ms ease;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+code {
+	font-size: 0.9em;
+	border: 1px solid var(--color-border-subtle);
+	background: color-mix(
+		in srgb,
+		var(--color-surface-elevated) 84%,
+		transparent
+	);
+	border-radius: 0;
+	padding: 2px 7px;
+}
+
+pre code {
+	border: 0;
+	background: transparent;
+	padding: 0;
+	border-radius: 0;
+	font-size: inherit;
+	color: inherit;
+}
+
+.font-display {
+	font-family: "Instrument Serif", Georgia, serif;
+	font-weight: 400;
+	letter-spacing: -0.02em;
+}
+
+.eyebrow {
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+	font-weight: 700;
+	font-size: 0.67rem;
+	color: var(--color-text-subtle);
+}
+
+.field-label {
+	font-size: 0.68rem;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: var(--color-text-subtle);
+	font-weight: 700;
+}
+
+.field-input {
+	width: 100%;
+	border: 1px solid var(--color-border-strong);
+	background: var(--color-field);
+	border-radius: 0;
+	color: var(--color-text);
+	padding: 0.85rem 1rem;
+	font: inherit;
+	outline: none;
+}
+
+.field-input::placeholder {
+	color: var(--color-text-subtle);
+}
+
+.field-input:focus {
+	border-color: var(--color-accent-strong);
+	box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.field-input--compact {
+	padding: 0.3125rem 0.5rem;
+	font-size: 0.8125rem;
+	line-height: 1.2;
+}
+
+.icon-button {
+	display: inline-flex;
+	height: 2rem;
+	width: 2rem;
+	align-items: center;
+	justify-content: center;
+	border-radius: 0;
+	border: 1px solid var(--color-border-subtle);
+	background: var(--color-surface-elevated);
+	color: var(--color-text-muted);
+}
+
+.icon-button:hover {
+	border-color: var(--color-border-strong);
+	color: var(--color-text);
+}
+
+.icon-button--sm {
+	height: 1.75rem;
+	width: 1.75rem;
+}
+
+input[type="file"]::file-selector-button {
+	margin-right: 0.85rem;
+	border: 0;
+	border-radius: 0;
+	background: var(--background-image-button-accent);
+	color: var(--color-text-inverse);
+	cursor: pointer;
+	font-weight: 700;
+	padding: 0.55rem 0.9rem;
+}
+
+.rise-in {
+	animation: rise-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes rise-in {
+	from {
+		opacity: 0;
+		transform: translateY(12px);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}

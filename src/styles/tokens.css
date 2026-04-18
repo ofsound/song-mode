@@ -1,0 +1,305 @@
+@theme static {
+	--font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+
+	--color-app: light-dark(
+		color-mix(in srgb, var(--color-white) 94%, var(--color-slate-50)),
+		color-mix(in srgb, var(--color-zinc-950) 92%, var(--color-slate-950))
+	);
+	--color-shell: light-dark(var(--color-white), var(--color-zinc-950));
+	--color-surface: light-dark(
+		color-mix(in srgb, var(--color-white) 95%, var(--color-zinc-50)),
+		color-mix(in srgb, var(--color-slate-900) 42%, var(--color-zinc-950))
+	);
+	--color-surface-elevated: light-dark(
+		color-mix(in srgb, var(--color-white) 88%, var(--color-slate-50)),
+		color-mix(in srgb, var(--color-slate-800) 46%, var(--color-zinc-900))
+	);
+	--color-surface-selected: light-dark(
+		color-mix(
+			in srgb,
+			var(--color-surface-elevated) 74%,
+			var(--color-zinc-100)
+		),
+		color-mix(
+			in srgb,
+			var(--color-surface-elevated) 72%,
+			var(--color-slate-700)
+		)
+	);
+	--color-surface-overlay: light-dark(
+		color-mix(in srgb, var(--color-white) 90%, transparent),
+		color-mix(in srgb, var(--color-zinc-950) 78%, transparent)
+	);
+	--color-header-surface: light-dark(
+		color-mix(in srgb, var(--color-slate-100) 58%, var(--color-white)),
+		color-mix(in srgb, var(--color-slate-900) 66%, var(--color-zinc-950))
+	);
+	--color-header-icon-surface: light-dark(
+		color-mix(in srgb, var(--color-white) 92%, var(--color-slate-50)),
+		color-mix(in srgb, var(--color-white) 9%, transparent)
+	);
+	--color-field: light-dark(var(--color-white), var(--color-slate-900));
+	--color-text: light-dark(var(--color-zinc-900), var(--color-zinc-100));
+	--color-text-muted: light-dark(
+		var(--color-slate-600),
+		var(--color-slate-300)
+	);
+	--color-text-subtle: light-dark(
+		var(--color-zinc-500),
+		var(--color-slate-400)
+	);
+	--color-text-inverse: light-dark(var(--color-white), var(--color-zinc-950));
+	--color-border: light-dark(var(--color-zinc-300), var(--color-zinc-700));
+	--color-border-strong: light-dark(
+		var(--color-zinc-400),
+		var(--color-slate-500)
+	);
+	--color-border-subtle: light-dark(
+		color-mix(in srgb, var(--color-zinc-500) 22%, transparent),
+		color-mix(in srgb, var(--color-slate-400) 26%, transparent)
+	);
+	--color-accent: light-dark(
+		var(--color-emerald-600),
+		var(--color-emerald-300)
+	);
+	--color-accent-strong: light-dark(var(--color-sky-600), var(--color-sky-400));
+	--color-accent-surface: light-dark(
+		color-mix(in srgb, var(--color-emerald-500) 14%, transparent),
+		color-mix(in srgb, var(--color-emerald-300) 16%, transparent)
+	);
+	--color-link: light-dark(var(--color-sky-700), var(--color-emerald-300));
+	--color-link-hover: light-dark(
+		var(--color-sky-800),
+		var(--color-emerald-200)
+	);
+	--color-danger: light-dark(var(--color-red-700), var(--color-red-200));
+	--color-danger-surface: light-dark(
+		color-mix(in srgb, var(--color-red-50) 92%, var(--color-white)),
+		color-mix(in srgb, var(--color-red-950) 44%, transparent)
+	);
+	--color-danger-border: light-dark(var(--color-red-200), var(--color-red-800));
+	--color-focus-ring: light-dark(
+		color-mix(in srgb, var(--color-sky-500) 22%, transparent),
+		color-mix(in srgb, var(--color-sky-400) 28%, transparent)
+	);
+	--color-selection: light-dark(
+		color-mix(in srgb, var(--color-emerald-400) 28%, transparent),
+		color-mix(in srgb, var(--color-emerald-300) 26%, transparent)
+	);
+	--color-waveform-grid: light-dark(
+		color-mix(in srgb, var(--color-slate-400) 22%, transparent),
+		color-mix(in srgb, var(--color-slate-300) 18%, transparent)
+	);
+	--color-waveform-base: light-dark(
+		color-mix(in srgb, var(--color-slate-500) 62%, transparent),
+		color-mix(in srgb, var(--color-slate-300) 54%, transparent)
+	);
+	--color-waveform-selected: light-dark(
+		color-mix(in srgb, var(--color-emerald-500) 92%, transparent),
+		color-mix(in srgb, var(--color-emerald-300) 88%, transparent)
+	);
+	--color-waveform-progress: light-dark(
+		color-mix(in srgb, var(--color-emerald-500) 14%, transparent),
+		color-mix(in srgb, var(--color-emerald-300) 10%, transparent)
+	);
+	--color-waveform-progress-line: light-dark(
+		var(--color-emerald-600),
+		var(--color-emerald-300)
+	);
+	--color-waveform-range: light-dark(
+		var(--color-amber-500),
+		var(--color-amber-300)
+	);
+	--color-waveform-surface: light-dark(
+		color-mix(in srgb, var(--color-white) 92%, var(--color-slate-50)),
+		color-mix(in srgb, var(--color-white) 5%, transparent)
+	);
+	--color-waveform-annotation-active: light-dark(
+		color-mix(in srgb, var(--color-zinc-950) 22%, transparent),
+		color-mix(in srgb, var(--color-white) 82%, transparent)
+	);
+	--color-waveform-annotation-inactive: light-dark(
+		color-mix(in srgb, var(--color-zinc-950) 14%, transparent),
+		color-mix(in srgb, var(--color-white) 20%, transparent)
+	);
+	--color-waveform-marker-active: light-dark(
+		var(--color-zinc-900),
+		var(--color-white)
+	);
+	--color-waveform-marker-track: light-dark(
+		var(--color-sky-600),
+		var(--color-emerald-300)
+	);
+	--color-waveform-marker-dot-border: light-dark(
+		color-mix(in srgb, var(--color-white) 80%, transparent),
+		color-mix(in srgb, var(--color-white) 35%, transparent)
+	);
+	--color-range-hint-border: light-dark(
+		var(--color-amber-300),
+		var(--color-amber-700)
+	);
+	--color-range-hint-surface: light-dark(
+		color-mix(in srgb, var(--color-amber-100) 86%, transparent),
+		color-mix(in srgb, var(--color-amber-950) 38%, transparent)
+	);
+	--color-annotation-1: light-dark(var(--color-red-400), var(--color-red-500));
+	--color-annotation-2: light-dark(
+		var(--color-amber-400),
+		var(--color-amber-400)
+	);
+	--color-annotation-3: light-dark(
+		var(--color-emerald-400),
+		var(--color-emerald-400)
+	);
+	--color-annotation-4: light-dark(var(--color-sky-400), var(--color-sky-400));
+	--color-annotation-5: light-dark(
+		var(--color-violet-400),
+		var(--color-violet-400)
+	);
+	--shadow-panel:
+		0 20px 50px -24px
+		light-dark(
+			color-mix(in srgb, var(--color-zinc-950) 16%, transparent),
+			color-mix(in srgb, var(--color-black) 55%, transparent)
+		),
+		0 10px 24px -18px
+		light-dark(
+			color-mix(in srgb, var(--color-zinc-950) 12%, transparent),
+			color-mix(in srgb, var(--color-black) 45%, transparent)
+		);
+	--shadow-overlay:
+		0 24px 80px -34px
+		light-dark(
+			color-mix(in srgb, var(--color-zinc-950) 20%, transparent),
+			color-mix(in srgb, var(--color-black) 68%, transparent)
+		),
+		0 12px 28px -22px
+		light-dark(
+			color-mix(in srgb, var(--color-zinc-950) 14%, transparent),
+			color-mix(in srgb, var(--color-black) 52%, transparent)
+		);
+	--shadow-control: 0 1px 2px 0
+		light-dark(
+			color-mix(in srgb, var(--color-zinc-950) 12%, transparent),
+			color-mix(in srgb, var(--color-black) 30%, transparent)
+		);
+	--background-image-shell-grid:
+		linear-gradient(
+			to right,
+			light-dark(
+					color-mix(in srgb, var(--color-zinc-400) 14%, transparent),
+					color-mix(in srgb, var(--color-slate-500) 14%, transparent)
+				)
+				1px,
+			transparent 1px
+		),
+		linear-gradient(
+			to bottom,
+			light-dark(
+					color-mix(in srgb, var(--color-zinc-400) 14%, transparent),
+					color-mix(in srgb, var(--color-slate-500) 14%, transparent)
+				)
+				1px,
+			transparent 1px
+		);
+	--background-image-shell:
+		radial-gradient(
+			circle at 0% 0%,
+			light-dark(
+					color-mix(in srgb, var(--color-sky-200) 58%, transparent),
+					color-mix(in srgb, var(--color-sky-500) 22%, transparent)
+				)
+				0,
+			transparent 34%
+		),
+		radial-gradient(
+			circle at 100% 0%,
+			light-dark(
+					color-mix(in srgb, var(--color-emerald-200) 54%, transparent),
+					color-mix(in srgb, var(--color-emerald-400) 18%, transparent)
+				)
+				0,
+			transparent 28%
+		),
+		radial-gradient(
+			circle at 50% 100%,
+			light-dark(
+					color-mix(in srgb, var(--color-slate-200) 64%, transparent),
+					color-mix(in srgb, var(--color-sky-700) 18%, transparent)
+				)
+				0,
+			transparent 42%
+		),
+		linear-gradient(
+			180deg,
+			light-dark(
+				color-mix(in srgb, var(--color-slate-100) 84%, var(--color-white)),
+				color-mix(in srgb, var(--color-slate-900) 88%, var(--color-zinc-950))
+			),
+			light-dark(
+				color-mix(in srgb, var(--color-white) 96%, var(--color-zinc-50)),
+				color-mix(in srgb, var(--color-zinc-950) 96%, var(--color-black))
+			)
+		);
+	--background-image-panel: linear-gradient(
+		165deg,
+		light-dark(
+			color-mix(in srgb, var(--color-white) 78%, transparent),
+			color-mix(in srgb, var(--color-white) 7%, transparent)
+		),
+		light-dark(
+			color-mix(in srgb, var(--color-slate-100) 52%, transparent),
+			color-mix(in srgb, var(--color-white) 2%, transparent)
+		)
+	);
+	--background-image-brand: linear-gradient(
+		145deg,
+		light-dark(
+			color-mix(in srgb, var(--color-white) 92%, var(--color-slate-50)),
+			color-mix(in srgb, var(--color-white) 14%, transparent)
+		),
+		light-dark(
+			color-mix(in srgb, var(--color-slate-100) 72%, var(--color-white)),
+			color-mix(in srgb, var(--color-white) 4%, transparent)
+		)
+	);
+	--background-image-button-accent: var(--color-accent);
+	--background-image-waveform: linear-gradient(
+		180deg,
+		light-dark(
+			color-mix(in srgb, var(--color-white) 74%, transparent),
+			color-mix(in srgb, var(--color-white) 6%, transparent)
+		),
+		light-dark(
+			color-mix(in srgb, var(--color-slate-100) 58%, transparent),
+			color-mix(in srgb, var(--color-white) 1%, transparent)
+		)
+	);
+}
+
+:root {
+	color-scheme: light dark;
+	--song-workspace-waveform-tab-width: 14px;
+	--canvas-waveform-surface: rgba(250, 250, 250, 0.94);
+	--canvas-waveform-grid: rgba(148, 163, 184, 0.18);
+	--canvas-waveform-base: rgba(100, 116, 139, 0.52);
+	--canvas-waveform-selected: rgba(5, 150, 105, 0.86);
+	--canvas-waveform-progress: rgba(5, 150, 105, 0.04);
+	--canvas-waveform-progress-line: rgba(5, 150, 105, 0.94);
+	--canvas-waveform-range: rgba(217, 119, 6, 0.9);
+}
+
+.light {
+	color-scheme: light;
+}
+
+.dark {
+	color-scheme: dark;
+	--canvas-waveform-surface: rgba(255, 255, 255, 0.04);
+	--canvas-waveform-grid: rgba(148, 163, 184, 0.14);
+	--canvas-waveform-base: rgba(148, 163, 184, 0.56);
+	--canvas-waveform-selected: rgba(126, 244, 208, 0.88);
+	--canvas-waveform-progress: rgba(126, 244, 208, 0.05);
+	--canvas-waveform-progress-line: rgba(126, 244, 208, 0.92);
+	--canvas-waveform-range: rgba(244, 182, 79, 0.88);
+}

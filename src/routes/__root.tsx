@@ -1,17 +1,16 @@
-import { TanStackDevtools } from "@tanstack/react-devtools";
 import {
 	createRootRoute,
 	HeadContent,
 	ScriptOnce,
 	Scripts,
 } from "@tanstack/react-router";
-import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { SongModeChrome } from "#/components/song-mode/app-chrome";
+import { SongModeDevtools } from "#/components/song-mode/song-mode-devtools";
 import { THEME_STORAGE_KEY } from "#/lib/theme";
-import { SongModeChrome } from "../components/song-mode/app-chrome";
-import { SongModeProvider } from "../providers/song-mode-provider";
-import { ThemeProvider } from "../providers/theme-provider";
+import { SongModeProvider } from "#/providers/song-mode-provider";
+import { ThemeProvider } from "#/providers/theme-provider";
 
-import appCss from "../styles.css?url";
+import appCss from "#/styles.css?url";
 
 const themeBootstrapScript = `(() => {
 	try {
@@ -62,17 +61,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 				<ThemeProvider>
 					<SongModeProvider>
 						<SongModeChrome>{children}</SongModeChrome>
-						<TanStackDevtools
-							config={{
-								position: "bottom-right",
-							}}
-							plugins={[
-								{
-									name: "Tanstack Router",
-									render: <TanStackRouterDevtoolsPanel />,
-								},
-							]}
-						/>
+						<SongModeDevtools />
 					</SongModeProvider>
 				</ThemeProvider>
 				<Scripts />

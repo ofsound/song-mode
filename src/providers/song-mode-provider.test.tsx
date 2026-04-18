@@ -14,9 +14,8 @@ import { SongModeProvider, useSongMode } from "./song-mode-provider";
 
 const {
 	deleteAnnotationMock,
-	deleteAudioBlobMock,
-	deleteAudioFileMock,
-	deleteSongMock,
+	deleteAudioFileCascadeMock,
+	deleteSongCascadeMock,
 	loadSnapshotMock,
 	saveAnnotationMock,
 	saveAudioBlobMock,
@@ -25,9 +24,8 @@ const {
 	saveSongMock,
 } = vi.hoisted(() => ({
 	deleteAnnotationMock: vi.fn(),
-	deleteAudioBlobMock: vi.fn(),
-	deleteAudioFileMock: vi.fn(),
-	deleteSongMock: vi.fn(),
+	deleteAudioFileCascadeMock: vi.fn(),
+	deleteSongCascadeMock: vi.fn(),
 	loadSnapshotMock: vi.fn(),
 	saveAnnotationMock: vi.fn(),
 	saveAudioBlobMock: vi.fn(),
@@ -39,9 +37,8 @@ const {
 vi.mock("#/lib/song-mode/db", () => ({
 	loadSnapshot: loadSnapshotMock,
 	deleteAnnotation: deleteAnnotationMock,
-	deleteAudioBlob: deleteAudioBlobMock,
-	deleteAudioFile: deleteAudioFileMock,
-	deleteSong: deleteSongMock,
+	deleteAudioFileCascade: deleteAudioFileCascadeMock,
+	deleteSongCascade: deleteSongCascadeMock,
 	saveAnnotation: saveAnnotationMock,
 	saveAudioBlob: saveAudioBlobMock,
 	saveAudioFile: saveAudioFileMock,
@@ -104,6 +101,41 @@ function MutationProbe() {
 	);
 }
 
+function DeleteProbe() {
+	const {
+		ready,
+		audioFiles,
+		annotations,
+		getSongById,
+		getWorkspaceState,
+		deleteAudioFile,
+		deleteSong,
+	} = useSongMode();
+	const song = getSongById("song-1");
+	const workspace = getWorkspaceState("song-1");
+
+	return (
+		<div>
+			<div data-testid="delete-state">
+				{ready
+					? JSON.stringify({
+							songId: song?.id ?? null,
+							audioFileIds: audioFiles.map((audioFile) => audioFile.id),
+							annotationIds: annotations.map((annotation) => annotation.id),
+							playheadMs: workspace.playheadMsByFileId["file-1"] ?? null,
+						})
+					: "loading"}
+			</div>
+			<button type="button" onClick={() => void deleteAudioFile("file-1")}>
+				Delete file
+			</button>
+			<button type="button" onClick={() => void deleteSong("song-1")}>
+				Delete song
+			</button>
+		</div>
+	);
+}
+
 function createDeferred() {
 	let resolve!: () => void;
 	const promise = new Promise<void>((nextResolve) => {
@@ -117,9 +149,8 @@ describe("SongModeProvider", () => {
 	beforeEach(() => {
 		loadSnapshotMock.mockReset();
 		deleteAnnotationMock.mockReset();
-		deleteAudioBlobMock.mockReset();
-		deleteAudioFileMock.mockReset();
-		deleteSongMock.mockReset();
+		deleteAudioFileCascadeMock.mockReset();
+		deleteSongCascadeMock.mockReset();
 		saveAnnotationMock.mockReset();
 		saveAudioBlobMock.mockReset();
 		saveAudioFileMock.mockReset();
@@ -243,6 +274,214 @@ describe("SongModeProvider", () => {
 		);
 		expect(screen.getByTestId("mutation-state").textContent).toContain(
 			'"playheadMs":123000',
+		);
+	});
+
+	it("persists audio-file deletes through the atomic cascade helper", async () => {
+		loadSnapshotMock.mockResolvedValue({
+			songs: [
+				{
+					id: "song-1",
+					title: "Initial title",
+					artist: "Tester",
+					project: "Album",
+					generalNotes: EMPTY_RICH_TEXT,
+					audioFileOrder: ["file-1"],
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+			audioFiles: [
+				{
+					id: "file-1",
+					songId: "song-1",
+					title: "Take 1",
+					notes: EMPTY_RICH_TEXT,
+					volumeDb: 0,
+					durationMs: 1000,
+					waveform: {
+						peaks: [0.2],
+						peakCount: 1,
+						durationMs: 1000,
+						sampleRate: 44100,
+					},
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+			annotations: [
+				{
+					id: "annotation-1",
+					songId: "song-1",
+					audioFileId: "file-1",
+					type: "point",
+					startMs: 100,
+					title: "Cue",
+					body: EMPTY_RICH_TEXT,
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+			blobsByAudioId: {
+				"file-1": new Blob(["wave"], { type: "audio/wav" }),
+			},
+			settings: {
+				recents: [],
+				lastOpenSongId: "song-1",
+				workspaceBySongId: {
+					"song-1": {
+						playheadMsByFileId: {
+							"file-1": 4500,
+						},
+						inspectorRatio: 0.56,
+						lastVisitedAt: null,
+					},
+				},
+			},
+		});
+		deleteAudioFileCascadeMock.mockResolvedValue(undefined);
+
+		render(
+			<SongModeProvider>
+				<DeleteProbe />
+			</SongModeProvider>,
+		);
+
+		await waitFor(() => {
+			expect(screen.getByTestId("delete-state").textContent).toContain(
+				'"file-1"',
+			);
+		});
+
+		fireEvent.click(screen.getByRole("button", { name: "Delete file" }));
+
+		await waitFor(() => {
+			expect(deleteAudioFileCascadeMock).toHaveBeenCalledTimes(1);
+		});
+
+		expect(deleteAudioFileCascadeMock).toHaveBeenCalledWith({
+			audioFileId: "file-1",
+			annotationIds: ["annotation-1"],
+			settings: {
+				recents: [],
+				lastOpenSongId: "song-1",
+				workspaceBySongId: {
+					"song-1": {
+						playheadMsByFileId: {},
+						inspectorRatio: 0.56,
+						lastVisitedAt: null,
+					},
+				},
+			},
+			song: expect.objectContaining({
+				id: "song-1",
+				audioFileOrder: [],
+			}),
+		});
+
+		expect(screen.getByTestId("delete-state").textContent).toContain(
+			'"audioFileIds":[]',
+		);
+		expect(screen.getByTestId("delete-state").textContent).toContain(
+			'"annotationIds":[]',
+		);
+	});
+
+	it("persists song deletes through the atomic cascade helper", async () => {
+		loadSnapshotMock.mockResolvedValue({
+			songs: [
+				{
+					id: "song-1",
+					title: "Initial title",
+					artist: "Tester",
+					project: "Album",
+					generalNotes: EMPTY_RICH_TEXT,
+					audioFileOrder: ["file-1"],
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+			audioFiles: [
+				{
+					id: "file-1",
+					songId: "song-1",
+					title: "Take 1",
+					notes: EMPTY_RICH_TEXT,
+					volumeDb: 0,
+					durationMs: 1000,
+					waveform: {
+						peaks: [0.2],
+						peakCount: 1,
+						durationMs: 1000,
+						sampleRate: 44100,
+					},
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+			annotations: [
+				{
+					id: "annotation-1",
+					songId: "song-1",
+					audioFileId: "file-1",
+					type: "point",
+					startMs: 100,
+					title: "Cue",
+					body: EMPTY_RICH_TEXT,
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+			blobsByAudioId: {
+				"file-1": new Blob(["wave"], { type: "audio/wav" }),
+			},
+			settings: {
+				recents: ["song-1", "song-2"],
+				lastOpenSongId: "song-1",
+				workspaceBySongId: {
+					"song-1": {
+						playheadMsByFileId: {
+							"file-1": 4500,
+						},
+						inspectorRatio: 0.56,
+						lastVisitedAt: null,
+					},
+				},
+			},
+		});
+		deleteSongCascadeMock.mockResolvedValue(undefined);
+
+		render(
+			<SongModeProvider>
+				<DeleteProbe />
+			</SongModeProvider>,
+		);
+
+		await waitFor(() => {
+			expect(screen.getByTestId("delete-state").textContent).toContain(
+				'"songId":"song-1"',
+			);
+		});
+
+		fireEvent.click(screen.getByRole("button", { name: "Delete song" }));
+
+		await waitFor(() => {
+			expect(deleteSongCascadeMock).toHaveBeenCalledTimes(1);
+		});
+
+		expect(deleteSongCascadeMock).toHaveBeenCalledWith({
+			songId: "song-1",
+			audioFileIds: ["file-1"],
+			annotationIds: ["annotation-1"],
+			settings: {
+				recents: ["song-2"],
+				lastOpenSongId: "song-2",
+				workspaceBySongId: {},
+			},
+		});
+
+		expect(screen.getByTestId("delete-state").textContent).toContain(
+			'"songId":null',
 		);
 	});
 });

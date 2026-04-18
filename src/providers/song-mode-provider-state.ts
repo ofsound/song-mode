@@ -16,6 +16,12 @@ export type SnapshotUpdater = (current: SongModeSnapshot) => SongModeSnapshot;
 
 export type SnapshotPersist = (next: SongModeSnapshot) => Promise<void>;
 
+/**
+ * Optimistically applies a snapshot update in React state, then serializes the
+ * matching persistence work behind the provider queue. Persistence failures are
+ * surfaced through the provider error state and by rejecting the returned
+ * promise.
+ */
 export type CommitSnapshot = (
 	updater: SnapshotUpdater,
 	persist: SnapshotPersist,

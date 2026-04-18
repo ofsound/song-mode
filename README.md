@@ -22,9 +22,7 @@ The dev server runs on `http://localhost:3000`.
 ## Quality Checks
 
 ```bash
-npm run test
-npm run check
-npm run build
+npm run verify
 ```
 
 ## Architecture
@@ -34,6 +32,7 @@ npm run build
 - Storage: IndexedDB via `idb` in `src/lib/song-mode/db.ts`
 - Rich text: Tiptap-based editors for journals, file notes, and annotation notes
 - Waveforms: browser-side decoding and peak generation in `src/lib/song-mode/waveform.ts`
+- Server/runtime plugin: TanStack Start wired through `nitro/vite`; this repo pins the currently compatible Nitro beta line because the official TanStack Start hosting docs note that the `nitro/vite` integration is still under active development
 
 ## Keyboard Shortcuts
 

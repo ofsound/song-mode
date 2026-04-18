@@ -5,18 +5,6 @@ alwaysApply: true
 
 # Post-Edit Verification
 
-After editing any `.ts` or `.tsx` file in `src/`, or changing **`package.json`** / **[`knip.json`](knip.json)** / **[`vite.config.ts`](vite.config.ts)** / **[`vitest.config.ts`](vitest.config.ts)** / **[`tsconfig.json`](tsconfig.json)**:
+`AGENTS.md` is the workflow source of truth.
 
-1. Run **`npm run verify`** — runs, in order:
-   - **`npm run check`** — Biome (`biome check`: format + lint)
-   - **`npm run typecheck`** — TypeScript (`tsc --noEmit` using [`tsconfig.json`](tsconfig.json))
-   - **`npm test`** — Vitest
-   - **`npm run knip`** — unused dependencies, unused exports, unreachable files ([`knip.json`](knip.json) maps `#/*` to `./src/*` for path-alias resolution)
-
-2. Fix any reported issues — do not consider the task complete until **`verify`** passes.
-
-**Notes:**
-
-- **Biome** covers format + lint; **`typecheck`** is the compiler pass (types, overloads, and strictness Biome does not enforce).
-- **TanStack Router** codegen: keep **`src/routeTree.gen.ts`** in sync with the router CLI; do not add it to Knip `ignore` unless you have a documented false positive (Knip uses it to reach `src/routes/*`).
-- For DOM/component tests, use `// @vitest-environment jsdom` at the top of the file when the test needs a browser-like environment (see existing `*.test.tsx` files).
+After substantive edits, run `npm run verify` and fix any failures before finishing. Keep `src/routeTree.gen.ts` generated, and add `// @vitest-environment jsdom` only when a test genuinely needs DOM APIs.

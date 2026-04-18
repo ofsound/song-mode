@@ -9,9 +9,9 @@ import {
 	SquareStack,
 	TimerReset,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { resolveAudioFileSessionDateLabel } from "#/lib/song-mode/dates";
-import { EMPTY_RICH_TEXT, richTextPreview } from "#/lib/song-mode/rich-text";
+import { EMPTY_RICH_TEXT } from "#/lib/song-mode/rich-text";
 import type {
 	Annotation,
 	AudioFileRecord,
@@ -25,6 +25,7 @@ import {
 } from "#/lib/song-mode/waveform";
 import { useWaveformAudioGraph } from "./use-waveform-audio-graph";
 import { useWaveformCanvas } from "./use-waveform-canvas";
+import { WaveformCardAnnotationLayer } from "./waveform-card-annotation-layer";
 
 type WaveformMode = "seek" | "point" | "range";
 
@@ -88,21 +89,13 @@ export function WaveformCard({
 	const [objectUrl, setObjectUrl] = useState<string | null>(null);
 	const [mode, setMode] = useState<WaveformMode>("seek");
 	const [rangeAnchorMs, setRangeAnchorMs] = useState<number | null>(null);
+	const [hoveredAnnotation, setHoveredAnnotation] =
+		useState<HoveredAnnotationState | null>(null);
 	const articleRef = useRef<HTMLElement | null>(null);
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const surfaceRef = useRef<HTMLDivElement | null>(null);
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 	const isDragArmedRef = useRef(false);
-	const markerDragStateRef = useRef<{
-		annotationId: string;
-		pointerId: number;
-		lastX: number;
-		valueMs: number;
-		dragging: boolean;
-	} | null>(null);
-	const suppressAnnotationClickRef = useRef<string | null>(null);
-	const [hoveredAnnotation, setHoveredAnnotation] =
-		useState<HoveredAnnotationState | null>(null);
 
 	const sortedAnnotations = useMemo(
 		() => [...annotations].sort((left, right) => left.startMs - right.startMs),
@@ -225,30 +218,6 @@ export function WaveformCard({
 			x: clientX - rect.left,
 			y: clientY - rect.top,
 		});
-	}
-
-	function endMarkerDrag(
-		event: React.PointerEvent<HTMLButtonElement>,
-		preserveFocus = true,
-	) {
-		const dragState = markerDragStateRef.current;
-		if (!dragState || dragState.pointerId !== event.pointerId) {
-			return;
-		}
-
-		if (dragState.dragging) {
-			event.preventDefault();
-			suppressAnnotationClickRef.current = dragState.annotationId;
-		}
-
-		markerDragStateRef.current = null;
-		document.body.style.removeProperty("user-select");
-		if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
-			event.currentTarget.releasePointerCapture(event.pointerId);
-		}
-		if (preserveFocus) {
-			event.currentTarget.focus();
-		}
 	}
 
 	async function handleWaveformAction(clientX: number, autoplay?: boolean) {
@@ -508,217 +477,25 @@ export function WaveformCard({
 						<RotateCcw size={14} />
 					</button>
 					<canvas ref={canvasRef} className="block w-full" />
-
-					{sortedAnnotations.map((annotation) => {
-						const left = `${(annotation.startMs / Math.max(audioFile.durationMs, 1)) * 100}%`;
-						const right =
-							annotation.type === "range" && annotation.endMs
-								? `${((annotation.endMs - annotation.startMs) / Math.max(audioFile.durationMs, 1)) * 100}%`
-								: undefined;
-
-						if (annotation.type === "range" && annotation.endMs) {
-							return (
-								<button
-									key={annotation.id}
-									type="button"
-									data-annotation-hit
-									aria-label={buildAnnotationAriaLabel(annotation)}
-									onPointerEnter={(event) =>
-										updateHoveredAnnotationPosition(
-											annotation.id,
-											event.clientX,
-											event.clientY,
-										)
-									}
-									onPointerMove={(event) =>
-										updateHoveredAnnotationPosition(
-											annotation.id,
-											event.clientX,
-											event.clientY,
-										)
-									}
-									onPointerLeave={() => setHoveredAnnotation(null)}
-									onClick={(event) => {
-										event.stopPropagation();
-										onSelectFile(audioFile.id);
-										onSelectAnnotation(annotation.id);
-										void onSeek(annotation.startMs, true);
-									}}
-									className={`absolute bottom-4 top-4 border ${
-										activeAnnotationId === annotation.id
-											? "border-[var(--color-waveform-annotation-active)] shadow-[0_0_0_1px_var(--color-waveform-annotation-active)]"
-											: "border-[var(--color-waveform-annotation-inactive)]"
-									}`}
-									style={{
-										left,
-										width: right,
-										backgroundColor:
-											annotation.color ?? "var(--color-annotation-2)",
-										opacity: activeAnnotationId === annotation.id ? 0.34 : 0.2,
-									}}
-								/>
-							);
-						}
-
-						return (
-							<button
-								key={annotation.id}
-								type="button"
-								data-annotation-hit
-								aria-label={buildAnnotationAriaLabel(annotation)}
-								onClick={(event) => {
-									if (suppressAnnotationClickRef.current === annotation.id) {
-										suppressAnnotationClickRef.current = null;
-										event.preventDefault();
-										event.stopPropagation();
-										return;
-									}
-
-									event.stopPropagation();
-									onSelectFile(audioFile.id);
-									onSelectAnnotation(annotation.id);
-									void onSeek(annotation.startMs, true);
-								}}
-								onPointerDown={(event) => {
-									if (
-										event.button !== 0 ||
-										!(event.target instanceof HTMLElement) ||
-										!event.target.closest("[data-marker-handle]")
-									) {
-										return;
-									}
-
-									event.stopPropagation();
-									setHoveredAnnotation(null);
-									markerDragStateRef.current = {
-										annotationId: annotation.id,
-										pointerId: event.pointerId,
-										lastX: event.clientX,
-										valueMs: annotation.startMs,
-										dragging: false,
-									};
-									event.currentTarget.setPointerCapture?.(event.pointerId);
-								}}
-								onPointerMove={(event) => {
-									const dragState = markerDragStateRef.current;
-									if (
-										!dragState ||
-										dragState.pointerId !== event.pointerId ||
-										dragState.annotationId !== annotation.id
-									) {
-										return;
-									}
-
-									const timePerPixel = getTimePerPixel();
-									if (timePerPixel <= 0) {
-										return;
-									}
-
-									const deltaX = event.clientX - dragState.lastX;
-									dragState.lastX = event.clientX;
-									if (deltaX === 0) {
-										return;
-									}
-
-									const sensitivity = event.shiftKey ? 0.25 : 1;
-									const nextValue = Math.max(
-										0,
-										Math.min(
-											audioFile.durationMs,
-											Math.round(
-												dragState.valueMs + deltaX * timePerPixel * sensitivity,
-											),
-										),
-									);
-									if (nextValue === dragState.valueMs) {
-										return;
-									}
-
-									if (!dragState.dragging) {
-										dragState.dragging = true;
-										document.body.style.userSelect = "none";
-										onSelectFile(audioFile.id);
-										onSelectAnnotation(annotation.id);
-									}
-
-									event.preventDefault();
-									event.stopPropagation();
-									dragState.valueMs = nextValue;
-									void onUpdateAnnotation(annotation.id, {
-										startMs: nextValue,
-									});
-								}}
-								onPointerUp={(event) => endMarkerDrag(event)}
-								onPointerCancel={(event) => endMarkerDrag(event, false)}
-								className="absolute bottom-0 top-0 w-3 -translate-x-1/2"
-								style={{ left }}
-							>
-								<span
-									className={`absolute bottom-0 top-0 left-1/2 w-0.5 -translate-x-1/2 ${
-										activeAnnotationId === annotation.id
-											? "bg-[var(--color-waveform-marker-active)]"
-											: "bg-[var(--color-waveform-marker-track)]"
-									}`}
-								/>
-								<span
-									data-marker-handle
-									onPointerEnter={(event) =>
-										updateHoveredAnnotationPosition(
-											annotation.id,
-											event.clientX,
-											event.clientY,
-										)
-									}
-									onPointerMove={(event) =>
-										updateHoveredAnnotationPosition(
-											annotation.id,
-											event.clientX,
-											event.clientY,
-										)
-									}
-									onPointerLeave={() => setHoveredAnnotation(null)}
-									className="absolute left-1/2 top-4 h-3 w-3 -translate-x-1/2 cursor-pointer border border-[var(--color-waveform-marker-dot-border)]"
-									style={{
-										backgroundColor:
-											annotation.color ?? "var(--color-annotation-4)",
-									}}
-								/>
-							</button>
-						);
-					})}
-
+					<WaveformCardAnnotationLayer
+						activeAnnotationId={activeAnnotationId}
+						audioFile={audioFile}
+						annotations={sortedAnnotations}
+						hoveredAnnotationRecord={hoveredAnnotationRecord}
+						hoveredTooltipPosition={hoveredTooltipPosition}
+						onSeek={onSeek}
+						onSelectAnnotation={onSelectAnnotation}
+						onSelectFile={onSelectFile}
+						onUpdateAnnotation={onUpdateAnnotation}
+						getTimePerPixel={getTimePerPixel}
+						setHoveredAnnotation={setHoveredAnnotation}
+						updateHoveredAnnotationPosition={updateHoveredAnnotationPosition}
+					/>
 					{mode === "range" && rangeAnchorMs !== null && (
 						<div className="range-hint-pill pointer-events-none absolute bottom-3 left-3 px-3 py-1 text-xs font-medium">
 							Pick the range end point
 						</div>
 					)}
-					{hoveredAnnotationRecord && hoveredTooltipPosition ? (
-						<div
-							className="waveform-annotation-tooltip pointer-events-none absolute z-20"
-							style={hoveredTooltipPosition}
-						>
-							<p className="text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
-								{hoveredAnnotationRecord.type === "range" ? "Range" : "Marker"}
-							</p>
-							<p className="mt-1 text-[0.72rem] font-medium text-[var(--color-text-muted)]">
-								{formatAnnotationTime(hoveredAnnotationRecord)}
-							</p>
-							<p className="mt-1 text-sm font-semibold text-[var(--color-text)]">
-								{hoveredAnnotationRecord.title?.trim() ||
-									(hoveredAnnotationRecord.type === "range"
-										? "Untitled range"
-										: "Untitled marker")}
-							</p>
-							<p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">
-								{richTextPreview(
-									hoveredAnnotationRecord.body,
-									hoveredAnnotationRecord.type === "range"
-										? "No range description yet."
-										: "No marker description yet.",
-								)}
-							</p>
-						</div>
-					) : null}
 				</div>
 
 				<div className="flex min-w-[5.75rem] flex-col items-stretch justify-center border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] px-2 py-3">
@@ -821,31 +598,13 @@ function formatVolumeDb(volumeDb: number): string {
 	return `${volumeDb} dB`;
 }
 
-function formatAnnotationTime(annotation: Annotation): string {
-	if (
-		annotation.type === "range" &&
-		typeof annotation.endMs === "number" &&
-		annotation.endMs > annotation.startMs
-	) {
-		return `${formatDuration(annotation.startMs)} - ${formatDuration(annotation.endMs)}`;
-	}
-
-	return formatDuration(annotation.startMs);
-}
-
-function buildAnnotationAriaLabel(annotation: Annotation): string {
-	const typeLabel = annotation.type === "range" ? "range" : "marker";
-	const title = annotation.title?.trim() || `Untitled ${typeLabel}`;
-	return `${title} at ${formatAnnotationTime(annotation)}`;
-}
-
 function ModeButton({
 	icon,
 	active,
 	label,
 	onClick,
 }: {
-	icon: React.ReactNode;
+	icon: ReactNode;
 	active: boolean;
 	label: string;
 	onClick: () => void;

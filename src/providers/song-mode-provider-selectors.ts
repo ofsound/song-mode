@@ -1,78 +1,114 @@
-import { type MutableRefObject, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import {
+	type AudioFileRecord,
 	createDefaultWorkspaceState,
+	type Song,
 	type SongModeSnapshot,
 } from "#/lib/song-mode/types";
 
 interface UseSongModeSelectorsOptions {
 	snapshot: SongModeSnapshot;
-	snapshotRef: MutableRefObject<SongModeSnapshot>;
+}
+
+function sortSongAudioFiles(
+	song: Song | undefined,
+	audioFiles: AudioFileRecord[],
+) {
+	const order = song?.audioFileOrder ?? [];
+
+	return [...audioFiles].sort((left, right) => {
+		const leftIndex = order.indexOf(left.id);
+		const rightIndex = order.indexOf(right.id);
+
+		if (leftIndex === -1 && rightIndex === -1) {
+			return left.createdAt.localeCompare(right.createdAt);
+		}
+
+		if (leftIndex === -1) {
+			return 1;
+		}
+
+		if (rightIndex === -1) {
+			return -1;
+		}
+
+		return leftIndex - rightIndex;
+	});
 }
 
 export function useSongModeSelectors({
 	snapshot,
-	snapshotRef,
 }: UseSongModeSelectorsOptions) {
-	const getSongById = useCallback(
-		(songId: string) => snapshot.songs.find((song) => song.id === songId),
+	const songsById = useMemo(
+		() => new Map(snapshot.songs.map((song) => [song.id, song])),
 		[snapshot.songs],
+	);
+	const audioFilesById = useMemo(
+		() =>
+			new Map(
+				snapshot.audioFiles.map((audioFile) => [audioFile.id, audioFile]),
+			),
+		[snapshot.audioFiles],
+	);
+	const audioFilesBySongId = useMemo(() => {
+		const entries = new Map<string, AudioFileRecord[]>();
+
+		for (const audioFile of snapshot.audioFiles) {
+			const songAudioFiles = entries.get(audioFile.songId) ?? [];
+			songAudioFiles.push(audioFile);
+			entries.set(audioFile.songId, songAudioFiles);
+		}
+
+		for (const [songId, songAudioFiles] of entries) {
+			entries.set(
+				songId,
+				sortSongAudioFiles(songsById.get(songId), songAudioFiles),
+			);
+		}
+
+		return entries;
+	}, [snapshot.audioFiles, songsById]);
+	const annotationsByFileId = useMemo(() => {
+		const entries = new Map<string, SongModeSnapshot["annotations"]>();
+
+		for (const annotation of snapshot.annotations) {
+			const fileAnnotations = entries.get(annotation.audioFileId) ?? [];
+			fileAnnotations.push(annotation);
+			entries.set(annotation.audioFileId, fileAnnotations);
+		}
+
+		for (const fileAnnotations of entries.values()) {
+			fileAnnotations.sort((left, right) => left.startMs - right.startMs);
+		}
+
+		return entries;
+	}, [snapshot.annotations]);
+
+	const getSongById = useCallback(
+		(songId: string) => songsById.get(songId),
+		[songsById],
 	);
 
 	const getAudioFileById = useCallback(
-		(fileId: string) =>
-			snapshot.audioFiles.find((audioFile) => audioFile.id === fileId),
-		[snapshot.audioFiles],
+		(fileId: string) => audioFilesById.get(fileId),
+		[audioFilesById],
 	);
 
 	const getSongAudioFiles = useCallback(
-		(songId: string) => {
-			const song = snapshotRef.current.songs.find(
-				(entry) => entry.id === songId,
-			);
-			const audioFiles = snapshotRef.current.audioFiles.filter(
-				(audioFile) => audioFile.songId === songId,
-			);
-			const order = song?.audioFileOrder ?? [];
-
-			return [...audioFiles].sort((left, right) => {
-				const leftIndex = order.indexOf(left.id);
-				const rightIndex = order.indexOf(right.id);
-
-				if (leftIndex === -1 && rightIndex === -1) {
-					return left.createdAt.localeCompare(right.createdAt);
-				}
-
-				if (leftIndex === -1) {
-					return 1;
-				}
-
-				if (rightIndex === -1) {
-					return -1;
-				}
-
-				return leftIndex - rightIndex;
-			});
-		},
-		[snapshotRef],
+		(songId: string) => audioFilesBySongId.get(songId) ?? [],
+		[audioFilesBySongId],
 	);
 
 	const getAnnotationsForFile = useCallback(
-		(audioFileId: string) => {
-			return [...snapshotRef.current.annotations]
-				.filter((annotation) => annotation.audioFileId === audioFileId)
-				.sort((left, right) => left.startMs - right.startMs);
-		},
-		[snapshotRef],
+		(audioFileId: string) => annotationsByFileId.get(audioFileId) ?? [],
+		[annotationsByFileId],
 	);
 
 	const getWorkspaceState = useCallback(
-		(songId: string) => {
-			return (
-				snapshotRef.current.settings.workspaceBySongId[songId] ??
-				createDefaultWorkspaceState()
-			);
-		},
-		[snapshotRef],
+		(songId: string) =>
+			snapshot.settings.workspaceBySongId[songId] ??
+			createDefaultWorkspaceState(),
+		[snapshot.settings.workspaceBySongId],
 	);
 
 	return useMemo(

@@ -103,6 +103,16 @@ function getDb(): Promise<IDBPDatabase<SongModeDB>> {
 	return dbPromise;
 }
 
+export async function closeSongModeDbForTests(): Promise<void> {
+	if (!dbPromise) {
+		return;
+	}
+
+	const db = await dbPromise;
+	db.close();
+	dbPromise = null;
+}
+
 export async function loadSnapshot(): Promise<SongModeSnapshot> {
 	const db = await getDb();
 	const [songs, audioFiles, annotations, blobKeys, settings] =
@@ -156,29 +166,82 @@ export async function saveAnnotation(annotation: Annotation): Promise<void> {
 	await db.put("annotations", annotation);
 }
 
+interface DeleteAudioFileCascadeInput {
+	audioFileId: string;
+	annotationIds: string[];
+	settings: SongModeSettings;
+	song?: Song;
+}
+
+interface DeleteSongCascadeInput {
+	songId: string;
+	audioFileIds: string[];
+	annotationIds: string[];
+	settings: SongModeSettings;
+}
+
 export async function deleteAnnotation(annotationId: string): Promise<void> {
 	const db = await getDb();
 	await db.delete("annotations", annotationId);
 }
 
-export async function deleteSong(songId: string): Promise<void> {
-	const db = await getDb();
-	await db.delete("songs", songId);
-}
-
-export async function deleteAudioFile(audioFileId: string): Promise<void> {
-	const db = await getDb();
-	await db.delete("audioFiles", audioFileId);
-}
-
-export async function deleteAudioBlob(audioFileId: string): Promise<void> {
-	const db = await getDb();
-	await db.delete("blobs", audioFileId);
-}
-
 export async function saveSettings(settings: SongModeSettings): Promise<void> {
 	const db = await getDb();
 	await db.put("settings", settings, SETTINGS_KEY);
+}
+
+export async function deleteAudioFileCascade({
+	audioFileId,
+	annotationIds,
+	settings,
+	song,
+}: DeleteAudioFileCascadeInput): Promise<void> {
+	const db = await getDb();
+	const transaction = db.transaction(
+		["audioFiles", "annotations", "blobs", "settings", "songs"],
+		"readwrite",
+	);
+
+	await transaction.objectStore("audioFiles").delete(audioFileId);
+	await transaction.objectStore("blobs").delete(audioFileId);
+
+	for (const annotationId of annotationIds) {
+		await transaction.objectStore("annotations").delete(annotationId);
+	}
+
+	if (song) {
+		await transaction.objectStore("songs").put(song);
+	}
+
+	await transaction.objectStore("settings").put(settings, SETTINGS_KEY);
+	await transaction.done;
+}
+
+export async function deleteSongCascade({
+	songId,
+	audioFileIds,
+	annotationIds,
+	settings,
+}: DeleteSongCascadeInput): Promise<void> {
+	const db = await getDb();
+	const transaction = db.transaction(
+		["songs", "audioFiles", "annotations", "blobs", "settings"],
+		"readwrite",
+	);
+
+	await transaction.objectStore("songs").delete(songId);
+
+	for (const audioFileId of audioFileIds) {
+		await transaction.objectStore("audioFiles").delete(audioFileId);
+		await transaction.objectStore("blobs").delete(audioFileId);
+	}
+
+	for (const annotationId of annotationIds) {
+		await transaction.objectStore("annotations").delete(annotationId);
+	}
+
+	await transaction.objectStore("settings").put(settings, SETTINGS_KEY);
+	await transaction.done;
 }
 
 function mergeAudioFileNotes(

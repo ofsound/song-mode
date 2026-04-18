@@ -2,9 +2,8 @@ import { useCallback, useMemo } from "react";
 import { isoDateInLocalCalendar } from "#/lib/song-mode/dates";
 import {
 	deleteAnnotation as deleteAnnotationRecord,
-	deleteAudioBlob as deleteAudioBlobRecord,
-	deleteAudioFile as deleteAudioFileRecord,
-	deleteSong as deleteSongRecord,
+	deleteAudioFileCascade,
+	deleteSongCascade,
 	saveAnnotation,
 	saveAudioBlob,
 	saveAudioFile,
@@ -26,6 +25,11 @@ import {
 	generateWaveformFromFile,
 	normalizeVolumeDb,
 } from "#/lib/song-mode/waveform";
+import {
+	findEntityById,
+	patchEntityById,
+	removeEntityById,
+} from "./song-mode-provider-mutation-helpers";
 import type { CommitSnapshot } from "./song-mode-provider-state";
 
 interface UseSongMutationsOptions {
@@ -98,21 +102,17 @@ export function useSongMutations({
 			await commitSnapshot(
 				(current) => ({
 					...current,
-					songs: current.songs.map((song) =>
-						song.id === songId
-							? {
-									...song,
-									...patch,
-									generalNotes: normalizeRichText(
-										patch.generalNotes ?? song.generalNotes,
-									),
-									updatedAt: new Date().toISOString(),
-								}
-							: song,
-					),
+					songs: patchEntityById(current.songs, songId, (song) => ({
+						...song,
+						...patch,
+						generalNotes: normalizeRichText(
+							patch.generalNotes ?? song.generalNotes,
+						),
+						updatedAt: new Date().toISOString(),
+					})),
 				}),
 				async (nextSnapshot) => {
-					const song = nextSnapshot.songs.find((entry) => entry.id === songId);
+					const song = findEntityById(nextSnapshot.songs, songId);
 					if (song) {
 						await saveSong(song);
 					}
@@ -148,7 +148,7 @@ export function useSongMutations({
 
 					return {
 						...current,
-						songs: current.songs.filter((song) => song.id !== songId),
+						songs: removeEntityById(current.songs, songId),
 						audioFiles: current.audioFiles.filter(
 							(audioFile) => audioFile.songId !== songId,
 						),
@@ -168,17 +168,12 @@ export function useSongMutations({
 					};
 				},
 				async (nextSnapshot) => {
-					await Promise.all([
-						deleteSongRecord(songId),
-						...deletedAudioFileIds.map((fileId) =>
-							deleteAudioFileRecord(fileId),
-						),
-						...deletedAudioFileIds.map((fileId) =>
-							deleteAudioBlobRecord(fileId),
-						),
-						...deletedAnnotationIds.map((id) => deleteAnnotationRecord(id)),
-						saveSettings(nextSnapshot.settings),
-					]);
+					await deleteSongCascade({
+						songId,
+						audioFileIds: deletedAudioFileIds,
+						annotationIds: deletedAnnotationIds,
+						settings: nextSnapshot.settings,
+					});
 				},
 			);
 
@@ -265,23 +260,22 @@ export function useAudioFileMutations({
 			await commitSnapshot(
 				(current) => ({
 					...current,
-					audioFiles: current.audioFiles.map((audioFile) =>
-						audioFile.id === audioFileId
-							? {
-									...audioFile,
-									...patch,
-									notes: normalizeRichText(patch.notes ?? audioFile.notes),
-									volumeDb: normalizeVolumeDb(
-										patch.volumeDb ?? audioFile.volumeDb,
-									),
-									updatedAt: new Date().toISOString(),
-								}
-							: audioFile,
+					audioFiles: patchEntityById(
+						current.audioFiles,
+						audioFileId,
+						(audioFile) => ({
+							...audioFile,
+							...patch,
+							notes: normalizeRichText(patch.notes ?? audioFile.notes),
+							volumeDb: normalizeVolumeDb(patch.volumeDb ?? audioFile.volumeDb),
+							updatedAt: new Date().toISOString(),
+						}),
 					),
 				}),
 				async (nextSnapshot) => {
-					const audioFile = nextSnapshot.audioFiles.find(
-						(entry) => entry.id === audioFileId,
+					const audioFile = findEntityById(
+						nextSnapshot.audioFiles,
+						audioFileId,
 					);
 					if (audioFile) {
 						await saveAudioFile(audioFile);
@@ -360,15 +354,14 @@ export function useAudioFileMutations({
 					}
 
 					const updatedSong = updatedSongId
-						? nextSnapshot.songs.find((song) => song.id === updatedSongId)
+						? findEntityById(nextSnapshot.songs, updatedSongId)
 						: undefined;
-					await Promise.all([
-						deleteAudioFileRecord(audioFileId),
-						deleteAudioBlobRecord(audioFileId),
-						...deletedAnnotationIds.map((id) => deleteAnnotationRecord(id)),
-						updatedSong ? saveSong(updatedSong) : Promise.resolve(),
-						saveSettings(nextSnapshot.settings),
-					]);
+					await deleteAudioFileCascade({
+						audioFileId,
+						annotationIds: deletedAnnotationIds,
+						settings: nextSnapshot.settings,
+						song: updatedSong,
+					});
 				},
 			);
 
@@ -387,18 +380,14 @@ export function useAudioFileMutations({
 			await commitSnapshot(
 				(current) => ({
 					...current,
-					songs: current.songs.map((song) =>
-						song.id === songId
-							? {
-									...song,
-									audioFileOrder: orderedIds,
-									updatedAt: new Date().toISOString(),
-								}
-							: song,
-					),
+					songs: patchEntityById(current.songs, songId, (song) => ({
+						...song,
+						audioFileOrder: orderedIds,
+						updatedAt: new Date().toISOString(),
+					})),
 				}),
 				async (nextSnapshot) => {
-					const song = nextSnapshot.songs.find((entry) => entry.id === songId);
+					const song = findEntityById(nextSnapshot.songs, songId);
 					if (song) {
 						await saveSong(song);
 					}
@@ -454,20 +443,21 @@ export function useAnnotationMutations({
 			await commitSnapshot(
 				(current) => ({
 					...current,
-					annotations: current.annotations.map((annotation) =>
-						annotation.id === annotationId
-							? {
-									...annotation,
-									...patch,
-									body: normalizeRichText(patch.body ?? annotation.body),
-									updatedAt: new Date().toISOString(),
-								}
-							: annotation,
+					annotations: patchEntityById(
+						current.annotations,
+						annotationId,
+						(annotation) => ({
+							...annotation,
+							...patch,
+							body: normalizeRichText(patch.body ?? annotation.body),
+							updatedAt: new Date().toISOString(),
+						}),
 					),
 				}),
 				async (nextSnapshot) => {
-					const annotation = nextSnapshot.annotations.find(
-						(entry) => entry.id === annotationId,
+					const annotation = findEntityById(
+						nextSnapshot.annotations,
+						annotationId,
 					);
 					if (annotation) {
 						await saveAnnotation(annotation);
@@ -483,9 +473,7 @@ export function useAnnotationMutations({
 			await commitSnapshot(
 				(current) => ({
 					...current,
-					annotations: current.annotations.filter(
-						(annotation) => annotation.id !== annotationId,
-					),
+					annotations: removeEntityById(current.annotations, annotationId),
 				}),
 				async () => {
 					await deleteAnnotationRecord(annotationId);
