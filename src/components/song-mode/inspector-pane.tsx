@@ -11,11 +11,6 @@ import type {
 import { InspectorMarkerCard } from "./inspector-marker-card";
 import { RichTextEditor } from "./rich-text-editor";
 
-function formatMarkerCount(count: number) {
-	if (count === 1) return "1 marker";
-	return `${count} markers`;
-}
-
 function escapeHtml(value: string): string {
 	return value
 		.replaceAll("&", "&amp;")
@@ -97,12 +92,6 @@ export function InspectorPane({
 							<span className="font-bold text-[var(--color-accent)]">
 								{selectedFile?.title ?? song.title}
 							</span>
-							{annotations.length > 0 && (
-								<span className="text-base">
-									{" — "}
-									{formatMarkerCount(annotations.length)}
-								</span>
-							)}
 						</h3>
 					</div>
 				</div>

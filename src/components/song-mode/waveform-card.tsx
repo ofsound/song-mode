@@ -1,13 +1,13 @@
 import {
-	Flag,
+	Bookmark,
+	BookmarkMinus,
 	GripVertical,
 	Minus,
 	Pause,
 	Play,
 	Plus,
 	RotateCcw,
-	SquareStack,
-	TimerReset,
+	UnfoldHorizontal,
 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { resolveAudioFileSessionDateLabel } from "#/lib/song-mode/dates";
@@ -33,6 +33,11 @@ interface HoveredAnnotationState {
 	annotationId: string;
 	x: number;
 	y: number;
+}
+
+interface SeekDragState {
+	pointerId: number;
+	timeMs: number;
 }
 
 interface WaveformCardProps {
@@ -96,6 +101,7 @@ export function WaveformCard({
 	const surfaceRef = useRef<HTMLDivElement | null>(null);
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 	const isDragArmedRef = useRef(false);
+	const seekDragStateRef = useRef<SeekDragState | null>(null);
 
 	const sortedAnnotations = useMemo(
 		() => [...annotations].sort((left, right) => left.startMs - right.startMs),
@@ -271,6 +277,22 @@ export function WaveformCard({
 		setMode("seek");
 	}
 
+	function clearSeekDragState(
+		target: HTMLDivElement,
+		pointerId: number,
+	): SeekDragState | null {
+		const dragState = seekDragStateRef.current;
+		if (!dragState || dragState.pointerId !== pointerId) {
+			return null;
+		}
+
+		seekDragStateRef.current = null;
+		if (target.hasPointerCapture?.(pointerId)) {
+			target.releasePointerCapture(pointerId);
+		}
+		return dragState;
+	}
+
 	const shouldIgnoreRowSelection = (target: EventTarget | null): boolean => {
 		if (!(target instanceof HTMLElement)) {
 			return true;
@@ -383,7 +405,7 @@ export function WaveformCard({
 
 				<div className="flex flex-wrap items-center gap-2">
 					<ModeButton
-						icon={<TimerReset size={14} />}
+						icon={<UnfoldHorizontal size={14} />}
 						active={mode === "seek"}
 						label="Seek"
 						onClick={() => {
@@ -392,7 +414,7 @@ export function WaveformCard({
 						}}
 					/>
 					<ModeButton
-						icon={<Flag size={14} />}
+						icon={<Bookmark size={14} />}
 						active={mode === "point"}
 						label="Point"
 						onClick={() => {
@@ -401,7 +423,7 @@ export function WaveformCard({
 						}}
 					/>
 					<ModeButton
-						icon={<SquareStack size={14} />}
+						icon={<BookmarkMinus size={14} />}
 						active={mode === "range"}
 						label={rangeAnchorMs === null ? "Range" : "Finish range"}
 						onClick={() => {
@@ -433,22 +455,78 @@ export function WaveformCard({
 					tabIndex={0}
 					aria-label={`Waveform for ${audioFile.title}`}
 					onPointerLeave={() => setHoveredAnnotation(null)}
+					onPointerDown={(event) => {
+						if (
+							mode !== "seek" ||
+							event.button !== 0 ||
+							(event.target as HTMLElement).closest("[data-annotation-hit]")
+						) {
+							return;
+						}
+
+						const timeMs = getWaveformTimeMs(event.clientX);
+						if (timeMs === null) {
+							return;
+						}
+
+						onSelectFile(audioFile.id);
+						seekDragStateRef.current = {
+							pointerId: event.pointerId,
+							timeMs,
+						};
+						event.currentTarget.setPointerCapture?.(event.pointerId);
+
+						if (audioRef.current) {
+							audioRef.current.currentTime = timeMs / 1000;
+						}
+						onReportPlayback({ currentTimeMs: timeMs });
+					}}
+					onPointerMove={(event) => {
+						const dragState = seekDragStateRef.current;
+						if (
+							mode !== "seek" ||
+							!dragState ||
+							dragState.pointerId !== event.pointerId
+						) {
+							return;
+						}
+
+						const timeMs = getWaveformTimeMs(event.clientX);
+						if (timeMs === null || timeMs === dragState.timeMs) {
+							return;
+						}
+
+						dragState.timeMs = timeMs;
+						if (audioRef.current) {
+							audioRef.current.currentTime = timeMs / 1000;
+						}
+						onReportPlayback({ currentTimeMs: timeMs });
+					}}
+					onPointerUp={(event) => {
+						const dragState = clearSeekDragState(
+							event.currentTarget,
+							event.pointerId,
+						);
+						if (mode !== "seek" || !dragState) {
+							return;
+						}
+
+						void onSeek(dragState.timeMs, event.detail >= 2);
+					}}
+					onPointerCancel={(event) => {
+						clearSeekDragState(event.currentTarget, event.pointerId);
+					}}
 					onClick={(event) => {
+						if (mode === "seek") {
+							return;
+						}
+
 						if (
 							(event.target as HTMLElement).closest("[data-annotation-hit]")
 						) {
 							return;
 						}
 						void handleWaveformAction(event.clientX);
-					}}
-					onDoubleClick={(event) => {
-						if (
-							mode !== "seek" ||
-							(event.target as HTMLElement).closest("[data-annotation-hit]")
-						) {
-							return;
-						}
-						void handleWaveformAction(event.clientX, true);
 					}}
 					onKeyDown={(event) => {
 						if (event.key !== "Enter") {
@@ -537,7 +615,7 @@ export function WaveformCard({
 				</span>
 				<span>
 					{mode === "seek"
-						? "Click to seek · Double-click to play"
+						? "Click and drag to seek · Double-click to play"
 						: mode === "point"
 							? "Click to add a point marker"
 							: rangeAnchorMs === null

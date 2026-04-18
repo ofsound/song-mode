@@ -80,12 +80,14 @@
 	transition:
 		box-shadow 200ms ease,
 		border-color 200ms ease,
+		border-width 200ms ease,
 		background-color 200ms ease,
 		opacity 200ms ease;
 }
 
 .waveform-card--selected {
 	border-color: var(--color-waveform-selected);
+	border-width: 1.5px 1.5px 1.5px 1px;
 	opacity: 1;
 	box-shadow:
 		inset 4px 0 0 0 var(--color-waveform-selected),

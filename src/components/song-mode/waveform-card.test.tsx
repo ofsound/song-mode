@@ -93,6 +93,7 @@ function renderWaveformCard({
 	onSelectAnnotation = vi.fn(),
 	onDragStart = vi.fn(),
 	onStepVolume = vi.fn().mockResolvedValue(undefined),
+	onReportPlayback = vi.fn(),
 }: {
 	audioFile?: AudioFileRecord;
 	annotations?: Annotation[];
@@ -106,6 +107,10 @@ function renderWaveformCard({
 	onSelectAnnotation?: (annotationId: string) => void;
 	onDragStart?: () => void;
 	onStepVolume?: (deltaDb: number) => Promise<void>;
+	onReportPlayback?: (patch: {
+		isPlaying?: boolean;
+		currentTimeMs?: number;
+	}) => void;
 } = {}) {
 	return render(
 		<WaveformCard
@@ -132,7 +137,7 @@ function renderWaveformCard({
 			onSeek={onSeek}
 			onTogglePlayback={vi.fn().mockResolvedValue(undefined)}
 			onRegisterAudioElement={vi.fn()}
-			onReportPlayback={vi.fn()}
+			onReportPlayback={onReportPlayback}
 			onStepVolume={onStepVolume}
 			onDragStart={onDragStart}
 			onDragEnd={vi.fn()}
@@ -323,29 +328,67 @@ describe("WaveformCard", () => {
 		});
 	});
 
-	it("seeks on click and seeks with autoplay on double-click in seek mode", async () => {
+	it("commits seek on pointer up and uses autoplay on double-click release", async () => {
 		const onSeek = vi.fn().mockResolvedValue(undefined);
 		const onSelectFile = vi.fn();
+		const onReportPlayback = vi.fn();
 
 		renderWaveformCard({
 			onSeek,
 			onSelectFile,
+			onReportPlayback,
 		});
 
 		const waveformSurface = screen.getByRole("button", {
 			name: /waveform for mix v1/i,
 		});
 		mockWaveformBounds(waveformSurface, { left: 10, width: 200 });
+		const audioElement = document.querySelector("audio");
+		expect(audioElement).toBeTruthy();
 
-		fireEvent.click(waveformSurface, { clientX: 60 });
+		fireEvent.pointerDown(waveformSurface, {
+			button: 0,
+			pointerId: 3,
+			clientX: 60,
+			detail: 1,
+		});
+		fireEvent.pointerMove(waveformSurface, {
+			pointerId: 3,
+			clientX: 80,
+		});
+
+		expect(onSeek).not.toHaveBeenCalled();
+		expect(onReportPlayback).toHaveBeenNthCalledWith(1, {
+			currentTimeMs: 45000,
+		});
+		expect(onReportPlayback).toHaveBeenNthCalledWith(2, {
+			currentTimeMs: 63000,
+		});
+		expect((audioElement as HTMLAudioElement).currentTime).toBe(63);
+
+		fireEvent.pointerUp(waveformSurface, {
+			pointerId: 3,
+			clientX: 80,
+			detail: 1,
+		});
 
 		await waitFor(() => {
-			expect(onSeek).toHaveBeenCalledWith(45000);
+			expect(onSeek).toHaveBeenCalledWith(63000, false);
 		});
 		expect(onSelectFile).toHaveBeenCalledWith("file-1");
 		expect(onSelectFile).toHaveBeenCalledTimes(1);
 
-		fireEvent.doubleClick(waveformSurface, { clientX: 160 });
+		fireEvent.pointerDown(waveformSurface, {
+			button: 0,
+			pointerId: 4,
+			clientX: 160,
+			detail: 2,
+		});
+		fireEvent.pointerUp(waveformSurface, {
+			pointerId: 4,
+			clientX: 160,
+			detail: 2,
+		});
 
 		await waitFor(() => {
 			expect(onSeek).toHaveBeenCalledWith(135000, true);
