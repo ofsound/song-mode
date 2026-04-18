@@ -47,6 +47,10 @@ describe("useWaveformCanvas", () => {
 			configurable: true,
 			get: () => 240,
 		});
+		Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+			configurable: true,
+			get: () => 92,
+		});
 		const contextStub = {
 			beginPath: vi.fn(),
 			clearRect: vi.fn(),

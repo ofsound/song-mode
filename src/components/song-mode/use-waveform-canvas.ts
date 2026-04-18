@@ -39,13 +39,16 @@ export function useWaveformCanvas({
 			const styles = window.getComputedStyle(surface);
 			const readColor = (name: string) =>
 				styles.getPropertyValue(name).trim() || "transparent";
-			const parsedHeight = Number.parseInt(
-				styles.getPropertyValue("--song-workspace-waveform-height"),
-				10,
-			);
-			const height = Number.isFinite(parsedHeight)
-				? parsedHeight
-				: getWaveformHeightPx("large");
+			let height = Math.round(surface.clientHeight);
+			if (height <= 0) {
+				const parsedHeight = Number.parseInt(
+					styles.getPropertyValue("--song-workspace-waveform-height"),
+					10,
+				);
+				height = Number.isFinite(parsedHeight)
+					? parsedHeight
+					: getWaveformHeightPx("large");
+			}
 			canvas.width = width * ratio;
 			canvas.height = height * ratio;
 			canvas.style.width = `${width}px`;

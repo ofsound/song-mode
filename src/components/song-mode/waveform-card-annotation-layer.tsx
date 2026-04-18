@@ -132,7 +132,7 @@ export function WaveformCardAnnotationLayer({
 									onSelectAnnotation(annotation.id);
 									void onSeek(annotation.startMs, true);
 								}}
-								className={`absolute bottom-4 top-4 border ${
+								className={`absolute top-[var(--waveform-marker-gutter-height)] bottom-[var(--waveform-marker-gutter-height)] border ${
 									activeAnnotationId === annotation.id
 										? "border-[var(--color-waveform-annotation-active)] shadow-[0_0_0_1px_var(--color-waveform-annotation-active)]"
 										: "border-[var(--color-waveform-annotation-inactive)]"
@@ -155,7 +155,7 @@ export function WaveformCardAnnotationLayer({
 								className="absolute bottom-0 top-0 left-0 w-3 -translate-x-1/2"
 							>
 								<span
-									className="absolute bottom-0 top-0 left-1/2 w-0.5 -translate-x-1/2"
+									className="absolute top-[var(--waveform-marker-gutter-height)] bottom-0 left-1/2 w-0.5 -translate-x-1/2"
 									style={{ backgroundColor: rangeColor }}
 								/>
 								<span
@@ -178,20 +178,17 @@ export function WaveformCardAnnotationLayer({
 									className="absolute bottom-0 left-1/2 -translate-x-1/2 cursor-pointer leading-none"
 								>
 									<svg
-										width={21}
+										width={10.5}
 										height={16.5}
-										viewBox="0 0 14 11"
+										viewBox="0 0 7 11"
 										className="block"
 										aria-hidden={true}
 									>
 										<polygon
-											points="0,11 14,11 7,0"
+											points="0,11 7,0 7,11"
 											className="fill-[var(--color-waveform-marker-dot-border)]"
 										/>
-										<polygon
-											points="1.1,9.9 12.9,9.9 7,1.5"
-											fill={rangeColor}
-										/>
+										<polygon points="1.1,9.9 7,1.5 7,9.9" fill={rangeColor} />
 									</svg>
 								</span>
 							</button>
@@ -206,7 +203,7 @@ export function WaveformCardAnnotationLayer({
 								className="absolute bottom-0 top-0 left-full w-3 -translate-x-1/2"
 							>
 								<span
-									className="absolute bottom-0 top-0 left-1/2 w-0.5 -translate-x-1/2"
+									className="absolute top-[var(--waveform-marker-gutter-height)] bottom-0 left-1/2 w-0.5 -translate-x-1/2"
 									style={{ backgroundColor: rangeColor }}
 								/>
 								<span
@@ -229,20 +226,17 @@ export function WaveformCardAnnotationLayer({
 									className="absolute bottom-0 left-1/2 -translate-x-1/2 cursor-pointer leading-none"
 								>
 									<svg
-										width={21}
+										width={10.5}
 										height={16.5}
-										viewBox="0 0 14 11"
+										viewBox="0 0 7 11"
 										className="block"
 										aria-hidden={true}
 									>
 										<polygon
-											points="0,11 14,11 7,0"
+											points="0,11 0,0 7,11"
 											className="fill-[var(--color-waveform-marker-dot-border)]"
 										/>
-										<polygon
-											points="1.1,9.9 12.9,9.9 7,1.5"
-											fill={rangeColor}
-										/>
+										<polygon points="0,9.9 0,1.5 5.9,9.9" fill={rangeColor} />
 									</svg>
 								</span>
 							</button>
@@ -289,7 +283,7 @@ export function WaveformCardAnnotationLayer({
 							onPointerCancel={markerDragHandlers.onPointerCancel}
 							className="absolute bottom-0 top-0 left-1/2 w-3 -translate-x-1/2"
 						>
-							<span className="absolute bottom-0 top-0 left-1/2 w-0.5 -translate-x-1/2 bg-[var(--color-waveform-marker-track)]" />
+							<span className="absolute top-[var(--waveform-marker-gutter-height)] bottom-[var(--waveform-marker-gutter-height)] left-1/2 w-0.5 -translate-x-1/2 bg-[var(--color-waveform-marker-track)]" />
 							<span
 								data-marker-handle
 								onPointerEnter={(event) =>
@@ -367,7 +361,7 @@ export function WaveformCardAnnotationLayer({
 										color: "var(--color-annotation-2)",
 									});
 								}}
-								className={`absolute bottom-1 left-1/2 inline-flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border shadow-sm transition-all duration-150 focus-visible:opacity-100 focus-visible:scale-100 ${
+								className={`absolute bottom-[calc(var(--waveform-marker-gutter-height)+0.25rem)] left-1/2 inline-flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border shadow-sm transition-all duration-150 focus-visible:opacity-100 focus-visible:scale-100 ${
 									isConvertRangeVisible
 										? "border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] text-[var(--color-text)] opacity-100 scale-100"
 										: "border-transparent bg-transparent text-[var(--color-text-muted)] opacity-0 scale-95"

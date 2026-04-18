@@ -152,6 +152,8 @@ function renderWaveformCard({
 	);
 }
 
+const WAVEFORM_MARKER_GUTTER_HEIGHT_PX = 16.5;
+
 function mockWaveformBounds(
 	element: HTMLElement,
 	{
@@ -160,15 +162,16 @@ function mockWaveformBounds(
 		height = 164,
 	}: { left?: number; width?: number; height?: number } = {},
 ) {
+	const shellHeight = height + 2 * WAVEFORM_MARKER_GUTTER_HEIGHT_PX;
 	Object.defineProperty(element, "getBoundingClientRect", {
 		configurable: true,
 		value: () => ({
 			left,
 			top: 0,
 			right: left + width,
-			bottom: height,
+			bottom: shellHeight,
 			width,
-			height,
+			height: shellHeight,
 			x: left,
 			y: 0,
 			toJSON: () => ({}),
@@ -180,8 +183,66 @@ function mockWaveformBounds(
 	});
 	Object.defineProperty(element, "clientHeight", {
 		configurable: true,
-		value: height,
+		value: shellHeight,
 	});
+
+	const canvasSurface = element.querySelector(
+		'[data-testid="waveform-canvas-surface"]',
+	);
+	if (canvasSurface instanceof HTMLElement) {
+		const canvasTop = WAVEFORM_MARKER_GUTTER_HEIGHT_PX;
+		const canvasBottom = WAVEFORM_MARKER_GUTTER_HEIGHT_PX + height;
+		Object.defineProperty(canvasSurface, "getBoundingClientRect", {
+			configurable: true,
+			value: () => ({
+				left,
+				top: canvasTop,
+				right: left + width,
+				bottom: canvasBottom,
+				width,
+				height,
+				x: left,
+				y: canvasTop,
+				toJSON: () => ({}),
+			}),
+		});
+		Object.defineProperty(canvasSurface, "clientWidth", {
+			configurable: true,
+			value: width,
+		});
+		Object.defineProperty(canvasSurface, "clientHeight", {
+			configurable: true,
+			value: height,
+		});
+	}
+
+	const annotationOverlay = element.querySelector(
+		'[data-testid="waveform-annotation-overlay"]',
+	);
+	if (annotationOverlay instanceof HTMLElement) {
+		Object.defineProperty(annotationOverlay, "getBoundingClientRect", {
+			configurable: true,
+			value: () => ({
+				left,
+				top: 0,
+				right: left + width,
+				bottom: shellHeight,
+				width,
+				height: shellHeight,
+				x: left,
+				y: 0,
+				toJSON: () => ({}),
+			}),
+		});
+		Object.defineProperty(annotationOverlay, "clientWidth", {
+			configurable: true,
+			value: width,
+		});
+		Object.defineProperty(annotationOverlay, "clientHeight", {
+			configurable: true,
+			value: shellHeight,
+		});
+	}
 }
 
 describe("WaveformCard", () => {
@@ -356,11 +417,13 @@ describe("WaveformCard", () => {
 			button: 0,
 			pointerId: 3,
 			clientX: 60,
+			clientY: 90,
 			detail: 1,
 		});
 		fireEvent.pointerMove(waveformSurface, {
 			pointerId: 3,
 			clientX: 80,
+			clientY: 90,
 		});
 
 		expect(onSeek).not.toHaveBeenCalled();
@@ -375,6 +438,7 @@ describe("WaveformCard", () => {
 		fireEvent.pointerUp(waveformSurface, {
 			pointerId: 3,
 			clientX: 80,
+			clientY: 90,
 			detail: 1,
 		});
 
@@ -388,13 +452,16 @@ describe("WaveformCard", () => {
 			button: 0,
 			pointerId: 4,
 			clientX: 160,
+			clientY: 90,
 		});
 		fireEvent.pointerUp(waveformSurface, {
 			pointerId: 4,
 			clientX: 160,
+			clientY: 90,
 		});
 		fireEvent.doubleClick(waveformSurface, {
 			clientX: 160,
+			clientY: 90,
 		});
 
 		await waitFor(() => {

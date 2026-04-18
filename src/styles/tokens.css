@@ -286,6 +286,7 @@
 	--accent-dark-primary-base: #6ee7b7;
 	--accent-dark-strong-base: #38bdf8;
 	--song-workspace-waveform-tab-width: 14px;
+	--waveform-marker-gutter-height: 16.5px;
 	--song-workspace-waveform-height: 164px;
 	--canvas-waveform-surface: color-mix(
 		in srgb,

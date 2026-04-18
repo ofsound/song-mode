@@ -102,7 +102,9 @@ export function WaveformCard({
 		useState(false);
 	const articleRef = useRef<HTMLElement | null>(null);
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
-	const surfaceRef = useRef<HTMLDivElement | null>(null);
+	const waveformShellRef = useRef<HTMLDivElement | null>(null);
+	const canvasSurfaceRef = useRef<HTMLDivElement | null>(null);
+	const annotationOverlayRef = useRef<HTMLDivElement | null>(null);
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 	const isDragArmedRef = useRef(false);
 	const seekDragStateRef = useRef<SeekDragState | null>(null);
@@ -131,12 +133,13 @@ export function WaveformCard({
 		[annotations, hoveredAnnotation],
 	);
 	const hoveredTooltipPosition = useMemo(() => {
-		if (!hoveredAnnotation || !surfaceRef.current) {
+		if (!hoveredAnnotation || !annotationOverlayRef.current) {
 			return null;
 		}
 
-		const width = surfaceRef.current.clientWidth;
-		const height = surfaceRef.current.clientHeight;
+		const overlay = annotationOverlayRef.current;
+		const width = overlay.clientWidth;
+		const height = overlay.clientHeight;
 		if (width <= 0 || height <= 0) {
 			return null;
 		}
@@ -190,26 +193,46 @@ export function WaveformCard({
 		canvasRef,
 		currentTimeMs,
 		isSelected,
-		surfaceRef,
+		surfaceRef: canvasSurfaceRef,
 		waveform,
 	});
 
+	function isClientXYInCanvasSurface(
+		clientX: number,
+		clientY: number,
+	): boolean {
+		if (!canvasSurfaceRef.current) {
+			return false;
+		}
+
+		const rect = canvasSurfaceRef.current.getBoundingClientRect();
+		if (clientX < rect.left || clientX > rect.right) {
+			return false;
+		}
+
+		if (!Number.isFinite(clientY)) {
+			return true;
+		}
+
+		return clientY >= rect.top && clientY <= rect.bottom;
+	}
+
 	function getWaveformTimeMs(clientX: number): number | null {
-		if (!surfaceRef.current) {
+		if (!canvasSurfaceRef.current) {
 			return null;
 		}
 
-		const rect = surfaceRef.current.getBoundingClientRect();
+		const rect = canvasSurfaceRef.current.getBoundingClientRect();
 		const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
 		return Math.round(audioFile.durationMs * ratio);
 	}
 
 	function getTimePerPixel(): number {
-		if (!surfaceRef.current) {
+		if (!canvasSurfaceRef.current) {
 			return 0;
 		}
 
-		const rect = surfaceRef.current.getBoundingClientRect();
+		const rect = canvasSurfaceRef.current.getBoundingClientRect();
 		if (rect.width <= 0) {
 			return 0;
 		}
@@ -222,11 +245,12 @@ export function WaveformCard({
 		clientX: number,
 		clientY: number,
 	) {
-		if (!surfaceRef.current) {
+		const overlay = annotationOverlayRef.current;
+		if (!overlay) {
 			return;
 		}
 
-		const rect = surfaceRef.current.getBoundingClientRect();
+		const rect = overlay.getBoundingClientRect();
 		setHoveredAnnotation({
 			annotationId,
 			x: clientX - rect.left,
@@ -409,9 +433,14 @@ export function WaveformCard({
 			<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
 				{/* biome-ignore lint/a11y/useSemanticElements: the waveform surface contains nested marker buttons, so a semantic button wrapper is not valid */}
 				<div
-					ref={surfaceRef}
-					className="waveform-surface relative overflow-hidden border border-[var(--color-border-subtle)]"
-					style={{ height: "var(--song-workspace-waveform-height)" }}
+					ref={waveformShellRef}
+					className="waveform-surface relative grid overflow-hidden border border-[var(--color-border-subtle)]"
+					style={{
+						height:
+							"calc(var(--song-workspace-waveform-height) + 2 * var(--waveform-marker-gutter-height))",
+						gridTemplateRows:
+							"var(--waveform-marker-gutter-height) minmax(0, 1fr) var(--waveform-marker-gutter-height)",
+					}}
 					role="button"
 					tabIndex={0}
 					aria-label={`Waveform for ${audioFile.title}`}
@@ -426,6 +455,10 @@ export function WaveformCard({
 								"[data-annotation-hit], [data-playhead-add-marker-hit], [data-playhead-add-range-hit]",
 							)
 						) {
+							return;
+						}
+
+						if (!isClientXYInCanvasSurface(event.clientX, event.clientY)) {
 							return;
 						}
 
@@ -490,6 +523,10 @@ export function WaveformCard({
 							return;
 						}
 
+						if (!isClientXYInCanvasSurface(event.clientX, event.clientY)) {
+							return;
+						}
+
 						const lastSeekClick = lastSeekClickRef.current;
 						const timeMs =
 							lastSeekClick &&
@@ -509,7 +546,7 @@ export function WaveformCard({
 						}
 
 						event.preventDefault();
-						const bounds = surfaceRef.current?.getBoundingClientRect();
+						const bounds = canvasSurfaceRef.current?.getBoundingClientRect();
 						if (!bounds) {
 							return;
 						}
@@ -517,135 +554,149 @@ export function WaveformCard({
 						void onSeek(Math.round(audioFile.durationMs / 2));
 					}}
 				>
-					<button
-						type="button"
-						aria-label={`Reset playhead for ${audioFile.title}`}
-						title="Reset playhead to start"
-						onClick={(event) => {
-							event.stopPropagation();
-							onSelectFile(audioFile.id);
-							void onSeek(0, false);
-						}}
-						className="absolute left-1 top-1 z-10 inline-flex h-8 w-8 items-center justify-center border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] shadow-sm transition hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
-					>
-						<RotateCcw size={14} />
-					</button>
-					<canvas ref={canvasRef} className="block w-full" />
+					<div className="min-h-0 pointer-events-none" aria-hidden />
 					<div
-						className="pointer-events-none absolute bottom-0 top-0 z-10"
-						style={{ left: playheadLeft }}
+						ref={canvasSurfaceRef}
+						className="relative min-h-0 border-y border-[var(--color-border-subtle)]"
+						data-testid="waveform-canvas-surface"
 					>
 						<button
 							type="button"
-							data-playhead-add-marker-hit
-							data-testid="playhead-add-marker-button"
-							data-visible={isPlayheadAddMarkerVisible}
-							aria-label={`Add marker at ${formatDuration(playheadTimeMs)} for ${audioFile.title}`}
-							title="Add point marker at playhead"
-							onPointerDown={(event) => {
+							aria-label={`Reset playhead for ${audioFile.title}`}
+							title="Reset playhead to start"
+							onClick={(event) => {
 								event.stopPropagation();
+								onSelectFile(audioFile.id);
+								void onSeek(0, false);
 							}}
-							onPointerEnter={() => setIsPlayheadAddMarkerVisible(true)}
-							onPointerLeave={() => setIsPlayheadAddMarkerVisible(false)}
-							onFocus={() => setIsPlayheadAddMarkerVisible(true)}
-							onBlur={(event) => {
-								if (
-									event.relatedTarget instanceof Node &&
-									event.currentTarget.contains(event.relatedTarget)
-								) {
-									return;
-								}
+							className="absolute left-1 top-1 z-10 inline-flex h-8 w-8 items-center justify-center border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] shadow-sm transition hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
+						>
+							<RotateCcw size={14} />
+						</button>
+						<canvas ref={canvasRef} className="block w-full" />
+						<div
+							className="pointer-events-none absolute bottom-0 top-0 z-10"
+							style={{ left: playheadLeft }}
+						>
+							<button
+								type="button"
+								data-playhead-add-marker-hit
+								data-testid="playhead-add-marker-button"
+								data-visible={isPlayheadAddMarkerVisible}
+								aria-label={`Add marker at ${formatDuration(playheadTimeMs)} for ${audioFile.title}`}
+								title="Add point marker at playhead"
+								onPointerDown={(event) => {
+									event.stopPropagation();
+								}}
+								onPointerEnter={() => setIsPlayheadAddMarkerVisible(true)}
+								onPointerLeave={() => setIsPlayheadAddMarkerVisible(false)}
+								onFocus={() => setIsPlayheadAddMarkerVisible(true)}
+								onBlur={(event) => {
+									if (
+										event.relatedTarget instanceof Node &&
+										event.currentTarget.contains(event.relatedTarget)
+									) {
+										return;
+									}
 
-								setIsPlayheadAddMarkerVisible(false);
-							}}
-							onKeyDown={(event) => {
-								event.stopPropagation();
-								if (event.key === "Enter") {
+									setIsPlayheadAddMarkerVisible(false);
+								}}
+								onKeyDown={(event) => {
+									event.stopPropagation();
+									if (event.key === "Enter") {
+										event.preventDefault();
+										void createPointAnnotationAtTime(playheadTimeMs);
+									}
+									if (event.key === " ") {
+										event.preventDefault();
+									}
+								}}
+								onKeyUp={(event) => {
+									event.stopPropagation();
+									if (event.key !== " ") {
+										return;
+									}
+
 									event.preventDefault();
 									void createPointAnnotationAtTime(playheadTimeMs);
-								}
-								if (event.key === " ") {
-									event.preventDefault();
-								}
-							}}
-							onKeyUp={(event) => {
-								event.stopPropagation();
-								if (event.key !== " ") {
-									return;
-								}
+								}}
+								onClick={(event) => {
+									event.stopPropagation();
+									void createPointAnnotationAtTime(playheadTimeMs);
+								}}
+								className={`pointer-events-auto absolute left-1/2 top-1 inline-flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border shadow-sm transition-all duration-150 focus-visible:opacity-100 focus-visible:scale-100 ${
+									isPlayheadAddMarkerVisible
+										? "border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] text-[var(--color-text)] opacity-100 scale-100"
+										: "border-transparent bg-transparent text-[var(--color-text-muted)] opacity-0 scale-95"
+								}`}
+								style={{
+									height: `${PLAYHEAD_ADD_MARKER_HOTSPOT_HEIGHT_PX}px`,
+								}}
+							>
+								<Plus size={14} />
+							</button>
+							<button
+								type="button"
+								data-playhead-add-range-hit
+								data-testid="playhead-add-range-button"
+								data-visible={isPlayheadAddMarkerVisible}
+								aria-label={`Add range at ${formatDuration(playheadTimeMs)} for ${audioFile.title}`}
+								title="Add range at playhead"
+								onPointerDown={(event) => {
+									event.stopPropagation();
+								}}
+								onPointerEnter={() => setIsPlayheadAddMarkerVisible(true)}
+								onPointerLeave={() => setIsPlayheadAddMarkerVisible(false)}
+								onFocus={() => setIsPlayheadAddMarkerVisible(true)}
+								onBlur={(event) => {
+									if (
+										event.relatedTarget instanceof Node &&
+										event.currentTarget.contains(event.relatedTarget)
+									) {
+										return;
+									}
 
-								event.preventDefault();
-								void createPointAnnotationAtTime(playheadTimeMs);
-							}}
-							onClick={(event) => {
-								event.stopPropagation();
-								void createPointAnnotationAtTime(playheadTimeMs);
-							}}
-							className={`pointer-events-auto absolute left-1/2 top-1 inline-flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border shadow-sm transition-all duration-150 focus-visible:opacity-100 focus-visible:scale-100 ${
-								isPlayheadAddMarkerVisible
-									? "border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] text-[var(--color-text)] opacity-100 scale-100"
-									: "border-transparent bg-transparent text-[var(--color-text-muted)] opacity-0 scale-95"
-							}`}
-							style={{
-								height: `${PLAYHEAD_ADD_MARKER_HOTSPOT_HEIGHT_PX}px`,
-							}}
-						>
-							<Plus size={14} />
-						</button>
-						<button
-							type="button"
-							data-playhead-add-range-hit
-							data-testid="playhead-add-range-button"
-							data-visible={isPlayheadAddMarkerVisible}
-							aria-label={`Add range at ${formatDuration(playheadTimeMs)} for ${audioFile.title}`}
-							title="Add range at playhead"
-							onPointerDown={(event) => {
-								event.stopPropagation();
-							}}
-							onPointerEnter={() => setIsPlayheadAddMarkerVisible(true)}
-							onPointerLeave={() => setIsPlayheadAddMarkerVisible(false)}
-							onFocus={() => setIsPlayheadAddMarkerVisible(true)}
-							onBlur={(event) => {
-								if (
-									event.relatedTarget instanceof Node &&
-									event.currentTarget.contains(event.relatedTarget)
-								) {
-									return;
-								}
-
-								setIsPlayheadAddMarkerVisible(false);
-							}}
-							onClick={(event) => {
-								event.stopPropagation();
-								void createRangeAnnotationAtTime(playheadTimeMs);
-							}}
-							className={`pointer-events-auto absolute bottom-1 left-1/2 inline-flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border shadow-sm transition-all duration-150 focus-visible:opacity-100 focus-visible:scale-100 ${
-								isPlayheadAddMarkerVisible
-									? "border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] text-[var(--color-text)] opacity-100 scale-100"
-									: "border-transparent bg-transparent text-[var(--color-text-muted)] opacity-0 scale-95"
-							}`}
-							style={{
-								height: `${PLAYHEAD_ADD_MARKER_HOTSPOT_HEIGHT_PX}px`,
-							}}
-						>
-							<UnfoldHorizontal size={14} />
-						</button>
+									setIsPlayheadAddMarkerVisible(false);
+								}}
+								onClick={(event) => {
+									event.stopPropagation();
+									void createRangeAnnotationAtTime(playheadTimeMs);
+								}}
+								className={`pointer-events-auto absolute bottom-1 left-1/2 inline-flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border shadow-sm transition-all duration-150 focus-visible:opacity-100 focus-visible:scale-100 ${
+									isPlayheadAddMarkerVisible
+										? "border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] text-[var(--color-text)] opacity-100 scale-100"
+										: "border-transparent bg-transparent text-[var(--color-text-muted)] opacity-0 scale-95"
+								}`}
+								style={{
+									height: `${PLAYHEAD_ADD_MARKER_HOTSPOT_HEIGHT_PX}px`,
+								}}
+							>
+								<UnfoldHorizontal size={14} />
+							</button>
+						</div>
 					</div>
-					<WaveformCardAnnotationLayer
-						activeAnnotationId={activeAnnotationId}
-						audioFile={audioFile}
-						annotations={sortedAnnotations}
-						hoveredAnnotationRecord={hoveredAnnotationRecord}
-						hoveredTooltipPosition={hoveredTooltipPosition}
-						onSeek={onSeek}
-						onSelectAnnotation={onSelectAnnotation}
-						onSelectFile={onSelectFile}
-						onUpdateAnnotation={onUpdateAnnotation}
-						getTimePerPixel={getTimePerPixel}
-						setHoveredAnnotation={setHoveredAnnotation}
-						showPointMarkerConvertControl
-						updateHoveredAnnotationPosition={updateHoveredAnnotationPosition}
-					/>
+					<div className="min-h-0 pointer-events-none" aria-hidden />
+					<div
+						ref={annotationOverlayRef}
+						className="pointer-events-none absolute inset-0 z-20"
+						data-testid="waveform-annotation-overlay"
+					>
+						<WaveformCardAnnotationLayer
+							activeAnnotationId={activeAnnotationId}
+							audioFile={audioFile}
+							annotations={sortedAnnotations}
+							hoveredAnnotationRecord={hoveredAnnotationRecord}
+							hoveredTooltipPosition={hoveredTooltipPosition}
+							onSeek={onSeek}
+							onSelectAnnotation={onSelectAnnotation}
+							onSelectFile={onSelectFile}
+							onUpdateAnnotation={onUpdateAnnotation}
+							getTimePerPixel={getTimePerPixel}
+							setHoveredAnnotation={setHoveredAnnotation}
+							showPointMarkerConvertControl
+							updateHoveredAnnotationPosition={updateHoveredAnnotationPosition}
+						/>
+					</div>
 				</div>
 
 				<div className="flex min-w-[5.75rem] flex-col items-stretch justify-center bg-[var(--color-surface-elevated)] px-2 py-3">
