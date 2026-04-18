@@ -70,6 +70,10 @@
 	background: var(--background-image-waveform), var(--color-waveform-surface);
 }
 
+.waveform-surface__gutter {
+	background: var(--background-image-waveform), var(--canvas-waveform-surface);
+}
+
 .waveform-card {
 	position: relative;
 	border: 1px solid var(--color-border-strong);

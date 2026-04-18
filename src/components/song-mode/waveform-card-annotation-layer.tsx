@@ -1,5 +1,5 @@
 import { UnfoldHorizontal } from "lucide-react";
-import { useState } from "react";
+import { type PointerEvent, useState } from "react";
 import { richTextPreview } from "#/lib/song-mode/rich-text";
 import type { Annotation, AudioFileRecord } from "#/lib/song-mode/types";
 import { formatDuration } from "#/lib/song-mode/waveform";
@@ -60,6 +60,10 @@ export function WaveformCardAnnotationLayer({
 		visiblePointMarkerRangeConvertId,
 		setVisiblePointMarkerRangeConvertId,
 	] = useState<string | null>(null);
+	const [reshapingRangeId, setReshapingRangeId] = useState<string | null>(null);
+	const [adjustingPointMarkerId, setAdjustingPointMarkerId] = useState<
+		string | null
+	>(null);
 	const {
 		consumeSuppressedClick,
 		getMarkerDragHandlers,
@@ -74,6 +78,64 @@ export function WaveformCardAnnotationLayer({
 		onUpdateAnnotation,
 	});
 
+	function attachReshapeTracking(
+		annotationId: string,
+		handlers: {
+			onPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
+			onPointerMove: (event: PointerEvent<HTMLButtonElement>) => void;
+			onPointerUp: (event: PointerEvent<HTMLButtonElement>) => void;
+			onPointerCancel: (event: PointerEvent<HTMLButtonElement>) => void;
+		},
+	) {
+		return {
+			onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
+				setReshapingRangeId(annotationId);
+				handlers.onPointerDown(event);
+			},
+			onPointerMove: handlers.onPointerMove,
+			onPointerUp: (event: PointerEvent<HTMLButtonElement>) => {
+				handlers.onPointerUp(event);
+				setReshapingRangeId(null);
+			},
+			onPointerCancel: (event: PointerEvent<HTMLButtonElement>) => {
+				handlers.onPointerCancel(event);
+				setReshapingRangeId(null);
+			},
+		};
+	}
+
+	function attachPointMarkerAdjustTracking(
+		annotationId: string,
+		handlers: {
+			onPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
+			onPointerMove: (event: PointerEvent<HTMLButtonElement>) => void;
+			onPointerUp: (event: PointerEvent<HTMLButtonElement>) => void;
+			onPointerCancel: (event: PointerEvent<HTMLButtonElement>) => void;
+		},
+	) {
+		return {
+			onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
+				if (
+					event.button === 0 &&
+					event.target instanceof Element &&
+					event.target.closest("[data-marker-handle]")
+				) {
+					setAdjustingPointMarkerId(annotationId);
+				}
+				handlers.onPointerDown(event);
+			},
+			onPointerMove: handlers.onPointerMove,
+			onPointerUp: (event: PointerEvent<HTMLButtonElement>) => {
+				handlers.onPointerUp(event);
+				setAdjustingPointMarkerId(null);
+			},
+			onPointerCancel: (event: PointerEvent<HTMLButtonElement>) => {
+				handlers.onPointerCancel(event);
+				setAdjustingPointMarkerId(null);
+			},
+		};
+	}
+
 	return (
 		<>
 			{annotations.map((annotation) => {
@@ -85,17 +147,23 @@ export function WaveformCardAnnotationLayer({
 
 				if (annotation.type === "range" && annotation.endMs) {
 					const rangeColor = annotation.color ?? "var(--color-annotation-2)";
-					const rangeStartDragHandlers = getRangeEdgeDragHandlers(
+					const rangeStartDragHandlers = attachReshapeTracking(
 						annotation.id,
-						"start",
-						annotation.startMs,
-						annotation.endMs,
+						getRangeEdgeDragHandlers(
+							annotation.id,
+							"start",
+							annotation.startMs,
+							annotation.endMs,
+						),
 					);
-					const rangeEndDragHandlers = getRangeEdgeDragHandlers(
+					const rangeEndDragHandlers = attachReshapeTracking(
 						annotation.id,
-						"end",
-						annotation.startMs,
-						annotation.endMs,
+						getRangeEdgeDragHandlers(
+							annotation.id,
+							"end",
+							annotation.startMs,
+							annotation.endMs,
+						),
 					);
 
 					return (
@@ -107,10 +175,25 @@ export function WaveformCardAnnotationLayer({
 								width,
 							}}
 						>
+							<div
+								aria-hidden
+								data-range-waveform-highlight
+								className={`pointer-events-none absolute top-[var(--waveform-marker-gutter-height)] bottom-[var(--waveform-marker-gutter-height)] border ${
+									reshapingRangeId === annotation.id
+										? activeAnnotationId === annotation.id
+											? "border-[var(--color-waveform-annotation-active)] shadow-[0_0_0_1px_var(--color-waveform-annotation-active)]"
+											: "border-[var(--color-waveform-annotation-inactive)]"
+										: "border-transparent shadow-none"
+								}`}
+								style={{
+									left: 0,
+									width: "100%",
+								}}
+							/>
 							<button
 								type="button"
 								data-annotation-hit
-								aria-label={buildAnnotationAriaLabel(annotation)}
+								aria-label={`${buildAnnotationAriaLabel(annotation)} — gutter`}
 								onPointerEnter={(event) =>
 									updateHoveredAnnotationPosition(
 										annotation.id,
@@ -132,14 +215,9 @@ export function WaveformCardAnnotationLayer({
 									onSelectAnnotation(annotation.id);
 									void onSeek(annotation.startMs, true);
 								}}
-								className={`absolute top-[var(--waveform-marker-gutter-height)] bottom-[var(--waveform-marker-gutter-height)] border ${
-									activeAnnotationId === annotation.id
-										? "border-[var(--color-waveform-annotation-active)] shadow-[0_0_0_1px_var(--color-waveform-annotation-active)]"
-										: "border-[var(--color-waveform-annotation-inactive)]"
-								}`}
+								className="pointer-events-auto absolute inset-x-0 bottom-0 cursor-default border-0 p-0"
 								style={{
-									left: 0,
-									width: "100%",
+									height: "var(--waveform-marker-gutter-height)",
 									backgroundColor: rangeColor,
 									opacity: activeAnnotationId === annotation.id ? 0.34 : 0.2,
 								}}
@@ -152,10 +230,11 @@ export function WaveformCardAnnotationLayer({
 								onPointerMove={rangeStartDragHandlers.onPointerMove}
 								onPointerUp={rangeStartDragHandlers.onPointerUp}
 								onPointerCancel={rangeStartDragHandlers.onPointerCancel}
-								className="absolute bottom-0 top-0 left-0 w-3 -translate-x-1/2"
+								className="pointer-events-auto absolute bottom-0 top-0 left-0 w-3 -translate-x-1/2"
 							>
 								<span
-									className="absolute top-[var(--waveform-marker-gutter-height)] bottom-0 left-1/2 w-0.5 -translate-x-1/2"
+									aria-hidden
+									className="absolute top-[var(--waveform-marker-gutter-height)] bottom-0 left-1/2 w-0.5 -translate-x-1/2 opacity-0"
 									style={{ backgroundColor: rangeColor }}
 								/>
 								<span
@@ -175,22 +254,8 @@ export function WaveformCardAnnotationLayer({
 										)
 									}
 									onPointerLeave={() => setHoveredAnnotation(null)}
-									className="absolute bottom-0 left-1/2 -translate-x-1/2 cursor-pointer leading-none"
-								>
-									<svg
-										width={10.5}
-										height={16.5}
-										viewBox="0 0 7 11"
-										className="block"
-										aria-hidden={true}
-									>
-										<polygon
-											points="0,11 7,0 7,11"
-											className="fill-[var(--color-waveform-marker-dot-border)]"
-										/>
-										<polygon points="1.1,9.9 7,1.5 7,9.9" fill={rangeColor} />
-									</svg>
-								</span>
+									className="absolute bottom-0 left-1/2 h-[var(--waveform-marker-gutter-height)] w-3 -translate-x-full cursor-ew-resize"
+								/>
 							</button>
 							<button
 								type="button"
@@ -200,10 +265,11 @@ export function WaveformCardAnnotationLayer({
 								onPointerMove={rangeEndDragHandlers.onPointerMove}
 								onPointerUp={rangeEndDragHandlers.onPointerUp}
 								onPointerCancel={rangeEndDragHandlers.onPointerCancel}
-								className="absolute bottom-0 top-0 left-full w-3 -translate-x-1/2"
+								className="pointer-events-auto absolute bottom-0 top-0 left-full w-3 -translate-x-1/2"
 							>
 								<span
-									className="absolute top-[var(--waveform-marker-gutter-height)] bottom-0 left-1/2 w-0.5 -translate-x-1/2"
+									aria-hidden
+									className="absolute top-[var(--waveform-marker-gutter-height)] bottom-0 left-1/2 w-0.5 -translate-x-1/2 opacity-0"
 									style={{ backgroundColor: rangeColor }}
 								/>
 								<span
@@ -223,30 +289,16 @@ export function WaveformCardAnnotationLayer({
 										)
 									}
 									onPointerLeave={() => setHoveredAnnotation(null)}
-									className="absolute bottom-0 left-1/2 -translate-x-1/2 cursor-pointer leading-none"
-								>
-									<svg
-										width={10.5}
-										height={16.5}
-										viewBox="0 0 7 11"
-										className="block"
-										aria-hidden={true}
-									>
-										<polygon
-											points="0,11 0,0 7,11"
-											className="fill-[var(--color-waveform-marker-dot-border)]"
-										/>
-										<polygon points="0,9.9 0,1.5 5.9,9.9" fill={rangeColor} />
-									</svg>
-								</span>
+									className="absolute bottom-0 left-1/2 h-[var(--waveform-marker-gutter-height)] w-3 cursor-ew-resize"
+								/>
 							</button>
 						</div>
 					);
 				}
 
-				const markerDragHandlers = getMarkerDragHandlers(
+				const markerDragHandlers = attachPointMarkerAdjustTracking(
 					annotation.id,
-					annotation.startMs,
+					getMarkerDragHandlers(annotation.id, annotation.startMs),
 				);
 				const isConvertRangeVisible =
 					visiblePointMarkerRangeConvertId === annotation.id;
@@ -281,9 +333,20 @@ export function WaveformCardAnnotationLayer({
 							onPointerMove={markerDragHandlers.onPointerMove}
 							onPointerUp={markerDragHandlers.onPointerUp}
 							onPointerCancel={markerDragHandlers.onPointerCancel}
-							className="absolute bottom-0 top-0 left-1/2 w-3 -translate-x-1/2"
+							className="pointer-events-auto absolute bottom-0 top-0 left-1/2 w-3 -translate-x-1/2"
 						>
-							<span className="absolute top-[var(--waveform-marker-gutter-height)] bottom-[var(--waveform-marker-gutter-height)] left-1/2 w-0.5 -translate-x-1/2 bg-[var(--color-waveform-marker-track)]" />
+							<span
+								aria-hidden
+								className={`pointer-events-none absolute top-[var(--waveform-marker-gutter-height)] bottom-[var(--waveform-marker-gutter-height)] left-1/2 w-0.5 -translate-x-1/2 transition-opacity duration-100 ${
+									adjustingPointMarkerId === annotation.id
+										? "opacity-100"
+										: "opacity-0"
+								}`}
+								style={{
+									backgroundColor:
+										annotation.color ?? "var(--color-annotation-4)",
+								}}
+							/>
 							<span
 								data-marker-handle
 								onPointerEnter={(event) =>
@@ -361,7 +424,7 @@ export function WaveformCardAnnotationLayer({
 										color: "var(--color-annotation-2)",
 									});
 								}}
-								className={`absolute bottom-[calc(var(--waveform-marker-gutter-height)+0.25rem)] left-1/2 inline-flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border shadow-sm transition-all duration-150 focus-visible:opacity-100 focus-visible:scale-100 ${
+								className={`pointer-events-auto absolute bottom-[calc(var(--waveform-marker-gutter-height)+0.25rem)] left-1/2 inline-flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border shadow-sm transition-all duration-150 focus-visible:opacity-100 focus-visible:scale-100 ${
 									isConvertRangeVisible
 										? "border-[var(--color-border-strong)] bg-[var(--color-surface-elevated)] text-[var(--color-text)] opacity-100 scale-100"
 										: "border-transparent bg-transparent text-[var(--color-text-muted)] opacity-0 scale-95"
@@ -382,10 +445,7 @@ export function WaveformCardAnnotationLayer({
 					className="waveform-annotation-tooltip pointer-events-none absolute z-20"
 					style={hoveredTooltipPosition}
 				>
-					<p className="text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
-						{hoveredAnnotationRecord.type === "range" ? "Range" : "Marker"}
-					</p>
-					<p className="mt-1 text-[0.72rem] font-medium text-[var(--color-text-muted)]">
+					<p className="text-[0.72rem] font-medium text-[var(--color-text-muted)]">
 						{formatAnnotationTime(hoveredAnnotationRecord)}
 					</p>
 					<p className="mt-1 text-sm font-semibold text-[var(--color-text)]">

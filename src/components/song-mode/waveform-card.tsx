@@ -417,6 +417,18 @@ export function WaveformCard({
 				<div className="flex flex-wrap items-center gap-2">
 					<button
 						type="button"
+						aria-label={`Reset playhead for ${audioFile.title}`}
+						title="Reset playhead to start"
+						onClick={() => {
+							onSelectFile(audioFile.id);
+							void onSeek(0, false);
+						}}
+						className="action-secondary inline-flex h-9 w-9 items-center justify-center p-0"
+					>
+						<RotateCcw size={16} />
+					</button>
+					<button
+						type="button"
 						aria-label={isPlaying ? "Pause" : "Play"}
 						title={isPlaying ? "Pause" : "Play"}
 						onClick={() => {
@@ -430,7 +442,7 @@ export function WaveformCard({
 				</div>
 			</div>
 
-			<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+			<div>
 				{/* biome-ignore lint/a11y/useSemanticElements: the waveform surface contains nested marker buttons, so a semantic button wrapper is not valid */}
 				<div
 					ref={waveformShellRef}
@@ -554,25 +566,15 @@ export function WaveformCard({
 						void onSeek(Math.round(audioFile.durationMs / 2));
 					}}
 				>
-					<div className="min-h-0 pointer-events-none" aria-hidden />
+					<div
+						className="waveform-surface__gutter min-h-0 pointer-events-none"
+						aria-hidden
+					/>
 					<div
 						ref={canvasSurfaceRef}
 						className="relative min-h-0 border-y border-[var(--color-border-subtle)]"
 						data-testid="waveform-canvas-surface"
 					>
-						<button
-							type="button"
-							aria-label={`Reset playhead for ${audioFile.title}`}
-							title="Reset playhead to start"
-							onClick={(event) => {
-								event.stopPropagation();
-								onSelectFile(audioFile.id);
-								void onSeek(0, false);
-							}}
-							className="absolute left-1 top-1 z-10 inline-flex h-8 w-8 items-center justify-center border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] shadow-sm transition hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
-						>
-							<RotateCcw size={14} />
-						</button>
 						<canvas ref={canvasRef} className="block w-full" />
 						<div
 							className="pointer-events-none absolute bottom-0 top-0 z-10"
@@ -675,7 +677,10 @@ export function WaveformCard({
 							</button>
 						</div>
 					</div>
-					<div className="min-h-0 pointer-events-none" aria-hidden />
+					<div
+						className="waveform-surface__gutter min-h-0 pointer-events-none"
+						aria-hidden
+					/>
 					<div
 						ref={annotationOverlayRef}
 						className="pointer-events-none absolute inset-0 z-20"
@@ -698,47 +703,39 @@ export function WaveformCard({
 						/>
 					</div>
 				</div>
-
-				<div className="flex min-w-[5.75rem] flex-col items-stretch justify-center bg-[var(--color-surface-elevated)] px-2 py-3">
-					<span className="field-label text-center text-[0.56rem]">Volume</span>
-					<div className="mt-2 flex items-center justify-between gap-2">
-						<button
-							type="button"
-							onClick={() => void onStepVolume(-1)}
-							disabled={audioFile.volumeDb <= MIN_VOLUME_DB}
-							aria-label={`Decrease volume for ${audioFile.title}`}
-							className="icon-button h-8 w-8 disabled:cursor-not-allowed disabled:opacity-45"
-						>
-							<Minus size={14} />
-						</button>
-						<button
-							type="button"
-							onClick={() => void onStepVolume(1)}
-							disabled={audioFile.volumeDb >= MAX_VOLUME_DB}
-							aria-label={`Increase volume for ${audioFile.title}`}
-							className="icon-button h-8 w-8 disabled:cursor-not-allowed disabled:opacity-45"
-						>
-							<Plus size={14} />
-						</button>
-					</div>
-					<output
-						aria-live="polite"
-						className="mt-3 text-center text-sm font-semibold text-[var(--color-text)]"
-					>
-						{formatVolumeDb(audioFile.volumeDb)}
-					</output>
-				</div>
 			</div>
 
 			<div className="mt-3 flex items-center justify-between gap-3 text-xs text-[var(--color-text-subtle)]">
-				<span>
+				<span className="tabular-nums">
 					{formatDuration(currentTimeMs)} /{" "}
 					{formatDuration(audioFile.durationMs)}
 				</span>
-				<span>
-					Click and drag to seek · Double-click to play · Use hover controls to
-					add markers and ranges
-				</span>
+				<div className="inline-flex items-center gap-1.5">
+					<button
+						type="button"
+						onClick={() => void onStepVolume(-1)}
+						disabled={audioFile.volumeDb <= MIN_VOLUME_DB}
+						aria-label={`Decrease volume for ${audioFile.title}`}
+						className="icon-button icon-button--sm disabled:cursor-not-allowed disabled:opacity-45"
+					>
+						<Minus size={12} />
+					</button>
+					<output
+						aria-live="polite"
+						className="min-w-[3rem] text-center text-xs font-semibold tabular-nums text-[var(--color-text)]"
+					>
+						{formatVolumeDb(audioFile.volumeDb)}
+					</output>
+					<button
+						type="button"
+						onClick={() => void onStepVolume(1)}
+						disabled={audioFile.volumeDb >= MAX_VOLUME_DB}
+						aria-label={`Increase volume for ${audioFile.title}`}
+						className="icon-button icon-button--sm disabled:cursor-not-allowed disabled:opacity-45"
+					>
+						<Plus size={12} />
+					</button>
+				</div>
 			</div>
 
 			{/* biome-ignore lint/a11y/useMediaCaption: hidden transport audio is controlled programmatically instead of being exposed as standalone media */}

@@ -841,9 +841,6 @@ describe("WaveformCard", () => {
 			".waveform-annotation-tooltip",
 		);
 		expect(markerTooltip).toBeTruthy();
-		expect(
-			within(markerTooltip as HTMLElement).getByText("Marker"),
-		).toBeTruthy();
 		expect(within(markerTooltip as HTMLElement).getByText("0:30")).toBeTruthy();
 		expect(
 			within(markerTooltip as HTMLElement).getByText("Verse"),
@@ -854,7 +851,7 @@ describe("WaveformCard", () => {
 		expect(screen.queryByText("Lead vocal starts")).toBeNull();
 	});
 
-	it("shows a custom tooltip when hovering a range annotation", () => {
+	it("shows a custom tooltip when hovering a range in the bottom gutter", () => {
 		renderWaveformCard({
 			annotations: [
 				{
@@ -878,11 +875,11 @@ describe("WaveformCard", () => {
 		});
 		mockWaveformBounds(waveformSurface, { left: 10, width: 220 });
 
-		const rangeButton = screen.getByRole("button", {
-			name: /chorus at 0:30 - 0:45/i,
+		const rangeGutterButton = screen.getByRole("button", {
+			name: /^Chorus at 0:30 - 0:45 — gutter$/i,
 		});
 
-		fireEvent.pointerEnter(rangeButton, {
+		fireEvent.pointerEnter(rangeGutterButton, {
 			clientX: 100,
 			clientY: 50,
 		});
@@ -892,7 +889,6 @@ describe("WaveformCard", () => {
 			".waveform-annotation-tooltip",
 		);
 		expect(rangeTooltip).toBeTruthy();
-		expect(within(rangeTooltip as HTMLElement).getByText("Range")).toBeTruthy();
 		expect(
 			within(rangeTooltip as HTMLElement).getByText("0:30 - 0:45"),
 		).toBeTruthy();
@@ -901,7 +897,44 @@ describe("WaveformCard", () => {
 		).toBeTruthy();
 		expect(rangeDescription).toBeTruthy();
 
-		fireEvent.pointerLeave(rangeButton);
+		fireEvent.pointerLeave(rangeGutterButton);
+		expect(screen.queryByText("Main hook")).toBeNull();
+	});
+
+	it("does not show a range tooltip when hovering the main waveform strip", () => {
+		renderWaveformCard({
+			annotations: [
+				{
+					id: "annotation-1",
+					songId: "song-1",
+					audioFileId: "file-1",
+					type: "range",
+					startMs: 30000,
+					endMs: 45000,
+					title: "Chorus",
+					body: plainTextToRichText("Main hook"),
+					color: "var(--color-annotation-2)",
+					createdAt: "2026-04-16T00:00:00.000Z",
+					updatedAt: "2026-04-16T00:00:00.000Z",
+				},
+			],
+		});
+
+		const waveformSurface = screen.getByRole("button", {
+			name: /waveform for mix v1/i,
+		});
+		mockWaveformBounds(waveformSurface, { left: 10, width: 220 });
+
+		const rangeWaveformHighlight = screen
+			.getByTestId("waveform-annotation-overlay")
+			.querySelector("[data-range-waveform-highlight]");
+		expect(rangeWaveformHighlight).toBeTruthy();
+
+		fireEvent.pointerEnter(rangeWaveformHighlight as Element, {
+			clientX: 100,
+			clientY: 50,
+		});
+
 		expect(screen.queryByText("Main hook")).toBeNull();
 	});
 
@@ -943,10 +976,8 @@ describe("WaveformCard", () => {
 			'[data-range-handle="start"]',
 		);
 		expect(startHandle).toBeTruthy();
-		const startHandleSvg = startHandle?.querySelector("svg");
-		expect(startHandleSvg).toBeTruthy();
 
-		fireEvent.pointerDown(startHandleSvg as Element, {
+		fireEvent.pointerDown(startHandle as Element, {
 			button: 0,
 			pointerId: 10,
 			clientX: 40,
@@ -1049,10 +1080,8 @@ describe("WaveformCard", () => {
 			'[data-range-handle="end"]',
 		);
 		expect(endHandle).toBeTruthy();
-		const endHandleSvg = endHandle?.querySelector("svg");
-		expect(endHandleSvg).toBeTruthy();
 
-		fireEvent.pointerDown(endHandleSvg as Element, {
+		fireEvent.pointerDown(endHandle as Element, {
 			button: 0,
 			pointerId: 11,
 			clientX: 55,
