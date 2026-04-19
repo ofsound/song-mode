@@ -172,6 +172,7 @@ export function InspectorPane({
 								onInternalLink={onOpenTarget}
 								compact
 								showToolbar={false}
+								commitDelayMs={220}
 							/>
 						</div>
 					</div>

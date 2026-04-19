@@ -1,18 +1,8 @@
-import {
-	Bookmark,
-	Brackets,
-	GripVertical,
-	Minus,
-	Pause,
-	Play,
-	Plus,
-	RotateCcw,
-	Settings2,
-	X,
-} from "lucide-react";
+import { Plus } from "lucide-react";
 import {
 	type MouseEvent as ReactMouseEvent,
 	type PointerEvent as ReactPointerEvent,
+	useCallback,
 	useEffect,
 	useMemo,
 	useRef,
@@ -27,13 +17,20 @@ import type {
 } from "#/lib/song-mode/types";
 import {
 	formatDuration,
-	MAX_VOLUME_DB,
-	MIN_VOLUME_DB,
 	normalizeWaveformData,
 } from "#/lib/song-mode/waveform";
 import { useWaveformAudioGraph } from "./use-waveform-audio-graph";
 import { useWaveformCanvas } from "./use-waveform-canvas";
 import { WaveformCardAnnotationLayer } from "./waveform-card-annotation-layer";
+import { WaveformCardFooter } from "./waveform-card-footer";
+import { WaveformCardHeader } from "./waveform-card-header";
+import {
+	clampWaveformTime,
+	getHoveredTooltipPosition,
+	getPlayheadClientX as getPlayheadClientXFromBounds,
+	getTimePerPixel as getTimePerPixelFromBounds,
+	getWaveformTimeMs as getWaveformTimeMsFromBounds,
+} from "./waveform-card-math";
 
 const DEFAULT_RANGE_ANNOTATION_DURATION_MS = 10_000;
 const PLAYHEAD_SNAP_DISTANCE_PX = 20;
@@ -123,6 +120,9 @@ export function WaveformCard({
 	onDrop,
 }: WaveformCardProps) {
 	const [objectUrl, setObjectUrl] = useState<string | null>(null);
+	const [annotationPreviewById, setAnnotationPreviewById] = useState<
+		Record<string, Partial<Annotation>>
+	>({});
 	const [hoveredAnnotation, setHoveredAnnotation] =
 		useState<HoveredAnnotationState | null>(null);
 	const [gutterHover, setGutterHover] = useState<GutterHoverState | null>(null);
@@ -141,10 +141,21 @@ export function WaveformCard({
 	const isDragArmedRef = useRef(false);
 	const seekDragStateRef = useRef<SeekDragState | null>(null);
 	const lastSeekClickRef = useRef<WaveformSeekClickState | null>(null);
+	const renderedAnnotations = useMemo(
+		() =>
+			annotations.map((annotation) => ({
+				...annotation,
+				...(annotationPreviewById[annotation.id] ?? {}),
+			})),
+		[annotationPreviewById, annotations],
+	);
 
 	const sortedAnnotations = useMemo(
-		() => [...annotations].sort((left, right) => left.startMs - right.startMs),
-		[annotations],
+		() =>
+			[...renderedAnnotations].sort(
+				(left, right) => left.startMs - right.startMs,
+			),
+		[renderedAnnotations],
 	);
 	const waveform = useMemo(
 		() => normalizeWaveformData(audioFile.waveform, audioFile.durationMs),
@@ -153,35 +164,38 @@ export function WaveformCard({
 	const hoveredAnnotationRecord = useMemo(
 		() =>
 			hoveredAnnotation
-				? (annotations.find(
+				? (renderedAnnotations.find(
 						(annotation) => annotation.id === hoveredAnnotation.annotationId,
 					) ?? null)
 				: null,
-		[annotations, hoveredAnnotation],
+		[hoveredAnnotation, renderedAnnotations],
 	);
 	const hoveredTooltipPosition = useMemo(() => {
 		if (!hoveredAnnotation || !annotationOverlayRef.current) {
 			return null;
 		}
 
-		const overlay = annotationOverlayRef.current;
-		const width = overlay.clientWidth;
-		const height = overlay.clientHeight;
-		if (width <= 0 || height <= 0) {
-			return null;
-		}
-
-		const anchorX = Math.max(10, Math.min(width - 10, hoveredAnnotation.x));
-		const anchorY = Math.max(10, Math.min(height - 10, hoveredAnnotation.y));
-		const placeLeft = anchorX > width * 0.62;
-		const placeBelow = anchorY < 82;
-
-		return {
-			left: `${anchorX + (placeLeft ? -14 : 14)}px`,
-			top: `${anchorY + (placeBelow ? 14 : -14)}px`,
-			transform: `${placeLeft ? "translateX(-100%)" : "translateX(0)"} ${placeBelow ? "translateY(0)" : "translateY(-100%)"}`,
-		};
+		return getHoveredTooltipPosition(hoveredAnnotation.x, hoveredAnnotation.y, {
+			width: annotationOverlayRef.current.clientWidth,
+			height: annotationOverlayRef.current.clientHeight,
+		});
 	}, [hoveredAnnotation]);
+
+	useEffect(() => {
+		const annotationIds = new Set(
+			annotations.map((annotation) => annotation.id),
+		);
+		setAnnotationPreviewById((current) => {
+			const nextEntries = Object.entries(current).filter(([annotationId]) =>
+				annotationIds.has(annotationId),
+			);
+			if (nextEntries.length === Object.keys(current).length) {
+				return current;
+			}
+
+			return Object.fromEntries(nextEntries);
+		});
+	}, [annotations]);
 
 	useEffect(() => {
 		if (!blob) {
@@ -224,6 +238,43 @@ export function WaveformCard({
 		waveform,
 	});
 
+	const previewAnnotationChange = useCallback(
+		(annotationId: string, patch: Partial<Annotation>) => {
+			setAnnotationPreviewById((current) => ({
+				...current,
+				[annotationId]: {
+					...(current[annotationId] ?? {}),
+					...patch,
+				},
+			}));
+		},
+		[],
+	);
+
+	const resetAnnotationPreview = useCallback((annotationId: string) => {
+		setAnnotationPreviewById((current) => {
+			if (!(annotationId in current)) {
+				return current;
+			}
+
+			const next = { ...current };
+			delete next[annotationId];
+			return next;
+		});
+	}, []);
+
+	const commitAnnotationChange = useCallback(
+		async (annotationId: string, patch: Partial<Annotation>) => {
+			previewAnnotationChange(annotationId, patch);
+			try {
+				await onUpdateAnnotation(annotationId, patch);
+			} finally {
+				resetAnnotationPreview(annotationId);
+			}
+		},
+		[onUpdateAnnotation, previewAnnotationChange, resetAnnotationPreview],
+	);
+
 	function isClientXYInCanvasSurface(
 		clientX: number,
 		clientY: number,
@@ -249,9 +300,11 @@ export function WaveformCard({
 			return null;
 		}
 
-		const rect = canvasSurfaceRef.current.getBoundingClientRect();
-		const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-		return Math.round(audioFile.durationMs * ratio);
+		return getWaveformTimeMsFromBounds(
+			canvasSurfaceRef.current.getBoundingClientRect(),
+			clientX,
+			audioFile.durationMs,
+		);
 	}
 
 	function getPlayheadClientX(): number | null {
@@ -259,17 +312,11 @@ export function WaveformCard({
 			return null;
 		}
 
-		const rect = canvasSurfaceRef.current.getBoundingClientRect();
-		if (rect.width <= 0) {
-			return null;
-		}
-
-		const clampedTimeMs = Math.max(
-			0,
-			Math.min(currentTimeMs, audioFile.durationMs),
+		return getPlayheadClientXFromBounds(
+			canvasSurfaceRef.current.getBoundingClientRect(),
+			currentTimeMs,
+			audioFile.durationMs,
 		);
-		const ratio = clampedTimeMs / Math.max(audioFile.durationMs, 1);
-		return rect.left + ratio * rect.width;
 	}
 
 	function snapClientXToPlayhead(clientX: number): number {
@@ -288,12 +335,10 @@ export function WaveformCard({
 			return 0;
 		}
 
-		const rect = canvasSurfaceRef.current.getBoundingClientRect();
-		if (rect.width <= 0) {
-			return 0;
-		}
-
-		return audioFile.durationMs / rect.width;
+		return getTimePerPixelFromBounds(
+			canvasSurfaceRef.current.getBoundingClientRect(),
+			audioFile.durationMs,
+		);
 	}
 
 	function updateHoveredAnnotationPosition(
@@ -355,7 +400,7 @@ export function WaveformCard({
 	}
 
 	function clampPlayheadTimeMs(): number {
-		return Math.max(0, Math.min(currentTimeMs, audioFile.durationMs));
+		return clampWaveformTime(currentTimeMs, audioFile.durationMs);
 	}
 
 	async function handleAddMarkerAtPlayhead() {
@@ -612,125 +657,35 @@ export function WaveformCard({
 			className={`waveform-card ${isSelected ? "waveform-card--selected" : ""}`}
 		>
 			<span className="waveform-card__tab" aria-hidden="true" />
-			<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-				<div className="flex min-w-0 items-center gap-3">
-					<button
-						type="button"
-						aria-label={`Reorder ${audioFile.title}`}
-						onPointerDown={() => {
-							setDragArmed(true);
-							onSelectFile(audioFile.id);
-						}}
-						onPointerUp={() => setDragArmed(false)}
-						onPointerCancel={() => setDragArmed(false)}
-						onBlur={() => setDragArmed(false)}
-						className="icon-button h-10 w-10 shrink-0"
-						title="Drag to reorder"
-					>
-						<GripVertical size={16} />
-					</button>
-					<div className="flex min-w-0 flex-1 flex-col">
-						<div className="flex min-w-0 items-baseline gap-2">
-							<button
-								type="button"
-								onClick={() => onSelectFile(audioFile.id)}
-								className="min-w-0 flex-1 truncate text-left text-lg font-semibold text-[var(--color-text)]"
-							>
-								{audioFile.title}
-							</button>
-							<button
-								type="button"
-								onClick={() => onOpenFileDetails(audioFile.id)}
-								className="icon-button icon-button--sm -ml-0.5 shrink-0"
-								title="Edit file details"
-								aria-label={`Edit details for ${audioFile.title}`}
-							>
-								<Settings2 size={12} />
-							</button>
-						</div>
-						{sessionDateLabel ? (
-							<span className="whitespace-nowrap text-xs tabular-nums text-[var(--color-text-muted)]">
-								{sessionDateLabel}
-							</span>
-						) : null}
-					</div>
-				</div>
-
-				<div className="flex flex-wrap items-center gap-2">
-					<button
-						type="button"
-						aria-label={`Add marker at playhead for ${audioFile.title}`}
-						title={`Add marker at ${formatDuration(clampPlayheadTimeMs())}`}
-						onClick={() => {
-							void handleAddMarkerAtPlayhead();
-						}}
-						className="action-secondary inline-flex h-9 items-center gap-1.5 px-3 text-xs font-medium"
-					>
-						<Bookmark size={14} />
-						<span>Add marker</span>
-					</button>
-					{pendingRangeStartMs === null ? (
-						<button
-							type="button"
-							aria-label={`Start range at playhead for ${audioFile.title}`}
-							title={`Start range at ${formatDuration(clampPlayheadTimeMs())}`}
-							onClick={handleStartRangeAtPlayhead}
-							className="action-secondary inline-flex h-9 items-center gap-1.5 px-3 text-xs font-medium"
-						>
-							<Brackets size={14} />
-							<span>Start range</span>
-						</button>
-					) : (
-						<>
-							<button
-								type="button"
-								aria-label={`End range at playhead for ${audioFile.title}`}
-								title={`End range (started at ${formatDuration(pendingRangeStartMs)})`}
-								onClick={() => {
-									void handleEndRangeAtPlayhead();
-								}}
-								className="action-primary inline-flex h-9 items-center gap-1.5 px-3 text-xs font-medium"
-							>
-								<Brackets size={14} />
-								<span>End range @ {formatDuration(pendingRangeStartMs)}</span>
-							</button>
-							<button
-								type="button"
-								aria-label={`Cancel pending range for ${audioFile.title}`}
-								title="Cancel pending range"
-								onClick={handleCancelPendingRange}
-								className="action-secondary inline-flex h-9 w-9 items-center justify-center p-0"
-							>
-								<X size={16} />
-							</button>
-						</>
-					)}
-					<button
-						type="button"
-						aria-label={`Reset playhead for ${audioFile.title}`}
-						title="Reset playhead to start"
-						onClick={() => {
-							onSelectFile(audioFile.id);
-							void onSeek(0, false);
-						}}
-						className="action-secondary inline-flex h-9 w-9 items-center justify-center p-0"
-					>
-						<RotateCcw size={16} />
-					</button>
-					<button
-						type="button"
-						aria-label={isPlaying ? "Pause" : "Play"}
-						title={isPlaying ? "Pause" : "Play"}
-						onClick={() => {
-							onSelectFile(audioFile.id);
-							onTogglePlayback();
-						}}
-						className="action-primary inline-flex h-9 w-9 items-center justify-center p-0"
-					>
-						{isPlaying ? <Pause size={16} /> : <Play size={16} />}
-					</button>
-				</div>
-			</div>
+			<WaveformCardHeader
+				audioFileTitle={audioFile.title}
+				isPlaying={isPlaying}
+				onAddMarkerAtPlayhead={() => {
+					void handleAddMarkerAtPlayhead();
+				}}
+				onArmDrag={() => {
+					setDragArmed(true);
+					onSelectFile(audioFile.id);
+				}}
+				onCancelPendingRange={handleCancelPendingRange}
+				onEndRangeAtPlayhead={() => {
+					void handleEndRangeAtPlayhead();
+				}}
+				onOpenFileDetails={() => onOpenFileDetails(audioFile.id)}
+				onReleaseDrag={() => setDragArmed(false)}
+				onResetPlayhead={() => {
+					onSelectFile(audioFile.id);
+					void onSeek(0, false);
+				}}
+				onSelectFile={() => onSelectFile(audioFile.id)}
+				onStartRangeAtPlayhead={handleStartRangeAtPlayhead}
+				onTogglePlayback={() => {
+					onSelectFile(audioFile.id);
+					void onTogglePlayback();
+				}}
+				pendingRangeStartMs={pendingRangeStartMs}
+				sessionDateLabel={sessionDateLabel}
+			/>
 
 			<div>
 				{/* biome-ignore lint/a11y/useSemanticElements: the waveform surface contains nested marker buttons, so a semantic button wrapper is not valid */}
@@ -940,11 +895,13 @@ export function WaveformCard({
 							annotations={sortedAnnotations}
 							hoveredAnnotationRecord={hoveredAnnotationRecord}
 							hoveredTooltipPosition={hoveredTooltipPosition}
+							onCommitAnnotationChange={commitAnnotationChange}
 							onDeleteAnnotation={onDeleteAnnotation}
+							onPreviewAnnotationChange={previewAnnotationChange}
+							onResetAnnotationPreview={resetAnnotationPreview}
 							onSeek={onSeek}
 							onSelectAnnotation={onSelectAnnotation}
 							onSelectFile={onSelectFile}
-							onUpdateAnnotation={onUpdateAnnotation}
 							getTimePerPixel={getTimePerPixel}
 							setHoveredAnnotation={setHoveredAnnotation}
 							updateHoveredAnnotationPosition={updateHoveredAnnotationPosition}
@@ -953,38 +910,13 @@ export function WaveformCard({
 				</div>
 			</div>
 
-			<div className="mt-3 flex items-center justify-between gap-3 text-xs text-[var(--color-text-subtle)]">
-				<span className="text-sm tabular-nums text-[var(--color-text)]">
-					{formatDuration(currentTimeMs)} /{" "}
-					{formatDuration(audioFile.durationMs)}
-				</span>
-				<div className="inline-flex items-center gap-1.5">
-					<button
-						type="button"
-						onClick={() => void onStepVolume(-1)}
-						disabled={audioFile.volumeDb <= MIN_VOLUME_DB}
-						aria-label={`Decrease volume for ${audioFile.title}`}
-						className="icon-button icon-button--sm disabled:cursor-not-allowed disabled:opacity-45"
-					>
-						<Minus size={12} />
-					</button>
-					<output
-						aria-live="polite"
-						className="min-w-[3rem] text-center text-xs font-semibold tabular-nums text-[var(--color-text)]"
-					>
-						{formatVolumeDb(audioFile.volumeDb)}
-					</output>
-					<button
-						type="button"
-						onClick={() => void onStepVolume(1)}
-						disabled={audioFile.volumeDb >= MAX_VOLUME_DB}
-						aria-label={`Increase volume for ${audioFile.title}`}
-						className="icon-button icon-button--sm disabled:cursor-not-allowed disabled:opacity-45"
-					>
-						<Plus size={12} />
-					</button>
-				</div>
-			</div>
+			<WaveformCardFooter
+				audioFileTitle={audioFile.title}
+				currentTimeMs={currentTimeMs}
+				durationMs={audioFile.durationMs}
+				onStepVolume={onStepVolume}
+				volumeDb={audioFile.volumeDb}
+			/>
 
 			{/* biome-ignore lint/a11y/useMediaCaption: hidden transport audio is controlled programmatically instead of being exposed as standalone media */}
 			<audio
@@ -1029,12 +961,4 @@ export function WaveformCard({
 			/>
 		</article>
 	);
-}
-
-function formatVolumeDb(volumeDb: number): string {
-	if (volumeDb > 0) {
-		return `+${volumeDb} dB`;
-	}
-
-	return `${volumeDb} dB`;
 }

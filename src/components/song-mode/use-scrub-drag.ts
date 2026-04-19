@@ -8,13 +8,18 @@ interface UseScrubDragOptions {
 	durationMs: number;
 	getTimePerPixel: () => number;
 	onClearHover: () => void;
-	onDeleteAnnotation: (annotationId: string) => Promise<void>;
-	onSelectAnnotation: (annotationId: string) => void;
-	onSelectFile: (fileId: string) => void;
-	onUpdateAnnotation: (
+	onCommitAnnotationChange: (
 		annotationId: string,
 		patch: Partial<Annotation>,
 	) => Promise<void>;
+	onDeleteAnnotation: (annotationId: string) => Promise<void>;
+	onPreviewAnnotationChange: (
+		annotationId: string,
+		patch: Partial<Annotation>,
+	) => void;
+	onResetAnnotationPreview: (annotationId: string) => void;
+	onSelectAnnotation: (annotationId: string) => void;
+	onSelectFile: (fileId: string) => void;
 }
 
 type DragState =
@@ -47,10 +52,12 @@ export function useScrubDrag({
 	durationMs,
 	getTimePerPixel,
 	onClearHover,
+	onCommitAnnotationChange,
 	onDeleteAnnotation,
+	onPreviewAnnotationChange,
+	onResetAnnotationPreview,
 	onSelectAnnotation,
 	onSelectFile,
-	onUpdateAnnotation,
 }: UseScrubDragOptions) {
 	const annotationDragStateRef = useRef<DragState | null>(null);
 	const suppressAnnotationClickRef = useRef<string | null>(null);
@@ -94,27 +101,37 @@ export function useScrubDrag({
 
 			const { dragState, requestDelete } = result;
 			if (!requestDelete) {
+				if (dragState.mode === "scrub") {
+					if (dragState.valueMs === dragState.originalValueMs) {
+						onResetAnnotationPreview(dragState.annotationId);
+						return;
+					}
+
+					await onCommitAnnotationChange(
+						dragState.annotationId,
+						dragState.field === "startMs"
+							? { startMs: dragState.valueMs }
+							: { endMs: dragState.valueMs },
+					);
+					return;
+				}
+
+				if (
+					dragState.currentStartMs === dragState.originalStartMs &&
+					dragState.currentEndMs === dragState.originalEndMs
+				) {
+					onResetAnnotationPreview(dragState.annotationId);
+					return;
+				}
+
+				await onCommitAnnotationChange(dragState.annotationId, {
+					startMs: dragState.currentStartMs,
+					endMs: dragState.currentEndMs,
+				});
 				return;
 			}
 
-			if (dragState.mode === "scrub") {
-				if (dragState.valueMs !== dragState.originalValueMs) {
-					await onUpdateAnnotation(
-						dragState.annotationId,
-						dragState.field === "startMs"
-							? { startMs: dragState.originalValueMs }
-							: { endMs: dragState.originalValueMs },
-					);
-				}
-			} else if (
-				dragState.currentStartMs !== dragState.originalStartMs ||
-				dragState.currentEndMs !== dragState.originalEndMs
-			) {
-				await onUpdateAnnotation(dragState.annotationId, {
-					startMs: dragState.originalStartMs,
-					endMs: dragState.originalEndMs,
-				});
-			}
+			onResetAnnotationPreview(dragState.annotationId);
 
 			if (!window.confirm("Delete this marker?")) {
 				return;
@@ -122,7 +139,12 @@ export function useScrubDrag({
 
 			await onDeleteAnnotation(dragState.annotationId);
 		},
-		[finishMarkerDrag, onDeleteAnnotation, onUpdateAnnotation],
+		[
+			finishMarkerDrag,
+			onCommitAnnotationChange,
+			onDeleteAnnotation,
+			onResetAnnotationPreview,
+		],
 	);
 
 	const consumeSuppressedClick = useCallback((annotationId: string) => {
@@ -219,7 +241,7 @@ export function useScrubDrag({
 				event.preventDefault();
 				event.stopPropagation();
 				dragState.valueMs = nextValue;
-				void onUpdateAnnotation(
+				onPreviewAnnotationChange(
 					annotationId,
 					field === "startMs" ? { startMs: nextValue } : { endMs: nextValue },
 				);
@@ -234,9 +256,9 @@ export function useScrubDrag({
 			getTimePerPixel,
 			handleMarkerDragEnd,
 			onClearHover,
+			onPreviewAnnotationChange,
 			onSelectAnnotation,
 			onSelectFile,
-			onUpdateAnnotation,
 		],
 	);
 
@@ -324,7 +346,7 @@ export function useScrubDrag({
 				event.stopPropagation();
 				dragState.currentStartMs = nextStart;
 				dragState.currentEndMs = nextEnd;
-				void onUpdateAnnotation(annotationId, {
+				onPreviewAnnotationChange(annotationId, {
 					startMs: nextStart,
 					endMs: nextEnd,
 				});
@@ -340,9 +362,9 @@ export function useScrubDrag({
 			getTimePerPixel,
 			handleMarkerDragEnd,
 			onClearHover,
+			onPreviewAnnotationChange,
 			onSelectAnnotation,
 			onSelectFile,
-			onUpdateAnnotation,
 		],
 	);
 

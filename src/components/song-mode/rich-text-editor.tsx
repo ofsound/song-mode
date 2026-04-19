@@ -10,7 +10,7 @@ import {
 	Quote,
 	Unlink,
 } from "lucide-react";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { parseSongTarget } from "#/lib/song-mode/links";
 import { EMPTY_RICH_TEXT } from "#/lib/song-mode/rich-text";
 import type { RichTextDoc, SongLinkTarget } from "#/lib/song-mode/types";
@@ -31,6 +31,7 @@ interface RichTextEditorProps {
 	blurOnEscape?: boolean;
 	/** When true, drops the wrapper border so the editor blends into its parent surface. */
 	seamless?: boolean;
+	commitDelayMs?: number;
 }
 
 export interface RichTextToolbarAction {
@@ -50,6 +51,7 @@ export function RichTextEditor({
 	toolbarActions = [],
 	blurOnEscape = false,
 	seamless = false,
+	commitDelayMs = 180,
 }: RichTextEditorProps) {
 	const wrapperRef = useRef<HTMLDivElement | null>(null);
 	const scrollRegionRef = useRef<HTMLDivElement | null>(null);
@@ -58,6 +60,7 @@ export function RichTextEditor({
 		[value],
 	);
 	const debounceRef = useRef<number | null>(null);
+	const lastEmittedSerializedRef = useRef(serializedValue);
 
 	const editor = useEditor({
 		immediatelyRender: false,
@@ -94,18 +97,45 @@ export function RichTextEditor({
 			}
 
 			debounceRef.current = window.setTimeout(() => {
+				const nextSerializedValue = JSON.stringify(currentEditor.getJSON());
+				if (nextSerializedValue === lastEmittedSerializedRef.current) {
+					return;
+				}
+
+				lastEmittedSerializedRef.current = nextSerializedValue;
 				onChange(currentEditor.getJSON() as RichTextDoc);
-			}, 180);
+			}, commitDelayMs);
 		},
 	});
 
-	useEffect(() => {
-		return () => {
+	const flushPendingChange = useCallback(() => {
+		if (!editor) {
+			return;
+		}
+
+		const nextSerializedValue = JSON.stringify(editor.getJSON());
+		if (nextSerializedValue === lastEmittedSerializedRef.current) {
 			if (debounceRef.current) {
 				window.clearTimeout(debounceRef.current);
+				debounceRef.current = null;
 			}
+			return;
+		}
+
+		if (debounceRef.current) {
+			window.clearTimeout(debounceRef.current);
+			debounceRef.current = null;
+		}
+
+		lastEmittedSerializedRef.current = nextSerializedValue;
+		onChange(editor.getJSON() as RichTextDoc);
+	}, [editor, onChange]);
+
+	useEffect(() => {
+		return () => {
+			flushPendingChange();
 		};
-	}, []);
+	}, [flushPendingChange]);
 
 	useEffect(() => {
 		if (!editor) {
@@ -119,6 +149,7 @@ export function RichTextEditor({
 				parseOptions: { preserveWhitespace: "full" },
 			});
 		}
+		lastEmittedSerializedRef.current = serializedValue;
 	}, [editor, serializedValue, value]);
 
 	useEffect(() => {
@@ -154,6 +185,29 @@ export function RichTextEditor({
 			node.removeEventListener("click", handleClick);
 		};
 	}, [editor, onInternalLink]);
+
+	useEffect(() => {
+		const node = wrapperRef.current;
+		if (!node) {
+			return;
+		}
+
+		const handleFocusOut = (event: FocusEvent) => {
+			if (
+				event.relatedTarget instanceof Node &&
+				node.contains(event.relatedTarget)
+			) {
+				return;
+			}
+
+			flushPendingChange();
+		};
+
+		node.addEventListener("focusout", handleFocusOut);
+		return () => {
+			node.removeEventListener("focusout", handleFocusOut);
+		};
+	}, [flushPendingChange]);
 
 	useEffect(() => {
 		if (!editor) {

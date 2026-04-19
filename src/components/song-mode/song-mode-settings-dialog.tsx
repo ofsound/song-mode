@@ -1,8 +1,10 @@
-import { X } from "lucide-react";
+import { type RefObject, useRef } from "react";
 import type {
 	SongModeUiSettings,
 	WaveformHeightPreset,
 } from "#/lib/song-mode/types";
+import { SongModal } from "./song-modal";
+import { useBufferedInputValue } from "./use-buffered-input-value";
 
 interface SongModeSettingsDialogProps {
 	uiSettings: SongModeUiSettings;
@@ -28,175 +30,142 @@ export function SongModeSettingsDialog({
 	onClose,
 	onUpdateUiSettings,
 }: SongModeSettingsDialogProps) {
+	const firstColorInputRef = useRef<HTMLInputElement | null>(null);
+
 	return (
-		<div
-			className="song-modal"
-			onKeyDownCapture={(event) => {
-				if (event.key !== "Escape") {
-					return;
-				}
-
-				event.preventDefault();
-				onClose();
-			}}
+		<SongModal
+			title="Settings"
+			titleId="settings-title"
+			onClose={onClose}
+			initialFocusRef={firstColorInputRef}
+			maxWidthClassName="max-w-[min(96rem,calc(100vw-2rem))]"
 		>
-			<button
-				type="button"
-				aria-label="Dismiss settings dialog"
-				onClick={onClose}
-				className="song-modal__backdrop"
-			/>
-			<div
-				role="dialog"
-				aria-modal="true"
-				aria-labelledby="settings-title"
-				className="song-modal__panel rise-in w-full max-w-[min(96rem,calc(100vw-2rem))]"
-			>
-				<div className="flex items-start justify-between gap-4 border-b border-[var(--color-border-subtle)] px-5 py-4 sm:px-6">
-					<div className="min-w-0">
-						<h2
-							id="settings-title"
-							className="text-2xl font-semibold text-[var(--color-text)]"
-						>
-							Settings
-						</h2>
+			<div className="grid gap-8 p-5 sm:p-6">
+				<section className="grid gap-4">
+					<div>
+						<p className="eyebrow mb-2">Appearance</p>
+						<h3 className="text-lg font-semibold text-[var(--color-text)]">
+							Accent colors
+						</h3>
 					</div>
-					<button
-						type="button"
-						aria-label="Close settings dialog"
-						onClick={onClose}
-						className="icon-button shrink-0"
-					>
-						<X size={16} />
-					</button>
-				</div>
+					<div className="grid gap-4 md:grid-cols-2">
+						<ColorSettingField
+							label="Light primary"
+							value={uiSettings.accentLightPrimary}
+							onChange={(value) =>
+								void onUpdateUiSettings({ accentLightPrimary: value })
+							}
+							inputRef={firstColorInputRef}
+						/>
+						<ColorSettingField
+							label="Light strong"
+							value={uiSettings.accentLightStrong}
+							onChange={(value) =>
+								void onUpdateUiSettings({ accentLightStrong: value })
+							}
+						/>
+						<ColorSettingField
+							label="Dark primary"
+							value={uiSettings.accentDarkPrimary}
+							onChange={(value) =>
+								void onUpdateUiSettings({ accentDarkPrimary: value })
+							}
+						/>
+						<ColorSettingField
+							label="Dark strong"
+							value={uiSettings.accentDarkStrong}
+							onChange={(value) =>
+								void onUpdateUiSettings({ accentDarkStrong: value })
+							}
+						/>
+					</div>
+				</section>
 
-				<div className="grid gap-8 p-5 sm:p-6">
-					<section className="grid gap-4">
-						<div>
-							<p className="eyebrow mb-2">Appearance</p>
-							<h3 className="text-lg font-semibold text-[var(--color-text)]">
-								Accent colors
-							</h3>
-						</div>
-						<div className="grid gap-4 md:grid-cols-2">
-							<ColorSettingField
-								label="Light primary"
-								value={uiSettings.accentLightPrimary}
-								onChange={(value) =>
-									void onUpdateUiSettings({ accentLightPrimary: value })
+				<section className="grid gap-4">
+					<div>
+						<p className="eyebrow mb-2">Workspace</p>
+						<h3 className="text-lg font-semibold text-[var(--color-text)]">
+							Waveform height
+						</h3>
+					</div>
+					<div className="flex flex-wrap gap-2">
+						{WAVEFORM_OPTIONS.map((option) => (
+							<button
+								key={option.value}
+								type="button"
+								aria-pressed={uiSettings.waveformHeight === option.value}
+								onClick={() =>
+									void onUpdateUiSettings({
+										waveformHeight: option.value,
+									})
 								}
-							/>
-							<ColorSettingField
-								label="Light strong"
-								value={uiSettings.accentLightStrong}
-								onChange={(value) =>
-									void onUpdateUiSettings({ accentLightStrong: value })
-								}
-							/>
-							<ColorSettingField
-								label="Dark primary"
-								value={uiSettings.accentDarkPrimary}
-								onChange={(value) =>
-									void onUpdateUiSettings({ accentDarkPrimary: value })
-								}
-							/>
-							<ColorSettingField
-								label="Dark strong"
-								value={uiSettings.accentDarkStrong}
-								onChange={(value) =>
-									void onUpdateUiSettings({ accentDarkStrong: value })
-								}
-							/>
-						</div>
-					</section>
+								className={`inline-flex h-11 items-center justify-center px-4 text-sm font-semibold ${
+									uiSettings.waveformHeight === option.value
+										? "action-primary"
+										: "action-secondary"
+								}`}
+							>
+								{option.label}
+							</button>
+						))}
+					</div>
+				</section>
 
-					<section className="grid gap-4">
-						<div>
-							<p className="eyebrow mb-2">Workspace</p>
-							<h3 className="text-lg font-semibold text-[var(--color-text)]">
-								Waveform height
-							</h3>
-						</div>
-						<div className="flex flex-wrap gap-2">
-							{WAVEFORM_OPTIONS.map((option) => (
-								<button
-									key={option.value}
-									type="button"
-									aria-pressed={uiSettings.waveformHeight === option.value}
-									onClick={() =>
-										void onUpdateUiSettings({
-											waveformHeight: option.value,
-										})
-									}
-									className={`inline-flex h-11 items-center justify-center px-4 text-sm font-semibold ${
-										uiSettings.waveformHeight === option.value
-											? "action-primary"
-											: "action-secondary"
-									}`}
-								>
-									{option.label}
-								</button>
-							))}
-						</div>
-					</section>
+				<section className="grid gap-4">
+					<div>
+						<p className="eyebrow mb-2">Metadata</p>
+						<h3 className="text-lg font-semibold text-[var(--color-text)]">
+							Visible song fields
+						</h3>
+					</div>
+					<div className="grid gap-3 md:grid-cols-2">
+						<ToggleSettingCard
+							label="Artist"
+							enabled={uiSettings.showArtist}
+							onToggle={() =>
+								void onUpdateUiSettings((current) => ({
+									...current,
+									showArtist: !current.showArtist,
+								}))
+							}
+						/>
+						<ToggleSettingCard
+							label="Project"
+							enabled={uiSettings.showProject}
+							onToggle={() =>
+								void onUpdateUiSettings((current) => ({
+									...current,
+									showProject: !current.showProject,
+								}))
+							}
+						/>
+					</div>
+				</section>
 
-					<section className="grid gap-4">
-						<div>
-							<p className="eyebrow mb-2">Metadata</p>
-							<h3 className="text-lg font-semibold text-[var(--color-text)]">
-								Visible song fields
-							</h3>
-						</div>
-						<div className="grid gap-3 md:grid-cols-2">
-							<ToggleSettingCard
-								label="Artist"
-								enabled={uiSettings.showArtist}
-								onToggle={() =>
-									void onUpdateUiSettings((current) => ({
-										...current,
-										showArtist: !current.showArtist,
-									}))
-								}
-							/>
-							<ToggleSettingCard
-								label="Project"
-								enabled={uiSettings.showProject}
-								onToggle={() =>
-									void onUpdateUiSettings((current) => ({
-										...current,
-										showProject: !current.showProject,
-									}))
-								}
-							/>
-						</div>
-					</section>
-
-					<section className="grid gap-4">
-						<div>
-							<p className="eyebrow mb-2">Accessibility</p>
-							<h3 className="text-lg font-semibold text-[var(--color-text)]">
-								Keyboard focus highlights
-							</h3>
-						</div>
-						<div className="grid gap-3 md:grid-cols-2">
-							<ToggleSettingCard
-								label="Show focus rings"
-								enabled={uiSettings.keyboardFocusHighlights}
-								detailWhenOn="Focused controls show a ring when using the keyboard."
-								detailWhenOff="Keyboard focus rings are hidden; pointer use is unchanged."
-								onToggle={() =>
-									void onUpdateUiSettings((current) => ({
-										...current,
-										keyboardFocusHighlights: !current.keyboardFocusHighlights,
-									}))
-								}
-							/>
-						</div>
-					</section>
-				</div>
+				<section className="grid gap-4">
+					<div>
+						<p className="eyebrow mb-2">Accessibility</p>
+						<h3 className="text-lg font-semibold text-[var(--color-text)]">
+							Keyboard focus highlights
+						</h3>
+					</div>
+					<div className="grid gap-3 md:grid-cols-2">
+						<ToggleSettingCard
+							label="Show focus rings"
+							enabled={uiSettings.keyboardFocusHighlights}
+							detailWhenOn="Focused controls show a ring when using the keyboard."
+							detailWhenOff="Keyboard focus rings are hidden; pointer use is unchanged."
+							onToggle={() =>
+								void onUpdateUiSettings((current) => ({
+									...current,
+									keyboardFocusHighlights: !current.keyboardFocusHighlights,
+								}))
+							}
+						/>
+					</div>
+				</section>
 			</div>
-		</div>
+		</SongModal>
 	);
 }
 
@@ -204,24 +173,34 @@ function ColorSettingField({
 	label,
 	value,
 	onChange,
+	inputRef,
 }: {
 	label: string;
 	value: string;
 	onChange: (value: string) => void;
+	inputRef?: RefObject<HTMLInputElement | null>;
 }) {
+	const bufferedValue = useBufferedInputValue({
+		value,
+		onCommit: onChange,
+		delayMs: 400,
+	});
+
 	return (
 		<label className="grid gap-2">
 			<span className="field-label">{label}</span>
 			<div className="flex h-12 items-center gap-3 border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] px-3 py-0 text-[var(--color-text)]">
 				<input
+					ref={inputRef}
 					type="color"
-					value={value}
-					onChange={(event) => onChange(event.target.value)}
+					value={bufferedValue.draft}
+					onChange={(event) => bufferedValue.setDraft(event.target.value)}
+					onBlur={() => void bufferedValue.flush()}
 					aria-label={label}
 					className="h-7 w-9 shrink-0 cursor-pointer border-0 bg-transparent p-0"
 				/>
 				<span className="text-sm font-semibold uppercase text-[var(--color-text)]">
-					{value}
+					{bufferedValue.draft}
 				</span>
 			</div>
 		</label>

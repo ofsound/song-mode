@@ -6,13 +6,13 @@ import {
 	Plus,
 	Settings2,
 	Sparkles,
-	X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { EMPTY_RICH_TEXT, richTextPreview } from "#/lib/song-mode/rich-text";
 import { useSongMode } from "#/providers/song-mode-provider";
 import { useLibraryHeaderActionSlot } from "./app-chrome";
+import { SongModal } from "./song-modal";
 import { SongSettingsDialog } from "./song-settings-dialog";
 import { useCloseOnEscape } from "./use-close-on-escape";
 
@@ -37,6 +37,7 @@ export function LibraryView() {
 	const [deletingSongId, setDeletingSongId] = useState<string | null>(null);
 	const [editingSongId, setEditingSongId] = useState<string | null>(null);
 	const [isCreateSongOpen, setIsCreateSongOpen] = useState(false);
+	const createSongTitleInputRef = useRef<HTMLInputElement | null>(null);
 
 	const recentSongIds = settings.recents;
 	const { showArtist, showProject } = settings.ui;
@@ -66,6 +67,24 @@ export function LibraryView() {
 		() => songs.find((song) => song.id === editingSongId) ?? null,
 		[editingSongId, songs],
 	);
+	const audioFileCountBySongId = useMemo(() => {
+		const counts = new Map<string, number>();
+
+		for (const audioFile of audioFiles) {
+			counts.set(audioFile.songId, (counts.get(audioFile.songId) ?? 0) + 1);
+		}
+
+		return counts;
+	}, [audioFiles]);
+	const annotationCountBySongId = useMemo(() => {
+		const counts = new Map<string, number>();
+
+		for (const annotation of annotations) {
+			counts.set(annotation.songId, (counts.get(annotation.songId) ?? 0) + 1);
+		}
+
+		return counts;
+	}, [annotations]);
 	const isModalOpen = isCreateSongOpen || Boolean(editingSong);
 
 	useCloseOnEscape(isModalOpen, () => {
@@ -192,12 +211,6 @@ export function LibraryView() {
 					) : (
 						<section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 							{orderedSongs.map((song) => {
-								const songAudioFiles = audioFiles.filter(
-									(audioFile) => audioFile.songId === song.id,
-								);
-								const songAnnotations = annotations.filter(
-									(annotation) => annotation.songId === song.id,
-								);
 								return (
 									<div
 										key={song.id}
@@ -248,11 +261,15 @@ export function LibraryView() {
 										<div className="mt-6 flex items-center gap-2">
 											<StatChip
 												icon={<File size={14} />}
-												label={`${songAudioFiles.length} files`}
+												label={`${
+													audioFileCountBySongId.get(song.id) ?? 0
+												} files`}
 											/>
 											<StatChip
 												icon={<Bookmark size={14} />}
-												label={`${songAnnotations.length} markers`}
+												label={`${
+													annotationCountBySongId.get(song.id) ?? 0
+												} markers`}
 											/>
 										</div>
 									</div>
@@ -264,93 +281,58 @@ export function LibraryView() {
 			</main>
 
 			{isCreateSongOpen && (
-				<div
-					className="song-modal"
-					onKeyDownCapture={(event) => {
-						if (event.key !== "Escape") {
-							return;
-						}
-
-						event.preventDefault();
-						setIsCreateSongOpen(false);
-					}}
+				<SongModal
+					title="Create song"
+					titleId="create-song-title"
+					onClose={() => setIsCreateSongOpen(false)}
+					initialFocusRef={createSongTitleInputRef}
+					maxWidthClassName="max-w-[min(96rem,calc(100vw-2rem))]"
 				>
-					<button
-						type="button"
-						aria-label="Dismiss create song dialog"
-						onClick={() => setIsCreateSongOpen(false)}
-						className="song-modal__backdrop"
-					/>
-					<div
-						role="dialog"
-						aria-modal="true"
-						aria-labelledby="create-song-title"
-						className="song-modal__panel rise-in w-full max-w-[min(96rem,calc(100vw-2rem))]"
-					>
-						<div className="flex items-start justify-between gap-4 border-b border-[var(--color-border-subtle)] px-5 py-4 sm:px-6">
-							<div className="min-w-0">
-								<h2
-									id="create-song-title"
-									className="text-2xl font-semibold text-[var(--color-text)]"
-								>
-									Create song
-								</h2>
-							</div>
-							<button
-								type="button"
-								aria-label="Close create song dialog"
-								onClick={() => setIsCreateSongOpen(false)}
-								className="icon-button shrink-0"
-							>
-								<X size={16} />
-							</button>
-						</div>
-
-						<form className="grid gap-4 p-5 sm:p-6" onSubmit={handleSubmit}>
+					<form className="grid gap-4 p-5 sm:p-6" onSubmit={handleSubmit}>
+						<label className="grid gap-2">
+							<span className="field-label">Song title</span>
+							<input
+								ref={createSongTitleInputRef}
+								value={title}
+								onChange={(event) => setTitle(event.target.value)}
+								placeholder="Song title"
+								className="field-input"
+							/>
+						</label>
+						{showArtist ? (
 							<label className="grid gap-2">
-								<span className="field-label">Song title</span>
+								<span className="field-label">Artist</span>
 								<input
-									value={title}
-									onChange={(event) => setTitle(event.target.value)}
-									placeholder="Song title"
+									value={artist}
+									onChange={(event) => setArtist(event.target.value)}
+									placeholder="Artist"
 									className="field-input"
 								/>
 							</label>
-							{showArtist ? (
-								<label className="grid gap-2">
-									<span className="field-label">Artist</span>
-									<input
-										value={artist}
-										onChange={(event) => setArtist(event.target.value)}
-										placeholder="Artist"
-										className="field-input"
-									/>
-								</label>
-							) : null}
-							{showProject ? (
-								<label className="grid gap-2">
-									<span className="field-label">Project</span>
-									<input
-										value={project}
-										onChange={(event) => setProject(event.target.value)}
-										placeholder="Project"
-										className="field-input"
-									/>
-								</label>
-							) : null}
-							<div className="flex justify-end">
-								<button
-									type="submit"
-									disabled={submitting || !title.trim()}
-									className="action-primary inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-55"
-								>
-									<FolderOpenDot size={16} />
-									{submitting ? "Creating song..." : "Create song"}
-								</button>
-							</div>
-						</form>
-					</div>
-				</div>
+						) : null}
+						{showProject ? (
+							<label className="grid gap-2">
+								<span className="field-label">Project</span>
+								<input
+									value={project}
+									onChange={(event) => setProject(event.target.value)}
+									placeholder="Project"
+									className="field-input"
+								/>
+							</label>
+						) : null}
+						<div className="flex justify-end">
+							<button
+								type="submit"
+								disabled={submitting || !title.trim()}
+								className="action-primary inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-55"
+							>
+								<FolderOpenDot size={16} />
+								{submitting ? "Creating song..." : "Create song"}
+							</button>
+						</div>
+					</form>
+				</SongModal>
 			)}
 
 			{editingSong ? (

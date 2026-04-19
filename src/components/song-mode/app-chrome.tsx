@@ -1,4 +1,4 @@
-import { Link, useMatchRoute, useNavigate } from "@tanstack/react-router";
+import { Link, useMatchRoute } from "@tanstack/react-router";
 import { Library, Settings } from "lucide-react";
 import { createContext, useContext, useState } from "react";
 import { useSongMode } from "#/providers/song-mode-provider";
@@ -31,20 +31,7 @@ export function useLibraryHeaderActionSlot() {
 	return useContext(LibraryHeaderActionSlotContext);
 }
 
-export function getSongModeHeaderState({
-	songId,
-}: {
-	songId?: string;
-	ready: boolean;
-	songTitle?: string;
-}) {
-	return {
-		showLibraryLink: Boolean(songId),
-	};
-}
-
 export function SongModeChrome({ children }: { children: React.ReactNode }) {
-	const navigate = useNavigate();
 	const matchRoute = useMatchRoute();
 	const { ready, getSongById, settings, updateUiSettings } = useSongMode();
 	const songMatch = matchRoute({ to: "/songs/$songId" });
@@ -57,11 +44,6 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 	);
 	const [libraryHeaderActionSlot, setLibraryHeaderActionSlot] =
 		useState<HTMLDivElement | null>(null);
-	const { showLibraryLink } = getSongModeHeaderState({
-		songId,
-		ready,
-		songTitle,
-	});
 	const shellClassName = isSongRoute
 		? "song-mode-shell song-mode-shell--workspace"
 		: "song-mode-shell";
@@ -98,17 +80,6 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 										>
 											<Library size={22} />
 										</Link>
-									) : null}
-
-									{showLibraryLink && !isSongRoute ? (
-										<button
-											type="button"
-											onClick={() => navigate({ to: "/" })}
-											className="action-secondary hidden h-12 shrink-0 items-center justify-center gap-2 px-4 text-sm font-semibold leading-none md:inline-flex"
-										>
-											<Library size={15} />
-											Library
-										</button>
 									) : null}
 
 									{!isSongRoute ? (

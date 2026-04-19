@@ -30,11 +30,13 @@ function renderLayer(annotation: Annotation) {
 				annotations={[annotation]}
 				hoveredAnnotationRecord={null}
 				hoveredTooltipPosition={null}
+				onCommitAnnotationChange={vi.fn().mockResolvedValue(undefined)}
 				onSeek={vi.fn().mockResolvedValue(undefined)}
 				onSelectAnnotation={vi.fn()}
 				onSelectFile={vi.fn()}
-				onUpdateAnnotation={vi.fn().mockResolvedValue(undefined)}
 				onDeleteAnnotation={vi.fn().mockResolvedValue(undefined)}
+				onPreviewAnnotationChange={vi.fn()}
+				onResetAnnotationPreview={vi.fn()}
 				getTimePerPixel={() => 1000}
 				setHoveredAnnotation={vi.fn()}
 				updateHoveredAnnotationPosition={vi.fn()}

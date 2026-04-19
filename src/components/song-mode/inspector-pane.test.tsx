@@ -108,18 +108,22 @@ describe("InspectorPane", () => {
 		Element.prototype.scrollIntoView = vi.fn();
 	});
 
-	it("renders each annotation as an inline editor and updates the title directly from the card", () => {
+	it("renders each annotation as an inline editor and updates the title directly from the card", async () => {
 		const { onUpdateAnnotation } = renderInspector();
 
 		expect(screen.queryByText(/annotation details/i)).toBeNull();
 		expect(screen.getAllByTestId("rich-text-editor")).toHaveLength(1);
 
-		fireEvent.change(screen.getByDisplayValue("Marker 0:54"), {
+		const titleInput = screen.getByLabelText("Title");
+		fireEvent.change(titleInput, {
 			target: { value: "Intro marker" },
 		});
+		fireEvent.blur(titleInput);
 
-		expect(onUpdateAnnotation).toHaveBeenCalledWith("annotation-1", {
-			title: "Intro marker",
+		await waitFor(() => {
+			expect(onUpdateAnnotation).toHaveBeenCalledWith("annotation-1", {
+				title: "Intro marker",
+			});
 		});
 	});
 

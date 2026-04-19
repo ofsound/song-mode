@@ -2,7 +2,11 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronLeft } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { SongLinkTarget, SongRouteSearch } from "#/lib/song-mode/types";
+import type {
+	RichTextDoc,
+	SongLinkTarget,
+	SongRouteSearch,
+} from "#/lib/song-mode/types";
 import { useSongMode } from "#/providers/song-mode-provider";
 import { useSongRouteHeaderSlot } from "./app-chrome";
 import { InspectorPane } from "./inspector-pane";
@@ -13,6 +17,7 @@ import { useSongWorkspaceShortcuts } from "./song-workspace-shortcuts";
 import { SongWorkspaceUploadDialog } from "./song-workspace-upload-dialog";
 import { SongWorkspaceWaveformList } from "./song-workspace-waveform-list";
 import { useCloseOnEscape } from "./use-close-on-escape";
+import { useDebouncedAsyncCallback } from "./use-debounced-async-callback";
 import { useSongWorkspaceRouting } from "./use-song-workspace-routing";
 import { useSongWorkspaceUpload } from "./use-song-workspace-upload";
 
@@ -103,6 +108,8 @@ export function SongWorkspace({
 		setAnnotationTitleFocusId(null);
 	}, []);
 	const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+	const previousSelectedFileIdRef = useRef<string | undefined>(selectedFileId);
+	const previousIsPlayingRef = useRef(playback.isPlaying);
 
 	useEffect(() => {
 		if (!selectedFileId) {
@@ -174,26 +181,88 @@ export function SongWorkspace({
 		],
 		[journalTimestampFormatter],
 	);
+	const persistWorkspacePlayhead = useDebouncedAsyncCallback({
+		callback: async (fileId: string, timeMs: number) => {
+			await updateWorkspaceState(songId, (current) => ({
+				...current,
+				playheadMsByFileId: {
+					...current.playheadMsByFileId,
+					[fileId]: timeMs,
+				},
+			}));
+		},
+		delayMs: 1200,
+	});
+	const persistSelectedFileNotes = useDebouncedAsyncCallback({
+		callback: async (
+			fileId: string,
+			notes: NonNullable<typeof selectedFile>["notes"],
+		) => {
+			await updateAudioFile(fileId, {
+				notes,
+			});
+		},
+		delayMs: 700,
+	});
+	const persistSongJournal = useDebouncedAsyncCallback({
+		callback: async (generalNotes: RichTextDoc) => {
+			await updateSong(songId, {
+				generalNotes,
+			});
+		},
+		delayMs: 700,
+	});
 
 	useEffect(() => {
 		if (!selectedFileId) {
 			return;
 		}
 
-		const handle = window.setTimeout(() => {
-			void updateWorkspaceState(songId, (current) => ({
-				...current,
-				playheadMsByFileId: {
-					...current.playheadMsByFileId,
-					[selectedFileId]: persistedSecond * 1000,
-				},
-			}));
-		}, 320);
+		persistWorkspacePlayhead.schedule(selectedFileId, persistedSecond * 1000);
+	}, [persistWorkspacePlayhead, persistedSecond, selectedFileId]);
 
-		return () => {
-			window.clearTimeout(handle);
-		};
-	}, [persistedSecond, selectedFileId, songId, updateWorkspaceState]);
+	useEffect(() => {
+		if (!selectedFileId) {
+			previousIsPlayingRef.current = playback.isPlaying;
+			return;
+		}
+
+		const didStopPlaying = previousIsPlayingRef.current && !playback.isPlaying;
+		previousIsPlayingRef.current = playback.isPlaying;
+		if (!didStopPlaying) {
+			return;
+		}
+
+		void persistWorkspacePlayhead.flush();
+	}, [persistWorkspacePlayhead, playback.isPlaying, selectedFileId]);
+
+	useEffect(() => {
+		if (
+			previousSelectedFileIdRef.current &&
+			previousSelectedFileIdRef.current !== selectedFileId
+		) {
+			void persistWorkspacePlayhead.flush();
+			void persistSelectedFileNotes.flush();
+		}
+
+		previousSelectedFileIdRef.current = selectedFileId;
+	}, [persistSelectedFileNotes, persistWorkspacePlayhead, selectedFileId]);
+
+	const handleSelectedFilePatch = useCallback(
+		(patch: Parameters<typeof updateAudioFile>[1]) => {
+			if (!selectedFile) {
+				return Promise.resolve();
+			}
+
+			if (patch.notes) {
+				persistSelectedFileNotes.schedule(selectedFile.id, patch.notes);
+				return Promise.resolve();
+			}
+
+			return updateAudioFile(selectedFile.id, patch);
+		},
+		[persistSelectedFileNotes, selectedFile, updateAudioFile],
+	);
 
 	const handleDeleteActiveAnnotation = useCallback(async () => {
 		if (!activeAnnotationId) {
@@ -385,11 +454,7 @@ export function SongWorkspace({
 									handleAnnotationTitleFocusHandled
 								}
 								onOpenTarget={(target: SongLinkTarget) => openTarget(target)}
-								onUpdateFile={(patch) =>
-									selectedFile
-										? updateAudioFile(selectedFile.id, patch)
-										: Promise.resolve()
-								}
+								onUpdateFile={handleSelectedFilePatch}
 								onUpdateAnnotation={updateAnnotation}
 								onDeleteAnnotation={deleteAnnotation}
 								onSelectAnnotation={(annotationId) => {
@@ -411,11 +476,8 @@ export function SongWorkspace({
 						<div className="flex min-h-0 flex-1 flex-col">
 							<RichTextEditor
 								value={song.generalNotes}
-								onChange={(nextValue) =>
-									void updateSong(song.id, {
-										generalNotes: nextValue,
-									})
-								}
+								onChange={(nextValue) => persistSongJournal.schedule(nextValue)}
+								commitDelayMs={260}
 								onInternalLink={openTarget}
 								focusId="journal"
 								toolbarActions={journalToolbarActions}

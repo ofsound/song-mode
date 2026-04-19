@@ -1309,9 +1309,7 @@ describe("WaveformCard", () => {
 		await waitFor(() => {
 			expect(confirmSpy).toHaveBeenCalledWith("Delete this marker?");
 		});
-		expect(onUpdateAnnotation).toHaveBeenLastCalledWith("annotation-1", {
-			startMs: 30000,
-		});
+		expect(onUpdateAnnotation).not.toHaveBeenCalled();
 		await waitFor(() => {
 			expect(onDeleteAnnotation).toHaveBeenCalledWith("annotation-1");
 		});
@@ -1373,9 +1371,7 @@ describe("WaveformCard", () => {
 		await waitFor(() => {
 			expect(confirmSpy).toHaveBeenCalledWith("Delete this marker?");
 		});
-		expect(onUpdateAnnotation).toHaveBeenLastCalledWith("annotation-1", {
-			startMs: 30000,
-		});
+		expect(onUpdateAnnotation).not.toHaveBeenCalled();
 		expect(onDeleteAnnotation).not.toHaveBeenCalled();
 	});
 
@@ -1691,9 +1687,7 @@ describe("WaveformCard", () => {
 		await waitFor(() => {
 			expect(confirmSpy).toHaveBeenCalledWith("Delete this marker?");
 		});
-		expect(onUpdateAnnotation).toHaveBeenLastCalledWith("annotation-1", {
-			endMs: 45000,
-		});
+		expect(onUpdateAnnotation).not.toHaveBeenCalled();
 		await waitFor(() => {
 			expect(onDeleteAnnotation).toHaveBeenCalledWith("annotation-1");
 		});

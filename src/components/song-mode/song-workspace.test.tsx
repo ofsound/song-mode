@@ -330,22 +330,17 @@ describe("SongWorkspace", () => {
 			"file-2": new Blob(["b"]),
 		};
 
-		let rerenderWorkspace: null | (() => void) = null;
 		updateWorkspaceStateMock.mockImplementation((_songId, patch) => {
 			currentWorkspace =
 				typeof patch === "function"
 					? patch(currentWorkspace as WorkspaceState)
 					: { ...currentWorkspace, ...patch };
-			rerenderWorkspace?.();
 			return Promise.resolve();
 		});
 
 		const { rerender } = render(
 			<SongWorkspace songId={baseSong.id} search={search} />,
 		);
-		rerenderWorkspace = () =>
-			rerender(<SongWorkspace songId={baseSong.id} search={search} />);
-		rerenderWorkspace();
 
 		updateWorkspaceStateMock.mockClear();
 		navigateMock.mockClear();
@@ -1073,7 +1068,7 @@ describe("SongWorkspace", () => {
 
 		openFileDetails("Mix A");
 		fireEvent.click(
-			screen.getByRole("button", { name: /dismiss file details dialog/i }),
+			screen.getByRole("button", { name: /dismiss file details/i }),
 		);
 
 		expect(

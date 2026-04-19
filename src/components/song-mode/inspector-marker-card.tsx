@@ -13,6 +13,8 @@ import type {
 } from "#/lib/song-mode/types";
 import { MarkerTimeField } from "./marker-time-field";
 import { RichTextEditor } from "./rich-text-editor";
+import { useBufferedInputValue } from "./use-buffered-input-value";
+import { useDebouncedAsyncCallback } from "./use-debounced-async-callback";
 
 interface InspectorMarkerCardProps {
 	annotation: Annotation;
@@ -46,6 +48,21 @@ export function InspectorMarkerCard({
 }: InspectorMarkerCardProps) {
 	const cardRef = useRef<HTMLDivElement>(null);
 	const titleInputRef = useRef<HTMLInputElement>(null);
+	const title = useBufferedInputValue({
+		value: annotation.title,
+		onCommit: (nextValue) =>
+			onUpdateAnnotation(annotation.id, {
+				title: nextValue,
+			}),
+	});
+	const persistBody = useDebouncedAsyncCallback({
+		callback: async (nextValue: RichTextDoc) => {
+			await onUpdateAnnotation(annotation.id, {
+				body: nextValue,
+			});
+		},
+		delayMs: 700,
+	});
 
 	useLayoutEffect(() => {
 		if (!requestTitleFocus || !onTitleFocusHandled) {
@@ -74,6 +91,13 @@ export function InspectorMarkerCard({
 			behavior: "smooth",
 		});
 	}, [isActive]);
+
+	useEffect(
+		() => () => {
+			void persistBody.flush();
+		},
+		[persistBody],
+	);
 
 	const maxStartMs =
 		annotation.type === "range"
@@ -200,12 +224,9 @@ export function InspectorMarkerCard({
 			<div className="marker-interactive marker-title-row">
 				<input
 					ref={titleInputRef}
-					value={annotation.title}
-					onChange={(event) =>
-						void onUpdateAnnotation(annotation.id, {
-							title: event.target.value,
-						})
-					}
+					value={title.draft}
+					onChange={(event) => title.setDraft(event.target.value)}
+					onBlur={() => void title.flush()}
 					onKeyDown={(event) => {
 						if (event.key === "Escape") {
 							event.preventDefault();
@@ -220,17 +241,14 @@ export function InspectorMarkerCard({
 			<div className="marker-interactive marker-editor">
 				<RichTextEditor
 					value={annotation.body as RichTextDoc}
-					onChange={(nextValue) =>
-						void onUpdateAnnotation(annotation.id, {
-							body: nextValue,
-						})
-					}
+					onChange={(nextValue) => persistBody.schedule(nextValue)}
 					onInternalLink={onOpenTarget}
 					blurOnEscape
 					seamless
 					compact
 					dense
 					showToolbar={false}
+					commitDelayMs={220}
 				/>
 			</div>
 		</div>

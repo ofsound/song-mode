@@ -20,14 +20,19 @@ interface WaveformCardAnnotationLayerProps {
 		top: string;
 		transform: string;
 	} | null;
-	onDeleteAnnotation: (annotationId: string) => Promise<void>;
-	onSeek: (timeMs: number, autoplay?: boolean) => Promise<void>;
-	onSelectAnnotation: (annotationId: string) => void;
-	onSelectFile: (fileId: string) => void;
-	onUpdateAnnotation: (
+	onCommitAnnotationChange: (
 		annotationId: string,
 		patch: Partial<Annotation>,
 	) => Promise<void>;
+	onDeleteAnnotation: (annotationId: string) => Promise<void>;
+	onPreviewAnnotationChange: (
+		annotationId: string,
+		patch: Partial<Annotation>,
+	) => void;
+	onResetAnnotationPreview: (annotationId: string) => void;
+	onSeek: (timeMs: number, autoplay?: boolean) => Promise<void>;
+	onSelectAnnotation: (annotationId: string) => void;
+	onSelectFile: (fileId: string) => void;
 	getTimePerPixel: () => number;
 	setHoveredAnnotation: (annotation: HoveredAnnotationState | null) => void;
 	updateHoveredAnnotationPosition: (
@@ -43,11 +48,13 @@ export function WaveformCardAnnotationLayer({
 	annotations,
 	hoveredAnnotationRecord,
 	hoveredTooltipPosition,
+	onCommitAnnotationChange,
 	onDeleteAnnotation,
+	onPreviewAnnotationChange,
+	onResetAnnotationPreview,
 	onSeek,
 	onSelectAnnotation,
 	onSelectFile,
-	onUpdateAnnotation,
 	getTimePerPixel,
 	setHoveredAnnotation,
 	updateHoveredAnnotationPosition,
@@ -72,10 +79,12 @@ export function WaveformCardAnnotationLayer({
 		durationMs: audioFile.durationMs,
 		getTimePerPixel,
 		onClearHover: () => setHoveredAnnotation(null),
+		onCommitAnnotationChange,
 		onDeleteAnnotation,
+		onPreviewAnnotationChange,
+		onResetAnnotationPreview,
 		onSelectAnnotation,
 		onSelectFile,
-		onUpdateAnnotation,
 	});
 
 	function attachReshapeTracking(

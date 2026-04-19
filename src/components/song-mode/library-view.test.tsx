@@ -357,7 +357,7 @@ describe("LibraryView", () => {
 		expect(screen.queryByLabelText(/^project$/i)).toBeNull();
 
 		fireEvent.click(
-			screen.getByRole("button", { name: /close song settings dialog/i }),
+			screen.getByRole("button", { name: /close song settings/i }),
 		);
 
 		fireEvent.click(

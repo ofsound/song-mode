@@ -5,7 +5,6 @@
 		color-mix(in srgb, var(--color-white) 94%, var(--color-slate-50)),
 		color-mix(in srgb, var(--color-zinc-950) 92%, var(--color-slate-950))
 	);
-	--color-shell: light-dark(var(--color-white), var(--color-zinc-950));
 	--color-surface: light-dark(
 		color-mix(in srgb, var(--color-white) 95%, var(--color-zinc-50)),
 		color-mix(in srgb, var(--color-slate-900) 42%, var(--color-zinc-950))
@@ -14,25 +13,9 @@
 		color-mix(in srgb, var(--color-white) 88%, var(--color-slate-50)),
 		color-mix(in srgb, var(--color-slate-800) 46%, var(--color-zinc-900))
 	);
-	--color-surface-selected: light-dark(
-		color-mix(
-			in srgb,
-			var(--color-surface-elevated) 74%,
-			var(--color-zinc-100)
-		),
-		color-mix(
-			in srgb,
-			var(--color-surface-elevated) 72%,
-			var(--color-slate-700)
-		)
-	);
 	--color-surface-overlay: light-dark(
 		color-mix(in srgb, var(--color-white) 90%, transparent),
 		color-mix(in srgb, var(--color-zinc-950) 78%, transparent)
-	);
-	--color-surface-muted: light-dark(
-		color-mix(in srgb, var(--color-slate-200) 55%, var(--color-white)),
-		color-mix(in srgb, var(--color-zinc-950) 78%, var(--color-black))
 	);
 	--color-header-surface: light-dark(
 		color-mix(in srgb, var(--color-slate-100) 58%, var(--color-white)),
@@ -43,11 +26,10 @@
 		color-mix(in srgb, var(--color-slate-100) 52%, var(--color-white)),
 		color-mix(in srgb, var(--color-slate-800) 46%, var(--color-zinc-900))
 	);
-	--color-header-icon-surface: light-dark(
-		color-mix(in srgb, var(--color-white) 92%, var(--color-slate-50)),
-		color-mix(in srgb, var(--color-white) 9%, transparent)
+	--color-field: light-dark(
+		var(--color-white),
+		color-mix(in srgb, var(--color-slate-800) 30%, var(--color-zinc-900))
 	);
-	--color-field: light-dark(var(--color-white), var(--color-slate-900));
 	--color-text: light-dark(var(--color-zinc-900), var(--color-zinc-100));
 	--color-text-muted: light-dark(
 		var(--color-slate-600),
@@ -58,7 +40,6 @@
 		var(--color-slate-400)
 	);
 	--color-text-inverse: light-dark(var(--color-white), var(--color-zinc-950));
-	--color-border: light-dark(var(--color-zinc-300), var(--color-zinc-700));
 	--color-border-strong: light-dark(
 		color-mix(in srgb, var(--color-zinc-400) 78%, var(--color-zinc-300)),
 		color-mix(in srgb, var(--color-slate-500) 78%, var(--color-slate-600))
@@ -68,8 +49,8 @@
 		color-mix(in srgb, var(--color-slate-400) 26%, transparent)
 	);
 	--color-border-subtle: light-dark(
-		color-mix(in srgb, var(--color-zinc-500) 22%, transparent),
-		color-mix(in srgb, var(--color-slate-400) 26%, transparent)
+		color-mix(in srgb, var(--color-zinc-500) 14%, transparent),
+		color-mix(in srgb, var(--color-slate-400) 18%, transparent)
 	);
 	--color-accent: light-dark(
 		var(--accent-light-primary-base),
@@ -167,20 +148,11 @@
 		color-mix(in srgb, var(--color-marker-range) 14%, transparent),
 		color-mix(in srgb, var(--color-marker-range) 18%, transparent)
 	);
-	--color-annotation-1: light-dark(var(--color-red-400), var(--color-red-500));
 	--color-annotation-2: light-dark(
 		var(--color-amber-400),
 		var(--color-amber-400)
 	);
-	--color-annotation-3: light-dark(
-		var(--color-emerald-400),
-		var(--color-emerald-400)
-	);
 	--color-annotation-4: light-dark(var(--color-sky-400), var(--color-sky-400));
-	--color-annotation-5: light-dark(
-		var(--color-violet-400),
-		var(--color-violet-400)
-	);
 	--shadow-panel:
 		0 20px 50px -24px
 		light-dark(
