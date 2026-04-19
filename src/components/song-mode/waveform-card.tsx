@@ -624,7 +624,7 @@ export function WaveformCard({
 						onPointerUp={() => setDragArmed(false)}
 						onPointerCancel={() => setDragArmed(false)}
 						onBlur={() => setDragArmed(false)}
-						className="inline-flex h-10 w-10 items-center justify-center border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]"
+						className="inline-flex h-10 w-10 items-center justify-center border border-[var(--color-border-plain)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]"
 						title="Drag to reorder"
 					>
 						<GripVertical size={16} />

@@ -68,6 +68,7 @@
 }
 
 .panel-shell.panel-shell--plain {
+	border-color: var(--color-border-plain);
 	background: var(--color-surface);
 	backdrop-filter: none;
 }

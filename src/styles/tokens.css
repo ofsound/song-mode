@@ -60,8 +60,12 @@
 	--color-text-inverse: light-dark(var(--color-white), var(--color-zinc-950));
 	--color-border: light-dark(var(--color-zinc-300), var(--color-zinc-700));
 	--color-border-strong: light-dark(
-		var(--color-zinc-400),
-		var(--color-slate-500)
+		color-mix(in srgb, var(--color-zinc-400) 78%, var(--color-zinc-300)),
+		color-mix(in srgb, var(--color-slate-500) 78%, var(--color-slate-600))
+	);
+	--color-border-plain: light-dark(
+		color-mix(in srgb, var(--color-zinc-500) 22%, transparent),
+		color-mix(in srgb, var(--color-slate-400) 26%, transparent)
 	);
 	--color-border-subtle: light-dark(
 		color-mix(in srgb, var(--color-zinc-500) 22%, transparent),
