@@ -52,6 +52,7 @@ export function RichTextEditor({
 	seamless = false,
 }: RichTextEditorProps) {
 	const wrapperRef = useRef<HTMLDivElement | null>(null);
+	const scrollRegionRef = useRef<HTMLDivElement | null>(null);
 	const serializedValue = useMemo(
 		() => JSON.stringify(value ?? EMPTY_RICH_TEXT),
 		[value],
@@ -153,6 +154,33 @@ export function RichTextEditor({
 			node.removeEventListener("click", handleClick);
 		};
 	}, [editor, onInternalLink]);
+
+	useEffect(() => {
+		if (!editor) {
+			return;
+		}
+
+		const node = scrollRegionRef.current;
+		if (!node) {
+			return;
+		}
+
+		const handleMouseDown = (event: MouseEvent) => {
+			if (!(event.target instanceof HTMLElement)) {
+				return;
+			}
+			if (event.target.closest(".ProseMirror")) {
+				return;
+			}
+			event.preventDefault();
+			editor.commands.focus("end");
+		};
+
+		node.addEventListener("mousedown", handleMouseDown);
+		return () => {
+			node.removeEventListener("mousedown", handleMouseDown);
+		};
+	}, [editor]);
 
 	if (!editor) {
 		return (
@@ -262,6 +290,7 @@ export function RichTextEditor({
 				</div>
 			) : null}
 			<div
+				ref={scrollRegionRef}
 				className="song-editor-scroll-region min-h-0 flex-1 overflow-hidden"
 				onKeyDownCapture={(event) => {
 					if (!blurOnEscape || event.key !== "Escape") {

@@ -16,6 +16,7 @@ import { LibraryView } from "./library-view";
 
 const navigateMock = vi.fn();
 const createSongMock = vi.fn();
+const updateSongMock = vi.fn();
 const deleteSongMock = vi.fn();
 let songs: Song[] = [];
 let audioFiles: AudioFileRecord[] = [];
@@ -39,6 +40,7 @@ vi.mock("#/providers/song-mode-provider", () => ({
 			ui: uiSettings,
 		},
 		createSong: createSongMock,
+		updateSong: updateSongMock,
 		deleteSong: deleteSongMock,
 	}),
 }));
@@ -60,6 +62,7 @@ describe("LibraryView", () => {
 	beforeEach(() => {
 		navigateMock.mockReset();
 		createSongMock.mockReset();
+		updateSongMock.mockReset();
 		deleteSongMock.mockReset();
 		createSongMock.mockResolvedValue(makeSong("song-2"));
 		songs = [];
@@ -102,6 +105,42 @@ describe("LibraryView", () => {
 		expect(screen.getByLabelText(/song title/i)).toBeTruthy();
 		expect(screen.getByLabelText(/^artist$/i)).toBeTruthy();
 		expect(screen.getByLabelText(/^project$/i)).toBeTruthy();
+	});
+
+	it("closes library modals on Escape", async () => {
+		const headerSlot = document.createElement("div");
+		document.body.appendChild(headerSlot);
+		songs = [makeSong("song-1")];
+
+		render(
+			<LibraryHeaderActionSlotContext.Provider
+				value={{ enabled: true, slot: headerSlot }}
+			>
+				<LibraryView />
+			</LibraryHeaderActionSlotContext.Provider>,
+		);
+
+		fireEvent.click(
+			within(headerSlot).getByRole("button", { name: /create song/i }),
+		);
+		expect(screen.getByRole("dialog", { name: /create song/i })).toBeTruthy();
+
+		fireEvent.keyDown(screen.getByLabelText(/song title/i), { key: "Escape" });
+		await waitFor(() => {
+			expect(screen.queryByRole("dialog", { name: /create song/i })).toBeNull();
+		});
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /edit settings for new song/i }),
+		);
+		expect(screen.getByRole("dialog", { name: /song settings/i })).toBeTruthy();
+
+		fireEvent.keyDown(screen.getByLabelText(/song title/i), { key: "Escape" });
+		await waitFor(() => {
+			expect(
+				screen.queryByRole("dialog", { name: /song settings/i }),
+			).toBeNull();
+		});
 	});
 
 	it("submits the modal form and navigates to the created song", async () => {
@@ -157,7 +196,58 @@ describe("LibraryView", () => {
 		});
 	});
 
-	it("confirms before deleting a song from the library card row", async () => {
+	it("opens song settings from the title row and updates song metadata", async () => {
+		const headerSlot = document.createElement("div");
+		document.body.appendChild(headerSlot);
+		songs = [makeSong("song-1")];
+		updateSongMock.mockResolvedValue(undefined);
+
+		render(
+			<LibraryHeaderActionSlotContext.Provider
+				value={{ enabled: true, slot: headerSlot }}
+			>
+				<LibraryView />
+			</LibraryHeaderActionSlotContext.Provider>,
+		);
+
+		expect(
+			screen.queryByRole("button", { name: /delete new song/i }),
+		).toBeNull();
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /edit settings for new song/i }),
+		);
+
+		expect(
+			screen.getByRole("dialog", {
+				name: /song settings/i,
+			}),
+		).toBeTruthy();
+
+		fireEvent.change(screen.getByLabelText(/song title/i), {
+			target: { value: "Midnight Choir" },
+		});
+		fireEvent.change(screen.getByLabelText(/^artist$/i), {
+			target: { value: "Ada" },
+		});
+		fireEvent.change(screen.getByLabelText(/^project$/i), {
+			target: { value: "LP1" },
+		});
+
+		await waitFor(() => {
+			expect(updateSongMock).toHaveBeenCalledWith("song-1", {
+				title: "Midnight Choir",
+			});
+			expect(updateSongMock).toHaveBeenCalledWith("song-1", {
+				artist: "Ada",
+			});
+			expect(updateSongMock).toHaveBeenCalledWith("song-1", {
+				project: "LP1",
+			});
+		});
+	});
+
+	it("confirms before deleting a song from the library song settings modal", async () => {
 		const headerSlot = document.createElement("div");
 		document.body.appendChild(headerSlot);
 		songs = [makeSong("song-1")];
@@ -202,12 +292,15 @@ describe("LibraryView", () => {
 			</LibraryHeaderActionSlotContext.Provider>,
 		);
 
-		fireEvent.click(screen.getByRole("button", { name: /delete new song/i }));
+		fireEvent.click(
+			screen.getByRole("button", { name: /edit settings for new song/i }),
+		);
+		fireEvent.click(screen.getByRole("button", { name: /^delete song$/i }));
 		expect(confirmSpy).toHaveBeenCalledWith("Delete this song?");
 		expect(deleteSongMock).not.toHaveBeenCalled();
 
 		confirmSpy.mockReturnValue(true);
-		fireEvent.click(screen.getByRole("button", { name: /delete new song/i }));
+		fireEvent.click(screen.getByRole("button", { name: /^delete song$/i }));
 
 		await waitFor(() => {
 			expect(deleteSongMock).toHaveBeenCalledWith("song-1");
@@ -233,6 +326,17 @@ describe("LibraryView", () => {
 		);
 
 		expect(screen.queryByText("New Artist")).toBeNull();
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /edit settings for new song/i }),
+		);
+
+		expect(screen.queryByLabelText(/^artist$/i)).toBeNull();
+		expect(screen.queryByLabelText(/^project$/i)).toBeNull();
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /close song settings dialog/i }),
+		);
 
 		fireEvent.click(
 			within(headerSlot).getByRole("button", { name: /create song/i }),

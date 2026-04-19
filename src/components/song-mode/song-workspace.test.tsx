@@ -249,6 +249,8 @@ describe("SongWorkspace", () => {
 		deleteAudioFile.mockReset();
 		deleteAudioFile.mockResolvedValue(undefined);
 		updateAudioFile.mockReset();
+		updateSong.mockReset();
+		updateSong.mockResolvedValue(undefined);
 		Element.prototype.scrollIntoView = vi.fn();
 	});
 
@@ -1052,6 +1054,18 @@ describe("SongWorkspace", () => {
 		expect(screen.getByPlaceholderText(/context for this file/i)).toBeTruthy();
 	});
 
+	it("closes the upload modal on Escape", () => {
+		currentAudioFiles = [createAudioFile()];
+
+		render(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+
+		fireEvent.click(screen.getByRole("button", { name: /add file/i }));
+		expect(screen.getByRole("dialog", { name: /add file/i })).toBeTruthy();
+
+		fireEvent.keyDown(window, { key: "Escape" });
+		expect(screen.queryByRole("dialog", { name: /add file/i })).toBeNull();
+	});
+
 	it("closes the file details modal when dismiss is clicked", () => {
 		currentAudioFiles = [createAudioFile({ title: "Mix A" })];
 
@@ -1067,6 +1081,18 @@ describe("SongWorkspace", () => {
 				name: /file details/i,
 			}),
 		).toBeNull();
+	});
+
+	it("closes the file details modal on Escape", () => {
+		currentAudioFiles = [createAudioFile({ title: "Mix A" })];
+
+		render(<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />);
+
+		openFileDetails("Mix A");
+		expect(screen.getByRole("dialog", { name: /file details/i })).toBeTruthy();
+
+		fireEvent.keyDown(window, { key: "Escape" });
+		expect(screen.queryByRole("dialog", { name: /file details/i })).toBeNull();
 	});
 
 	it("renders the journal editor without an outer journal shell", () => {
@@ -1100,13 +1126,10 @@ describe("SongWorkspace", () => {
 		);
 
 		expect(
-			within(headerSlot).getByRole("textbox", { name: /song title/i }),
-		).toBeTruthy();
-		expect(
-			within(headerSlot).getByRole("textbox", { name: /^artist$/i }),
-		).toBeTruthy();
-		expect(
-			within(headerSlot).getByRole("textbox", { name: /^project$/i }),
+			within(headerSlot).getByRole("heading", {
+				level: 1,
+				name: /reload test/i,
+			}),
 		).toBeTruthy();
 		expect(
 			within(headerSlot).getByRole("button", { name: /add file/i }),
@@ -1117,12 +1140,26 @@ describe("SongWorkspace", () => {
 				{ name: /add file/i },
 			),
 		).toBeNull();
+		expect(
+			within(headerSlot).queryByRole("textbox", { name: /song title/i }),
+		).toBeNull();
+		expect(
+			within(headerSlot).queryByRole("textbox", { name: /^artist$/i }),
+		).toBeNull();
+		expect(
+			within(headerSlot).queryByRole("textbox", { name: /^project$/i }),
+		).toBeNull();
+		expect(
+			within(headerSlot).queryByRole("button", {
+				name: /edit settings for reload test/i,
+			}),
+		).toBeNull();
 
 		unmount();
 		headerSlot.remove();
 	});
 
-	it("hides artist and project controls when metadata visibility is disabled", () => {
+	it("does not render artist and project controls in the song header", () => {
 		currentAudioFiles = [createAudioFile()];
 		currentUiSettings = {
 			...currentUiSettings,
@@ -1141,6 +1178,9 @@ describe("SongWorkspace", () => {
 			</SongRouteHeaderSlotContext.Provider>,
 		);
 
+		expect(
+			within(headerSlot).queryByRole("textbox", { name: /song title/i }),
+		).toBeNull();
 		expect(
 			within(headerSlot).queryByRole("textbox", { name: /^artist$/i }),
 		).toBeNull();

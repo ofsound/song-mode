@@ -3,77 +3,26 @@ import type { Song } from "#/lib/song-mode/types";
 
 interface SongWorkspaceHeaderControlsProps {
 	song: Song;
-	showArtist: boolean;
-	showProject: boolean;
 	onOpenUpload: () => void;
-	onUpdateSong: (patch: Partial<Song>) => Promise<void>;
 }
 
 export function SongWorkspaceHeaderControls({
 	song,
-	showArtist,
-	showProject,
 	onOpenUpload,
-	onUpdateSong,
 }: SongWorkspaceHeaderControlsProps) {
 	return (
-		<div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-center xl:justify-start">
-			<div className="min-w-0 max-w-[450px] xl:min-w-72 xl:flex-[1.35]">
-				<input
-					value={song.title}
-					onChange={(event) =>
-						void onUpdateSong({
-							title: event.target.value,
-						})
-					}
-					className="field-input h-12 px-3 py-0 text-lg font-bold leading-none text-[var(--color-text)]"
-					placeholder="Song title"
-					aria-label="Song title"
-				/>
-			</div>
-
-			{showArtist ? (
-				<div className="min-w-0 xl:w-40 xl:shrink-0">
-					<input
-						value={song.artist}
-						onChange={(event) =>
-							void onUpdateSong({
-								artist: event.target.value,
-							})
-						}
-						className="field-input h-12 px-3 py-0 text-sm font-bold leading-none"
-						placeholder="Artist"
-						aria-label="Artist"
-					/>
-				</div>
-			) : null}
-
-			{showProject ? (
-				<div className="min-w-0 xl:w-40 xl:shrink-0">
-					<input
-						value={song.project}
-						onChange={(event) =>
-							void onUpdateSong({
-								project: event.target.value,
-							})
-						}
-						className="field-input h-12 px-3 py-0 text-sm font-bold leading-none"
-						placeholder="Project"
-						aria-label="Project"
-					/>
-				</div>
-			) : null}
-
-			<div className="flex shrink-0 flex-wrap items-center gap-3">
-				<button
-					type="button"
-					onClick={onOpenUpload}
-					className="action-primary inline-flex h-12 shrink-0 items-center justify-center gap-2 px-5 text-sm font-semibold leading-none"
-				>
-					<Upload size={16} />
-					Add file
-				</button>
-			</div>
+		<div className="flex min-w-0 flex-wrap items-end gap-x-8 gap-y-2">
+			<h1 className="min-w-0 break-words text-4xl font-black leading-none tracking-[-0.04em] text-[var(--color-text)] sm:text-5xl [text-shadow:0_4px_18px_color-mix(in_srgb,var(--color-accent)_18%,transparent)]">
+				{song.title}
+			</h1>
+			<button
+				type="button"
+				onClick={onOpenUpload}
+				className="action-primary inline-flex h-12 shrink-0 items-center justify-center gap-2 px-5 text-sm font-semibold leading-none"
+			>
+				<Upload size={16} />
+				Add file
+			</button>
 		</div>
 	);
 }

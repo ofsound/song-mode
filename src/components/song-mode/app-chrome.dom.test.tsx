@@ -81,6 +81,24 @@ describe("SongModeChrome", () => {
 		expect(screen.getByRole("dialog", { name: /settings/i })).toBeTruthy();
 	});
 
+	it("closes the settings modal on Escape", () => {
+		render(
+			<SongModeChrome>
+				<main>Library</main>
+			</SongModeChrome>,
+		);
+
+		fireEvent.click(
+			screen.getByRole("button", {
+				name: /open settings/i,
+			}),
+		);
+		expect(screen.getByRole("dialog", { name: /settings/i })).toBeTruthy();
+
+		fireEvent.keyDown(window, { key: "Escape" });
+		expect(screen.queryByRole("dialog", { name: /settings/i })).toBeNull();
+	});
+
 	it("updates keyboard focus highlights from the settings dialog", () => {
 		render(
 			<SongModeChrome>

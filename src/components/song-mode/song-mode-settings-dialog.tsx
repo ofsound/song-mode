@@ -29,7 +29,17 @@ export function SongModeSettingsDialog({
 	onUpdateUiSettings,
 }: SongModeSettingsDialogProps) {
 	return (
-		<div className="song-modal">
+		<div
+			className="song-modal"
+			onKeyDownCapture={(event) => {
+				if (event.key !== "Escape") {
+					return;
+				}
+
+				event.preventDefault();
+				onClose();
+			}}
+		>
 			<button
 				type="button"
 				aria-label="Dismiss settings dialog"

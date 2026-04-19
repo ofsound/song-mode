@@ -4,8 +4,7 @@ import type { Annotation } from "#/lib/song-mode/types";
 
 interface UseSongWorkspaceShortcutsOptions {
 	activeAnnotationId?: string;
-	isUploadOpen: boolean;
-	onCloseUpload: () => void;
+	isModalOpen: boolean;
 	onDeleteActiveAnnotation: () => Promise<void>;
 	selectedFileId?: string;
 	songId: string;
@@ -25,8 +24,7 @@ interface UseSongWorkspaceShortcutsOptions {
 
 export function useSongWorkspaceShortcuts({
 	activeAnnotationId,
-	isUploadOpen,
-	onCloseUpload,
+	isModalOpen,
 	onDeleteActiveAnnotation,
 	selectedFileId,
 	songId,
@@ -37,11 +35,7 @@ export function useSongWorkspaceShortcuts({
 }: UseSongWorkspaceShortcutsOptions) {
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (isUploadOpen) {
-				if (event.key === "Escape") {
-					event.preventDefault();
-					onCloseUpload();
-				}
+			if (isModalOpen) {
 				return;
 			}
 
@@ -140,9 +134,8 @@ export function useSongWorkspaceShortcuts({
 		};
 	}, [
 		activeAnnotationId,
-		isUploadOpen,
+		isModalOpen,
 		jumpBetweenAnnotations,
-		onCloseUpload,
 		onDeleteActiveAnnotation,
 		patchRouteSelection,
 		seekActiveBy,

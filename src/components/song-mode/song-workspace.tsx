@@ -12,6 +12,7 @@ import { SongWorkspaceHeaderControls } from "./song-workspace-header-controls";
 import { useSongWorkspaceShortcuts } from "./song-workspace-shortcuts";
 import { SongWorkspaceUploadDialog } from "./song-workspace-upload-dialog";
 import { SongWorkspaceWaveformList } from "./song-workspace-waveform-list";
+import { useCloseOnEscape } from "./use-close-on-escape";
 import { useSongWorkspaceRouting } from "./use-song-workspace-routing";
 import { useSongWorkspaceUpload } from "./use-song-workspace-upload";
 
@@ -26,7 +27,6 @@ export function SongWorkspace({
 	const songRouteHeaderSlot = useSongRouteHeaderSlot();
 	const {
 		ready,
-		settings,
 		getSongById,
 		getSongAudioFiles,
 		getAnnotationsForFile,
@@ -133,6 +133,15 @@ export function SongWorkspace({
 	const isFileDetailsOpen = Boolean(editingFile);
 	const isModalOpen = isUploadOpen || isFileDetailsOpen;
 
+	useCloseOnEscape(isModalOpen, () => {
+		if (isFileDetailsOpen) {
+			setEditingFileId(null);
+			return;
+		}
+
+		setIsUploadOpen(false);
+	});
+
 	const currentTimeMs =
 		(selectedFileId
 			? playback.currentTimeByFileId[selectedFileId]
@@ -207,16 +216,8 @@ export function SongWorkspace({
 
 	useSongWorkspaceShortcuts({
 		activeAnnotationId,
-		isUploadOpen: isModalOpen,
+		isModalOpen,
 		jumpBetweenAnnotations,
-		onCloseUpload: () => {
-			if (isFileDetailsOpen) {
-				setEditingFileId(null);
-				return;
-			}
-
-			setIsUploadOpen(false);
-		},
 		onDeleteActiveAnnotation: handleDeleteActiveAnnotation,
 		patchRouteSelection,
 		seekActiveBy,
@@ -275,6 +276,7 @@ export function SongWorkspace({
 			setDeletingFileId((current) => (current === fileId ? null : current));
 		}
 	}
+
 	if (!ready) {
 		return (
 			<main className="w-full px-3 py-8">
@@ -308,10 +310,7 @@ export function SongWorkspace({
 	const songHeaderControls = (
 		<SongWorkspaceHeaderControls
 			song={song}
-			showArtist={settings.ui.showArtist}
-			showProject={settings.ui.showProject}
 			onOpenUpload={() => setIsUploadOpen(true)}
-			onUpdateSong={(patch) => updateSong(song.id, patch)}
 		/>
 	);
 

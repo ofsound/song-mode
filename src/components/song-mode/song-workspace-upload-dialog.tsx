@@ -30,7 +30,17 @@ export function SongWorkspaceUploadDialog({
 	onUploadSessionDateChange,
 }: SongWorkspaceUploadDialogProps) {
 	return (
-		<div className="song-modal">
+		<div
+			className="song-modal"
+			onKeyDownCapture={(event) => {
+				if (event.key !== "Escape") {
+					return;
+				}
+
+				event.preventDefault();
+				onClose();
+			}}
+		>
 			<button
 				type="button"
 				aria-label="Dismiss upload dialog"

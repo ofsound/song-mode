@@ -145,7 +145,7 @@
 	padding: 0.5625rem 1rem 0.5625rem 0.5rem;
 	align-items: start;
 	cursor: pointer;
-	background: var(--color-surface-muted);
+	background: var(--color-marker-card-surface);
 	border: 1px solid var(--color-border-subtle);
 	transition:
 		background-color 160ms ease,
@@ -156,7 +156,7 @@
 .marker-card:hover {
 	background: color-mix(
 		in srgb,
-		var(--color-surface-muted) 82%,
+		var(--color-marker-card-surface) 82%,
 		var(--color-accent-surface)
 	);
 }
@@ -165,7 +165,7 @@
 .marker-card--selected:hover {
 	background: color-mix(
 		in srgb,
-		var(--color-surface-muted) 65%,
+		var(--color-marker-card-surface) 65%,
 		var(--color-accent-surface)
 	);
 	border-color: var(--color-waveform-selected);
@@ -217,6 +217,9 @@
 .marker-title-row .field-input {
 	width: 100%;
 	min-width: 0;
+	font-weight: 600;
+	color: light-dark(var(--color-black), var(--color-white));
+	caret-color: light-dark(var(--color-black), var(--color-white));
 }
 
 .marker-editor {
@@ -287,6 +290,16 @@
 .song-editor ul,
 .song-editor ol {
 	padding-left: 1.2rem;
+}
+
+.marker-card .song-editor {
+	font-weight: 600;
+	color: light-dark(var(--color-black), var(--color-white));
+	caret-color: light-dark(var(--color-black), var(--color-white));
+}
+
+.marker-card .song-editor blockquote {
+	color: light-dark(var(--color-black), var(--color-white));
 }
 
 [data-song-mode-editor="journal"] {

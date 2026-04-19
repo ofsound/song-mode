@@ -629,28 +629,30 @@ export function WaveformCard({
 					>
 						<GripVertical size={16} />
 					</button>
-					<div className="flex min-w-0 flex-1 items-baseline gap-3">
-						<button
-							type="button"
-							onClick={() => onSelectFile(audioFile.id)}
-							className="min-w-0 flex-1 truncate text-left text-lg font-semibold text-[var(--color-text)]"
-						>
-							{audioFile.title}
-						</button>
+					<div className="flex min-w-0 flex-1 flex-col">
+						<div className="flex min-w-0 items-baseline gap-2">
+							<button
+								type="button"
+								onClick={() => onSelectFile(audioFile.id)}
+								className="min-w-0 flex-1 truncate text-left text-lg font-semibold text-[var(--color-text)]"
+							>
+								{audioFile.title}
+							</button>
+							<button
+								type="button"
+								onClick={() => onOpenFileDetails(audioFile.id)}
+								className="-ml-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center text-[var(--color-text-muted)] transition-opacity hover:opacity-100 focus-visible:opacity-100 opacity-70"
+								title="Edit file details"
+								aria-label={`Edit details for ${audioFile.title}`}
+							>
+								<Settings2 size={12} />
+							</button>
+						</div>
 						{sessionDateLabel ? (
-							<span className="shrink-0 whitespace-nowrap text-sm tabular-nums text-[var(--color-text-muted)]">
+							<span className="whitespace-nowrap text-xs tabular-nums text-[var(--color-text-muted)]">
 								{sessionDateLabel}
 							</span>
 						) : null}
-						<button
-							type="button"
-							onClick={() => onOpenFileDetails(audioFile.id)}
-							className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-[var(--color-text-muted)] transition-opacity hover:opacity-100 focus-visible:opacity-100 opacity-70"
-							title="Edit file details"
-							aria-label={`Edit details for ${audioFile.title}`}
-						>
-							<Settings2 size={12} />
-						</button>
 					</div>
 				</div>
 
@@ -892,7 +894,7 @@ export function WaveformCard({
 							<span
 								aria-hidden
 								data-testid="gutter-add-range-preview"
-								className="pointer-events-none absolute top-[var(--waveform-marker-gutter-padding)] bottom-[var(--waveform-marker-gutter-padding)]"
+								className="pointer-events-none absolute top-1/2 -translate-y-1/2"
 								style={{
 									left: `${
 										(Math.min(
@@ -910,6 +912,7 @@ export function WaveformCard({
 											Math.max(audioFile.durationMs, 1)) *
 										100
 									}%`,
+									height: "var(--waveform-marker-visual-height)",
 									backgroundColor: "var(--color-marker-range)",
 									opacity: 0.45,
 								}}

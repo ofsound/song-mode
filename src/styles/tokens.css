@@ -38,6 +38,11 @@
 		color-mix(in srgb, var(--color-slate-100) 58%, var(--color-white)),
 		color-mix(in srgb, var(--color-slate-900) 66%, var(--color-zinc-950))
 	);
+	/* Inspector marker cards: clearer than elevated vs --color-surface in light; same as elevated in dark */
+	--color-marker-card-surface: light-dark(
+		color-mix(in srgb, var(--color-slate-100) 52%, var(--color-white)),
+		color-mix(in srgb, var(--color-slate-800) 46%, var(--color-zinc-900))
+	);
 	--color-header-icon-surface: light-dark(
 		color-mix(in srgb, var(--color-white) 92%, var(--color-slate-50)),
 		color-mix(in srgb, var(--color-white) 9%, transparent)
@@ -297,6 +302,16 @@
 	--song-workspace-waveform-tab-width: 14px;
 	--waveform-marker-gutter-height: 20.5px;
 	--waveform-marker-gutter-padding: 2px;
+	/* Hit targets fill the full gutter; range visuals draw 6px shorter and vertically centered, while point triangles shrink inside their original SVG bounds. */
+	--waveform-marker-hit-height: calc(
+		var(--waveform-marker-gutter-height) -
+		2 *
+		var(--waveform-marker-gutter-padding)
+	);
+	--waveform-marker-visual-height: calc(
+		var(--waveform-marker-hit-height) -
+		6px
+	);
 	--song-workspace-waveform-height: 164px;
 	--canvas-waveform-surface: color-mix(
 		in srgb,

@@ -255,18 +255,24 @@ export function WaveformCardAnnotationLayer({
 									onSelectAnnotation(annotation.id);
 									void onSeek(annotation.startMs, true);
 								}}
-								className={`pointer-events-auto absolute inset-x-0 bottom-0 cursor-grab border-0 p-0 transition-opacity duration-150 active:cursor-grabbing ${
+								className={`pointer-events-auto absolute inset-x-0 bottom-0 cursor-grab border-0 bg-transparent p-0 transition-opacity duration-150 active:cursor-grabbing ${
 									activeAnnotationId === annotation.id
 										? "opacity-[0.34] hover:opacity-[0.5]"
 										: "opacity-[0.2] hover:opacity-[0.34]"
 								}`}
 								style={{
-									bottom: "var(--waveform-marker-gutter-padding)",
-									height:
-										"calc(var(--waveform-marker-gutter-height) - 2 * var(--waveform-marker-gutter-padding))",
-									backgroundColor: rangeColor,
+									height: "var(--waveform-marker-gutter-height)",
 								}}
-							/>
+							>
+								<span
+									aria-hidden
+									className="pointer-events-none absolute top-1/2 left-0 right-0 -translate-y-1/2"
+									style={{
+										height: "var(--waveform-marker-visual-height)",
+										backgroundColor: rangeColor,
+									}}
+								/>
+							</button>
 							<button
 								type="button"
 								data-annotation-hit
@@ -275,7 +281,7 @@ export function WaveformCardAnnotationLayer({
 								onPointerMove={rangeStartDragHandlers.onPointerMove}
 								onPointerUp={rangeStartDragHandlers.onPointerUp}
 								onPointerCancel={rangeStartDragHandlers.onPointerCancel}
-								className="pointer-events-auto absolute bottom-[var(--waveform-marker-gutter-padding)] left-0 h-[calc(var(--waveform-marker-gutter-height)-2*var(--waveform-marker-gutter-padding))] w-3 -translate-x-1/2"
+								className="pointer-events-auto absolute bottom-0 left-0 h-[var(--waveform-marker-gutter-height)] w-3 -translate-x-1/2"
 							>
 								<span
 									aria-hidden
@@ -310,7 +316,7 @@ export function WaveformCardAnnotationLayer({
 								onPointerMove={rangeEndDragHandlers.onPointerMove}
 								onPointerUp={rangeEndDragHandlers.onPointerUp}
 								onPointerCancel={rangeEndDragHandlers.onPointerCancel}
-								className="pointer-events-auto absolute bottom-[var(--waveform-marker-gutter-padding)] left-full h-[calc(var(--waveform-marker-gutter-height)-2*var(--waveform-marker-gutter-padding))] w-3 -translate-x-1/2"
+								className="pointer-events-auto absolute bottom-0 left-full h-[var(--waveform-marker-gutter-height)] w-3 -translate-x-1/2"
 							>
 								<span
 									aria-hidden
@@ -412,8 +418,9 @@ export function WaveformCardAnnotationLayer({
 									className="block"
 									aria-hidden={true}
 								>
+									{/* Visual triangle is shrunk by 6px on screen (4 viewBox units) and centered, while the SVG bounds preserve the original 21x16.5 hit/hover area. */}
 									<polygon
-										points="7,11 0,0 14,0"
+										points="7,9 2.545,2 11.455,2"
 										fill={annotation.color ?? "var(--color-marker-point)"}
 									/>
 								</svg>

@@ -5,6 +5,7 @@ import { useSongMode } from "#/providers/song-mode-provider";
 import { GlobalSearch } from "./global-search";
 import { SongModeSettingsDialog } from "./song-mode-settings-dialog";
 import { ThemeToggle } from "./theme-toggle";
+import { useCloseOnEscape } from "./use-close-on-escape";
 
 interface SongRouteHeaderSlotValue {
 	enabled: boolean;
@@ -68,6 +69,8 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 		? "header-shell z-30 shrink-0"
 		: "header-shell sticky top-0 z-30";
 	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+	useCloseOnEscape(isSettingsOpen, () => setIsSettingsOpen(false));
 
 	return (
 		<LibraryHeaderActionSlotContext.Provider

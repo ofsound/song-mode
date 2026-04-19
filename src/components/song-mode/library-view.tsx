@@ -4,15 +4,17 @@ import {
 	File,
 	FolderOpenDot,
 	Plus,
+	Settings2,
 	Sparkles,
-	Trash2,
 	X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { EMPTY_RICH_TEXT, richTextPreview } from "#/lib/song-mode/rich-text";
 import { useSongMode } from "#/providers/song-mode-provider";
 import { useLibraryHeaderActionSlot } from "./app-chrome";
+import { SongSettingsDialog } from "./song-settings-dialog";
+import { useCloseOnEscape } from "./use-close-on-escape";
 
 export function LibraryView() {
 	const navigate = useNavigate();
@@ -25,6 +27,7 @@ export function LibraryView() {
 		annotations,
 		settings,
 		createSong,
+		updateSong,
 		deleteSong,
 	} = useSongMode();
 	const [title, setTitle] = useState("");
@@ -32,6 +35,7 @@ export function LibraryView() {
 	const [project, setProject] = useState("");
 	const [submitting, setSubmitting] = useState(false);
 	const [deletingSongId, setDeletingSongId] = useState<string | null>(null);
+	const [editingSongId, setEditingSongId] = useState<string | null>(null);
 	const [isCreateSongOpen, setIsCreateSongOpen] = useState(false);
 
 	const recentSongIds = settings.recents;
@@ -58,6 +62,26 @@ export function LibraryView() {
 			return right.updatedAt.localeCompare(left.updatedAt);
 		});
 	}, [recentSongIds, songs]);
+	const editingSong = useMemo(
+		() => songs.find((song) => song.id === editingSongId) ?? null,
+		[editingSongId, songs],
+	);
+	const isModalOpen = isCreateSongOpen || Boolean(editingSong);
+
+	useCloseOnEscape(isModalOpen, () => {
+		if (editingSong) {
+			setEditingSongId(null);
+			return;
+		}
+
+		setIsCreateSongOpen(false);
+	});
+
+	useEffect(() => {
+		if (editingSongId && !editingSong) {
+			setEditingSongId(null);
+		}
+	}, [editingSong, editingSongId]);
 
 	async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -97,6 +121,7 @@ export function LibraryView() {
 		setDeletingSongId(songId);
 		try {
 			await deleteSong(songId);
+			setEditingSongId((current) => (current === songId ? null : current));
 		} finally {
 			setDeletingSongId((current) => (current === songId ? null : current));
 		}
@@ -123,9 +148,9 @@ export function LibraryView() {
 			{renderedCreateSongTrigger}
 			<main
 				className={`flex w-full flex-col gap-8 px-3 py-8 [transition:filter_200ms_ease,opacity_200ms_ease] ${
-					isCreateSongOpen ? "pointer-events-none blur-[3px] opacity-45" : ""
+					isModalOpen ? "pointer-events-none blur-[3px] opacity-45" : ""
 				}`}
-				aria-hidden={isCreateSongOpen}
+				aria-hidden={isModalOpen}
 			>
 				<div className="flex min-w-0 flex-col gap-8">
 					{error && (
@@ -178,36 +203,47 @@ export function LibraryView() {
 										key={song.id}
 										className="panel-shell panel-shell--plain panel-shell-action h-full w-full p-6 text-left"
 									>
-										<button
-											type="button"
-											onClick={() =>
-												navigate({
-													to: "/songs/$songId",
-													params: {
-														songId: song.id,
-													},
-												})
-											}
-											className="block w-full text-left"
-										>
-											<div>
-												<h2 className="text-2xl font-semibold text-[var(--color-text)]">
-													{song.title}
-												</h2>
-												{showArtist ? (
-													<p className="mt-2 text-sm text-[var(--color-text-subtle)]">
-														{song.artist || "No artist set"}
-													</p>
-												) : null}
-											</div>
+										<div className="flex items-start gap-2">
+											<button
+												type="button"
+												onClick={() =>
+													navigate({
+														to: "/songs/$songId",
+														params: {
+															songId: song.id,
+														},
+													})
+												}
+												className="block min-w-0 flex-1 text-left"
+											>
+												<div>
+													<h2 className="text-2xl font-semibold text-[var(--color-text)]">
+														{song.title}
+													</h2>
+													{showArtist ? (
+														<p className="mt-2 text-sm text-[var(--color-text-subtle)]">
+															{song.artist || "No artist set"}
+														</p>
+													) : null}
+												</div>
 
-											<p className="mt-5 text-sm leading-7 text-[var(--color-text-muted)]">
-												{richTextPreview(
-													song.generalNotes,
-													"Journal is ready for the first pass.",
-												)}
-											</p>
-										</button>
+												<p className="mt-5 text-sm leading-7 text-[var(--color-text-muted)]">
+													{richTextPreview(
+														song.generalNotes,
+														"Journal is ready for the first pass.",
+													)}
+												</p>
+											</button>
+											<button
+												type="button"
+												onClick={() => setEditingSongId(song.id)}
+												className="-mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center text-[var(--color-text-muted)] opacity-70 transition-opacity hover:opacity-100 focus-visible:opacity-100"
+												title="Edit song settings"
+												aria-label={`Edit settings for ${song.title}`}
+											>
+												<Settings2 size={12} />
+											</button>
+										</div>
 
 										<div className="mt-6 flex items-center gap-2">
 											<StatChip
@@ -218,16 +254,6 @@ export function LibraryView() {
 												icon={<Bookmark size={14} />}
 												label={`${songAnnotations.length} markers`}
 											/>
-											<button
-												type="button"
-												onClick={() => void handleDeleteSong(song.id)}
-												disabled={deletingSongId === song.id}
-												className="icon-button icon-button--sm ml-auto shrink-0 text-[var(--color-danger)] disabled:cursor-not-allowed disabled:opacity-55"
-												title="Delete song"
-												aria-label={`Delete ${song.title}`}
-											>
-												<Trash2 size={12} />
-											</button>
 										</div>
 									</div>
 								);
@@ -238,7 +264,17 @@ export function LibraryView() {
 			</main>
 
 			{isCreateSongOpen && (
-				<div className="song-modal">
+				<div
+					className="song-modal"
+					onKeyDownCapture={(event) => {
+						if (event.key !== "Escape") {
+							return;
+						}
+
+						event.preventDefault();
+						setIsCreateSongOpen(false);
+					}}
+				>
 					<button
 						type="button"
 						aria-label="Dismiss create song dialog"
@@ -316,6 +352,18 @@ export function LibraryView() {
 					</div>
 				</div>
 			)}
+
+			{editingSong ? (
+				<SongSettingsDialog
+					song={editingSong}
+					deletingSong={deletingSongId === editingSong.id}
+					showArtist={showArtist}
+					showProject={showProject}
+					onClose={() => setEditingSongId(null)}
+					onDeleteSong={() => handleDeleteSong(editingSong.id)}
+					onUpdateSong={(patch) => updateSong(editingSong.id, patch)}
+				/>
+			) : null}
 		</>
 	);
 }
