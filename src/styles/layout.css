@@ -71,6 +71,7 @@
 .panel-shell.panel-shell--plain {
 	border-color: var(--color-border-plain);
 	background: var(--color-surface);
+	box-shadow: none;
 	backdrop-filter: none;
 }
 

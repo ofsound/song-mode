@@ -61,11 +61,11 @@ export function RichTextEditor({
 		[value],
 	);
 	const debounceRef = useRef<number | null>(null);
-	const lastEmittedSerializedRef = useRef(serializedValue);
-
-	const editor = useEditor({
-		immediatelyRender: false,
-		extensions: [
+	const onChangeRef = useRef(onChange);
+	const pendingLocalSerializedRef = useRef<string | null>(null);
+	const flushPendingChangeRef = useRef<() => void>(() => {});
+	const extensions = useMemo(
+		() => [
 			StarterKit.configure({
 				heading: false,
 				link: false,
@@ -78,36 +78,64 @@ export function RichTextEditor({
 				},
 			}),
 		],
-		content: value ?? EMPTY_RICH_TEXT,
-		editorProps: {
-			attributes: {
-				class: [
-					"song-editor prose prose-sm max-w-none outline-none",
-					compact
-						? dense
-							? "min-h-12 px-2 py-1.5 text-[13px]"
-							: "min-h-28 px-3 py-3"
-						: "min-h-44 px-4 py-4",
-				].join(" "),
-				"data-placeholder": placeholder ?? "",
-			},
-		},
-		onUpdate({ editor: currentEditor }) {
-			if (debounceRef.current) {
-				window.clearTimeout(debounceRef.current);
-			}
+		[],
+	);
+	const editorAttributes = useMemo(
+		() => ({
+			class: [
+				"song-editor prose prose-sm max-w-none outline-none",
+				compact
+					? dense
+						? "min-h-12 px-2 py-1.5 text-[13px]"
+						: "min-h-28 px-3 py-3"
+					: "min-h-44 px-4 py-4",
+			].join(" "),
+			"data-placeholder": placeholder ?? "",
+		}),
+		[compact, dense, placeholder],
+	);
 
-			debounceRef.current = window.setTimeout(() => {
-				const nextSerializedValue = JSON.stringify(currentEditor.getJSON());
-				if (nextSerializedValue === lastEmittedSerializedRef.current) {
-					return;
+	useEffect(() => {
+		onChangeRef.current = onChange;
+	}, [onChange]);
+
+	const emitChange = useCallback(
+		(nextValue: RichTextDoc, nextSerializedValue: string) => {
+			pendingLocalSerializedRef.current = nextSerializedValue;
+			onChangeRef.current(nextValue);
+		},
+		[],
+	);
+
+	const editor = useEditor(
+		{
+			immediatelyRender: false,
+			extensions,
+			content: value ?? EMPTY_RICH_TEXT,
+			editorProps: {
+				attributes: editorAttributes,
+			},
+			onUpdate({ editor: currentEditor }) {
+				if (debounceRef.current) {
+					window.clearTimeout(debounceRef.current);
 				}
 
-				lastEmittedSerializedRef.current = nextSerializedValue;
-				onChange(currentEditor.getJSON() as RichTextDoc);
-			}, commitDelayMs);
+				debounceRef.current = window.setTimeout(() => {
+					const nextSerializedValue = JSON.stringify(currentEditor.getJSON());
+					if (nextSerializedValue === serializedValue) {
+						pendingLocalSerializedRef.current = null;
+						return;
+					}
+
+					emitChange(
+						currentEditor.getJSON() as RichTextDoc,
+						nextSerializedValue,
+					);
+				}, commitDelayMs);
+			},
 		},
-	});
+		[commitDelayMs, editorAttributes, emitChange, extensions],
+	);
 
 	const flushPendingChange = useCallback(() => {
 		if (!editor) {
@@ -115,7 +143,8 @@ export function RichTextEditor({
 		}
 
 		const nextSerializedValue = JSON.stringify(editor.getJSON());
-		if (nextSerializedValue === lastEmittedSerializedRef.current) {
+		if (nextSerializedValue === serializedValue) {
+			pendingLocalSerializedRef.current = null;
 			if (debounceRef.current) {
 				window.clearTimeout(debounceRef.current);
 				debounceRef.current = null;
@@ -128,45 +157,40 @@ export function RichTextEditor({
 			debounceRef.current = null;
 		}
 
-		lastEmittedSerializedRef.current = nextSerializedValue;
-		onChange(editor.getJSON() as RichTextDoc);
-	}, [editor, onChange]);
+		emitChange(editor.getJSON() as RichTextDoc, nextSerializedValue);
+	}, [editor, emitChange, serializedValue]);
+
+	useEffect(() => {
+		flushPendingChangeRef.current = flushPendingChange;
+	}, [flushPendingChange]);
 
 	useEffect(() => {
 		return () => {
-			flushPendingChange();
+			flushPendingChangeRef.current();
 		};
-	}, [flushPendingChange]);
+	}, []);
 
 	useEffect(() => {
 		if (!editor) {
 			return;
 		}
 
-		// If the incoming prop matches what we last emitted, this is our own
-		// debounced change round-tripping back as a prop. Do nothing: rewriting
-		// the editor content here would clobber any characters the user has
-		// typed since the debounced emit fired.
-		if (serializedValue === lastEmittedSerializedRef.current) {
+		const currentSerialized = JSON.stringify(editor.getJSON());
+		if (currentSerialized === serializedValue) {
+			pendingLocalSerializedRef.current = null;
 			return;
 		}
 
-		// Genuine external change: cancel any pending debounced emit so it
-		// can't later overwrite the new value with stale typed content, then
-		// sync the editor to the incoming document.
-		if (debounceRef.current) {
-			window.clearTimeout(debounceRef.current);
-			debounceRef.current = null;
+		// While the editor has local work in flight, a lagging prop round-trip
+		// must not overwrite the user's current text.
+		if (debounceRef.current || pendingLocalSerializedRef.current) {
+			return;
 		}
 
-		const currentSerialized = JSON.stringify(editor.getJSON());
-		if (currentSerialized !== serializedValue) {
-			editor.commands.setContent(value ?? EMPTY_RICH_TEXT, {
-				emitUpdate: false,
-				parseOptions: { preserveWhitespace: "full" },
-			});
-		}
-		lastEmittedSerializedRef.current = serializedValue;
+		editor.commands.setContent(value ?? EMPTY_RICH_TEXT, {
+			emitUpdate: false,
+			parseOptions: { preserveWhitespace: "full" },
+		});
 	}, [editor, serializedValue, value]);
 
 	useEffect(() => {

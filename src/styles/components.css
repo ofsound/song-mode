@@ -76,10 +76,8 @@
 	background: var(--color-surface);
 	opacity: 0.4;
 	padding: 1rem;
-	box-shadow: var(--shadow-panel);
 	cursor: pointer;
 	transition:
-		box-shadow 200ms ease,
 		border-color 200ms ease,
 		background-color 200ms ease,
 		opacity 200ms ease;
@@ -89,10 +87,6 @@
 	border-color: var(--color-waveform-selected);
 	opacity: 1;
 	cursor: default;
-	box-shadow:
-		0 12px 24px -16px
-		color-mix(in srgb, var(--color-waveform-selected) 37%, transparent),
-		var(--shadow-panel);
 }
 
 .waveform-card__tab {
