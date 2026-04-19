@@ -1,9 +1,12 @@
 import { constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
-import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { app, BrowserWindow, dialog, shell } from "electron";
+
+const ELECTRON_DIR = dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = resolve(ELECTRON_DIR, "..");
 
 const DEV_SERVER_URL =
 	process.env.SONG_MODE_ELECTRON_RENDERER_URL ?? "http://127.0.0.1:3000";
@@ -34,7 +37,7 @@ function getServerEntryPath() {
 		return join(process.resourcesPath, ".output", "server", "index.mjs");
 	}
 
-	return join(app.getAppPath(), ".output", "server", "index.mjs");
+	return join(PROJECT_ROOT, ".output", "server", "index.mjs");
 }
 
 function delay(milliseconds) {
@@ -167,16 +170,20 @@ app.on("before-quit", () => {
 	stopProductionServer();
 });
 
-try {
-	await app.whenReady();
-
+async function launchSongMode() {
 	if (shouldUseProductionServer()) {
 		await startProductionServer();
 	}
 
 	await createMainWindow();
-} catch (error) {
-	const message = error instanceof Error ? error.message : String(error);
-	dialog.showErrorBox("Unable to launch Song Mode", message);
-	app.quit();
 }
+
+app
+	.whenReady()
+	.then(launchSongMode)
+	.catch((error) => {
+		console.error("[song-mode] failed to launch", error);
+		const message = error instanceof Error ? error.message : String(error);
+		dialog.showErrorBox("Unable to launch Song Mode", message);
+		app.quit();
+	});
