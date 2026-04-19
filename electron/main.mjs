@@ -1,7 +1,7 @@
-import { spawn } from "node:child_process";
 import { constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { app, BrowserWindow, dialog, shell } from "electron";
 
@@ -15,9 +15,8 @@ const SERVER_PORT = Number.parseInt(
 const SERVER_BOOT_TIMEOUT_MS = 15_000;
 const SERVER_READY_POLL_MS = 250;
 
-/** @type {import("node:child_process").ChildProcessWithoutNullStreams | null} */
-let serverProcess = null;
-let isQuitting = false;
+/** @type {Promise<void> | null} */
+let productionServerPromise = null;
 
 function shouldUseProductionServer() {
 	return (
@@ -57,12 +56,6 @@ async function waitForSongMode(url, timeoutMs) {
 	const deadline = Date.now() + timeoutMs;
 
 	while (Date.now() < deadline) {
-		if (serverProcess?.exitCode != null) {
-			throw new Error(
-				"The packaged Song Mode server exited before it became ready.",
-			);
-		}
-
 		try {
 			const response = await fetch(url, {
 				signal: AbortSignal.timeout(1_000),
@@ -84,56 +77,35 @@ async function waitForSongMode(url, timeoutMs) {
 }
 
 async function startProductionServer() {
-	const serverEntryPath = getServerEntryPath();
-
-	if (!(await canAccessFile(serverEntryPath))) {
-		throw new Error(
-			`Missing built server at ${serverEntryPath}. Run npm run build before launching Electron.`,
-		);
+	if (productionServerPromise != null) {
+		return productionServerPromise;
 	}
 
-	serverProcess = spawn(process.execPath, [serverEntryPath], {
-		cwd: app.getAppPath(),
-		env: {
-			...process.env,
-			ELECTRON_RUN_AS_NODE: "1",
-			HOST: SERVER_HOST,
-			NODE_ENV: "production",
-			PORT: String(SERVER_PORT),
-		},
-		stdio: ["ignore", "pipe", "pipe"],
-	});
+	productionServerPromise = (async () => {
+		const serverEntryPath = getServerEntryPath();
 
-	serverProcess.stdout.on("data", (chunk) => {
-		process.stdout.write(`[song-mode-server] ${chunk}`);
-	});
-
-	serverProcess.stderr.on("data", (chunk) => {
-		process.stderr.write(`[song-mode-server] ${chunk}`);
-	});
-
-	serverProcess.on("exit", (code, signal) => {
-		if (isQuitting) {
-			return;
+		if (!(await canAccessFile(serverEntryPath))) {
+			throw new Error(
+				`Missing built server at ${serverEntryPath}. Run npm run build before launching Electron.`,
+			);
 		}
 
-		void dialog.showErrorBox(
-			"Song Mode server stopped",
-			`The packaged local server exited unexpectedly (${signal ?? code ?? "unknown"}).`,
-		);
-		app.quit();
+		process.env.HOST = SERVER_HOST;
+		process.env.NODE_ENV = process.env.NODE_ENV ?? "production";
+		process.env.PORT = String(SERVER_PORT);
+
+		await import(pathToFileURL(serverEntryPath).href);
+		await waitForSongMode(getProductionServerUrl(), SERVER_BOOT_TIMEOUT_MS);
+	})().catch((error) => {
+		productionServerPromise = null;
+		throw error;
 	});
 
-	await waitForSongMode(getProductionServerUrl(), SERVER_BOOT_TIMEOUT_MS);
+	return productionServerPromise;
 }
 
 function stopProductionServer() {
-	if (serverProcess == null || serverProcess.killed) {
-		return;
-	}
-
-	serverProcess.kill("SIGTERM");
-	serverProcess = null;
+	productionServerPromise = null;
 }
 
 async function createMainWindow() {
@@ -154,6 +126,16 @@ async function createMainWindow() {
 		void shell.openExternal(url);
 		return { action: "deny" };
 	});
+
+	window.webContents.on(
+		"did-fail-load",
+		(_event, errorCode, errorDescription) => {
+			void dialog.showErrorBox(
+				"Unable to load Song Mode",
+				`The app window failed to load (${errorCode}: ${errorDescription}).`,
+			);
+		},
+	);
 
 	window.once("ready-to-show", () => {
 		window.show();
@@ -182,7 +164,6 @@ app.on("activate", () => {
 });
 
 app.on("before-quit", () => {
-	isQuitting = true;
 	stopProductionServer();
 });
 
