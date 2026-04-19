@@ -19,6 +19,34 @@ npm run dev
 
 The dev server runs on `http://localhost:3000`.
 
+## Electron Wrapper
+
+For a desktop dev session that boots Electron against the local Vite server:
+
+```bash
+npm run electron:dev
+```
+
+For a standalone local desktop launch against the production Nitro build:
+
+```bash
+npm run electron:start
+```
+
+For a packaged macOS app bundle in `dist/electron/mac`:
+
+```bash
+npm run electron:pack
+```
+
+For a zipped macOS build artifact in `dist/electron`:
+
+```bash
+npm run electron:dist
+```
+
+The packaged app runs the local Nitro server on `http://127.0.0.1:31415` so the desktop build keeps a stable origin for IndexedDB.
+
 ## Quality Checks
 
 ```bash

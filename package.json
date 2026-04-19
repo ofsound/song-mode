@@ -1,13 +1,19 @@
 {
   "name": "song-mode",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "electron/main.mjs",
   "imports": {
     "#/*": "./src/*"
   },
   "scripts": {
     "dev": "vite dev --port 3000",
     "build": "vite build",
+    "electron:dev": "node electron/dev.mjs",
+    "electron:start": "npm run build && SONG_MODE_ELECTRON_USE_PRODUCTION_SERVER=1 electron electron/main.mjs",
+    "electron:pack": "npm run build && electron-builder --mac dir",
+    "electron:dist": "npm run build && electron-builder --mac zip",
     "preview": "vite preview",
     "test": "vitest run --config vitest.config.ts",
     "format": "biome format",
@@ -43,11 +49,38 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.1",
+    "electron": "^41.2.1",
+    "electron-builder": "^26.8.1",
     "fake-indexeddb": "6.2.5",
     "jsdom": "^28.1.0",
     "knip": "^6.4.1",
     "typescript": "^5.7.2",
     "vite": "^8.0.0",
     "vitest": "^3.0.5"
+  },
+  "build": {
+    "appId": "com.songmode.app",
+    "productName": "Song Mode",
+    "directories": {
+      "output": "dist/electron"
+    },
+    "electronDist": "node_modules/electron/dist",
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": ".output",
+        "to": ".output"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.music",
+      "target": [
+        "dir",
+        "zip"
+      ]
+    }
   }
 }
