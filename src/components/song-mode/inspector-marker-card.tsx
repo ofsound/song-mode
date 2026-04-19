@@ -5,6 +5,7 @@ import {
 	useLayoutEffect,
 	useRef,
 } from "react";
+import { DEBOUNCE_MS } from "#/lib/song-mode/debounce-delays";
 import type {
 	Annotation,
 	AudioFileRecord,
@@ -61,7 +62,7 @@ export function InspectorMarkerCard({
 				body: nextValue,
 			});
 		},
-		delayMs: 700,
+		delayMs: DEBOUNCE_MS.notes,
 	});
 
 	useLayoutEffect(() => {
@@ -165,7 +166,7 @@ export function InspectorMarkerCard({
 						<>
 							<span
 								aria-hidden="true"
-								className="shrink-0 text-xs text-[var(--color-text-subtle)]"
+								className="shrink-0 text-xs text-[var(--color-text-muted)]"
 							>
 								→
 							</span>
@@ -248,7 +249,7 @@ export function InspectorMarkerCard({
 					compact
 					dense
 					showToolbar={false}
-					commitDelayMs={220}
+					commitDelayMs={DEBOUNCE_MS.compactEditor}
 				/>
 			</div>
 		</div>

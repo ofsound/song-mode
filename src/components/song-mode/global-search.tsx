@@ -102,7 +102,7 @@ export function GlobalSearch() {
 										<span className="block text-sm font-semibold text-[var(--color-text)]">
 											{result.title}
 										</span>
-										<span className="block text-xs text-[var(--color-text-subtle)]">
+										<span className="block text-xs text-[var(--color-text-muted)]">
 											{result.subtitle}
 										</span>
 										<span className="mt-1 block text-sm leading-6 text-[var(--color-text-muted)]">

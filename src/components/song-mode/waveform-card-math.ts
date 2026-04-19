@@ -8,7 +8,7 @@ interface TooltipBounds {
 	width: number;
 }
 
-export function clampWaveformTime(currentTimeMs: number, durationMs: number) {
+function clampWaveformTime(currentTimeMs: number, durationMs: number) {
 	return Math.max(0, Math.min(currentTimeMs, durationMs));
 }
 

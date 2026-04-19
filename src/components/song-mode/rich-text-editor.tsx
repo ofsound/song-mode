@@ -11,6 +11,7 @@ import {
 	Unlink,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { DEBOUNCE_MS } from "#/lib/song-mode/debounce-delays";
 import { parseSongTarget } from "#/lib/song-mode/links";
 import { EMPTY_RICH_TEXT } from "#/lib/song-mode/rich-text";
 import type { RichTextDoc, SongLinkTarget } from "#/lib/song-mode/types";
@@ -51,7 +52,7 @@ export function RichTextEditor({
 	toolbarActions = [],
 	blurOnEscape = false,
 	seamless = false,
-	commitDelayMs = 180,
+	commitDelayMs = DEBOUNCE_MS.editor,
 }: RichTextEditorProps) {
 	const wrapperRef = useRef<HTMLDivElement | null>(null);
 	const scrollRegionRef = useRef<HTMLDivElement | null>(null);
@@ -255,7 +256,7 @@ export function RichTextEditor({
 		>
 			{showToolbar ? (
 				<div
-					className="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--color-border-subtle)] px-3 py-2"
+					className="flex shrink-0 flex-wrap items-center gap-2 border-b border-[var(--color-border-plain)] px-3 py-2"
 					data-song-mode-toolbar
 				>
 					<ToolbarButton

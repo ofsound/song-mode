@@ -131,7 +131,7 @@ a[aria-disabled="true"],
 
 code {
 	font-size: 0.9em;
-	border: 1px solid var(--color-border-subtle);
+	border: 1px solid var(--color-border-plain);
 	background: color-mix(
 		in srgb,
 		var(--color-surface-elevated) 84%,
@@ -161,14 +161,14 @@ pre code {
 	text-transform: uppercase;
 	font-weight: 700;
 	font-size: 0.67rem;
-	color: var(--color-text-subtle);
+	color: var(--color-text-muted);
 }
 
 .field-label {
 	font-size: 0.68rem;
 	letter-spacing: 0.18em;
 	text-transform: uppercase;
-	color: var(--color-text-subtle);
+	color: var(--color-text-muted);
 	font-weight: 700;
 }
 
@@ -184,7 +184,7 @@ pre code {
 }
 
 .field-input::placeholder {
-	color: var(--color-text-subtle);
+	color: var(--color-text-muted);
 }
 
 .field-input:focus-visible {

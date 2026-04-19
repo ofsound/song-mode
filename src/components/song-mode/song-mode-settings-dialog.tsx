@@ -189,7 +189,7 @@ function ColorSettingField({
 	return (
 		<label className="grid gap-2">
 			<span className="field-label">{label}</span>
-			<div className="flex h-12 items-center gap-3 border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] px-3 py-0 text-[var(--color-text)]">
+			<div className="flex h-12 items-center gap-3 border border-[var(--color-border-plain)] bg-[var(--color-surface-elevated)] px-3 py-0 text-[var(--color-text)]">
 				<input
 					ref={inputRef}
 					type="color"
@@ -221,7 +221,7 @@ function ToggleSettingCard({
 	detailWhenOff?: string;
 }) {
 	return (
-		<div className="border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] px-4 py-4">
+		<div className="border border-[var(--color-border-plain)] bg-[var(--color-surface-elevated)] px-4 py-4">
 			<div className="flex items-center justify-between gap-4">
 				<div>
 					<div className="text-sm font-semibold text-[var(--color-text)]">

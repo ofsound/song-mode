@@ -25,6 +25,47 @@ async function loadDbModule() {
 	return import("./db");
 }
 
+function openLegacySongModeDatabase(version: number): Promise<IDBDatabase> {
+	return new Promise((resolve, reject) => {
+		const request = indexedDB.open(DB_NAME, version);
+		request.onupgradeneeded = () => {
+			const database = request.result;
+			if (!database.objectStoreNames.contains("songs")) {
+				database.createObjectStore("songs", { keyPath: "id" });
+			}
+			if (!database.objectStoreNames.contains("audioFiles")) {
+				const audioFilesStore = database.createObjectStore("audioFiles", {
+					keyPath: "id",
+				});
+				audioFilesStore.createIndex("songId", "songId");
+			}
+			if (!database.objectStoreNames.contains("annotations")) {
+				const annotationsStore = database.createObjectStore("annotations", {
+					keyPath: "id",
+				});
+				annotationsStore.createIndex("songId", "songId");
+				annotationsStore.createIndex("audioFileId", "audioFileId");
+			}
+			if (!database.objectStoreNames.contains("blobs")) {
+				database.createObjectStore("blobs");
+			}
+			if (!database.objectStoreNames.contains("settings")) {
+				database.createObjectStore("settings");
+			}
+		};
+		request.onsuccess = () => resolve(request.result);
+		request.onerror = () => reject(request.error);
+	});
+}
+
+function waitForTransaction(transaction: IDBTransaction): Promise<void> {
+	return new Promise((resolve, reject) => {
+		transaction.oncomplete = () => resolve();
+		transaction.onerror = () => reject(transaction.error);
+		transaction.onabort = () => reject(transaction.error);
+	});
+}
+
 function createSong(overrides: Partial<Song> = {}): Song {
 	return {
 		id: "song-1",
@@ -46,6 +87,7 @@ function createAudioFile(
 		id: "file-1",
 		songId: "song-1",
 		title: "Take 1",
+		sessionDate: "2026-04-16",
 		notes: EMPTY_RICH_TEXT,
 		volumeDb: 0,
 		durationMs: 1000,
@@ -190,5 +232,45 @@ describe("song-mode db cascade helpers", () => {
 			workspaceBySongId: {},
 			ui: createEmptySettings().ui,
 		});
+	});
+
+	it("upgrades legacy annotation colors and missing session dates in v3", async () => {
+		const legacyDb = await openLegacySongModeDatabase(2);
+		const legacyAudioFile = createAudioFile();
+		const { sessionDate: _sessionDate, ...legacyAudioFileWithoutSessionDate } =
+			legacyAudioFile;
+		const transaction = legacyDb.transaction(
+			["songs", "audioFiles", "annotations", "settings"],
+			"readwrite",
+		);
+
+		transaction.objectStore("songs").put(createSong());
+		transaction
+			.objectStore("audioFiles")
+			.put(legacyAudioFileWithoutSessionDate as AudioFileRecord);
+		transaction.objectStore("annotations").put(
+			createAnnotation({
+				color: "var(--color-annotation-4)",
+			}),
+		);
+		transaction.objectStore("settings").put(baseSettings, "app-settings");
+		await waitForTransaction(transaction);
+		legacyDb.close();
+
+		const db = await loadDbModule();
+		const snapshot = await db.loadSnapshot();
+
+		expect(snapshot.audioFiles).toEqual([
+			expect.objectContaining({
+				id: legacyAudioFile.id,
+				sessionDate: "2026-04-16",
+			}),
+		]);
+		expect(snapshot.annotations).toEqual([
+			expect.objectContaining({
+				id: "annotation-1",
+				color: "var(--color-marker-point)",
+			}),
+		]);
 	});
 });

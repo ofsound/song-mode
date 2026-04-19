@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { buildSongTargetPath } from "#/lib/song-mode/links";
+import { copySongTargetLink } from "#/lib/song-mode/clipboard";
+import { DEBOUNCE_MS } from "#/lib/song-mode/debounce-delays";
 import type {
 	Annotation,
 	AudioFileRecord,
@@ -8,15 +9,6 @@ import type {
 } from "#/lib/song-mode/types";
 import { InspectorMarkerCard } from "./inspector-marker-card";
 import { RichTextEditor } from "./rich-text-editor";
-
-function escapeHtml(value: string): string {
-	return value
-		.replaceAll("&", "&amp;")
-		.replaceAll("<", "&lt;")
-		.replaceAll(">", "&gt;")
-		.replaceAll('"', "&quot;")
-		.replaceAll("'", "&#39;");
-}
 
 interface InspectorPaneProps {
 	song: Song;
@@ -75,30 +67,7 @@ export function InspectorPane({
 	}, []);
 
 	async function copyLink(target: SongLinkTarget, label: string) {
-		const relativePath = buildSongTargetPath(target);
-		const absoluteUrl =
-			typeof window !== "undefined"
-				? `${window.location.origin}${relativePath}`
-				: relativePath;
-		const plainTextPayload = `${label}\n${absoluteUrl}`;
-		const htmlPayload = `<a href="${escapeHtml(absoluteUrl)}">${escapeHtml(label)}</a>`;
-
-		const clipboardItemCtor = (
-			globalThis as {
-				ClipboardItem?: new (items: Record<string, Blob>) => ClipboardItem;
-			}
-		).ClipboardItem;
-
-		if (navigator.clipboard?.write && clipboardItemCtor) {
-			await navigator.clipboard.write([
-				new clipboardItemCtor({
-					"text/html": new Blob([htmlPayload], { type: "text/html" }),
-					"text/plain": new Blob([plainTextPayload], { type: "text/plain" }),
-				}),
-			]);
-		} else {
-			await navigator.clipboard.writeText(plainTextPayload);
-		}
+		await copySongTargetLink(target, label);
 		setCopiedMessage(`${label} link copied`);
 		window.setTimeout(() => setCopiedMessage(null), 1400);
 	}
@@ -121,7 +90,7 @@ export function InspectorPane({
 					className="-mx-4 mt-1 flex min-h-0 flex-col gap-4 overflow-y-auto px-4 py-5 [mask-image:linear-gradient(to_bottom,transparent_0,black_20px,black_calc(100%-20px),transparent_100%)]"
 				>
 					{annotations.length === 0 ? (
-						<p className="border border-dashed border-[var(--color-border-subtle)] px-4 py-5 text-sm text-[var(--color-text-muted)]">
+						<p className="border border-dashed border-[var(--color-border-plain)] px-4 py-5 text-sm text-[var(--color-text-muted)]">
 							Create point markers or regions from the waveform to build the
 							linked note list here.
 						</p>
@@ -146,7 +115,7 @@ export function InspectorPane({
 				</div>
 				<div
 					aria-hidden
-					className={`-mx-4 h-px shrink-0 bg-[var(--color-border-subtle)] transition-opacity duration-200 ${
+					className={`-mx-4 h-px shrink-0 bg-[var(--color-border-plain)] transition-opacity duration-200 ${
 						hasContentBelow ? "opacity-100" : "opacity-0"
 					}`}
 				/>
@@ -172,7 +141,7 @@ export function InspectorPane({
 								onInternalLink={onOpenTarget}
 								compact
 								showToolbar={false}
-								commitDelayMs={220}
+								commitDelayMs={DEBOUNCE_MS.compactEditor}
 							/>
 						</div>
 					</div>

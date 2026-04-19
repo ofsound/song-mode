@@ -2,6 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronLeft } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { DEBOUNCE_MS } from "#/lib/song-mode/debounce-delays";
 import type {
 	RichTextDoc,
 	SongLinkTarget,
@@ -191,7 +192,7 @@ export function SongWorkspace({
 				},
 			}));
 		},
-		delayMs: 1200,
+		delayMs: DEBOUNCE_MS.playhead,
 	});
 	const persistSelectedFileNotes = useDebouncedAsyncCallback({
 		callback: async (
@@ -202,7 +203,7 @@ export function SongWorkspace({
 				notes,
 			});
 		},
-		delayMs: 700,
+		delayMs: DEBOUNCE_MS.notes,
 	});
 	const persistSongJournal = useDebouncedAsyncCallback({
 		callback: async (generalNotes: RichTextDoc) => {
@@ -210,7 +211,7 @@ export function SongWorkspace({
 				generalNotes,
 			});
 		},
-		delayMs: 700,
+		delayMs: DEBOUNCE_MS.notes,
 	});
 
 	useEffect(() => {
@@ -477,7 +478,7 @@ export function SongWorkspace({
 							<RichTextEditor
 								value={song.generalNotes}
 								onChange={(nextValue) => persistSongJournal.schedule(nextValue)}
-								commitDelayMs={260}
+								commitDelayMs={DEBOUNCE_MS.journal}
 								onInternalLink={openTarget}
 								focusId="journal"
 								toolbarActions={journalToolbarActions}

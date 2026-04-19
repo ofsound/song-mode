@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_RICH_TEXT } from "#/lib/song-mode/rich-text";
 import type { Annotation, AudioFileRecord, Song } from "#/lib/song-mode/types";
 import { createDefaultUiSettings } from "#/lib/song-mode/types";
-import { LibraryHeaderActionSlotContext } from "./app-chrome";
+import { HeaderSlotsContext } from "./app-chrome";
 import { LibraryView } from "./library-view";
 
 const navigateMock = vi.fn();
@@ -58,6 +58,19 @@ function makeSong(id: string): Song {
 	};
 }
 
+function renderWithLibraryHeaderSlot(headerSlot: HTMLDivElement) {
+	return render(
+		<HeaderSlotsContext.Provider
+			value={{
+				library: { enabled: true, slot: headerSlot },
+				song: { enabled: false, slot: null },
+			}}
+		>
+			<LibraryView />
+		</HeaderSlotsContext.Provider>,
+	);
+}
+
 describe("LibraryView", () => {
 	beforeEach(() => {
 		navigateMock.mockReset();
@@ -79,13 +92,7 @@ describe("LibraryView", () => {
 		const headerSlot = document.createElement("div");
 		document.body.appendChild(headerSlot);
 
-		render(
-			<LibraryHeaderActionSlotContext.Provider
-				value={{ enabled: true, slot: headerSlot }}
-			>
-				<LibraryView />
-			</LibraryHeaderActionSlotContext.Provider>,
-		);
+		renderWithLibraryHeaderSlot(headerSlot);
 
 		expect(screen.queryByRole("dialog", { name: /create song/i })).toBeNull();
 		expect(screen.queryByLabelText(/song title/i)).toBeNull();
@@ -112,13 +119,7 @@ describe("LibraryView", () => {
 		document.body.appendChild(headerSlot);
 		songs = [makeSong("song-1")];
 
-		render(
-			<LibraryHeaderActionSlotContext.Provider
-				value={{ enabled: true, slot: headerSlot }}
-			>
-				<LibraryView />
-			</LibraryHeaderActionSlotContext.Provider>,
-		);
+		renderWithLibraryHeaderSlot(headerSlot);
 
 		fireEvent.click(
 			within(headerSlot).getByRole("button", { name: /create song/i }),
@@ -147,13 +148,7 @@ describe("LibraryView", () => {
 		const headerSlot = document.createElement("div");
 		document.body.appendChild(headerSlot);
 
-		render(
-			<LibraryHeaderActionSlotContext.Provider
-				value={{ enabled: true, slot: headerSlot }}
-			>
-				<LibraryView />
-			</LibraryHeaderActionSlotContext.Provider>,
-		);
+		renderWithLibraryHeaderSlot(headerSlot);
 
 		fireEvent.click(
 			within(headerSlot).getByRole("button", { name: /create song/i }),
@@ -202,13 +197,7 @@ describe("LibraryView", () => {
 		songs = [makeSong("song-1")];
 		updateSongMock.mockResolvedValue(undefined);
 
-		render(
-			<LibraryHeaderActionSlotContext.Provider
-				value={{ enabled: true, slot: headerSlot }}
-			>
-				<LibraryView />
-			</LibraryHeaderActionSlotContext.Provider>,
-		);
+		renderWithLibraryHeaderSlot(headerSlot);
 
 		expect(
 			screen.queryByRole("button", { name: /delete new song/i }),
@@ -252,13 +241,7 @@ describe("LibraryView", () => {
 		document.body.appendChild(headerSlot);
 		songs = [makeSong("song-1")];
 
-		render(
-			<LibraryHeaderActionSlotContext.Provider
-				value={{ enabled: true, slot: headerSlot }}
-			>
-				<LibraryView />
-			</LibraryHeaderActionSlotContext.Provider>,
-		);
+		renderWithLibraryHeaderSlot(headerSlot);
 
 		const settingsButton = screen.getByRole("button", {
 			name: /edit settings for new song/i,
@@ -278,6 +261,7 @@ describe("LibraryView", () => {
 				id: "audio-1",
 				songId: "song-1",
 				title: "Mix A",
+				sessionDate: "2026-04-16",
 				notes: EMPTY_RICH_TEXT,
 				volumeDb: 0,
 				durationMs: 180000,
@@ -306,13 +290,7 @@ describe("LibraryView", () => {
 		];
 		const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
 
-		render(
-			<LibraryHeaderActionSlotContext.Provider
-				value={{ enabled: true, slot: headerSlot }}
-			>
-				<LibraryView />
-			</LibraryHeaderActionSlotContext.Provider>,
-		);
+		renderWithLibraryHeaderSlot(headerSlot);
 
 		fireEvent.click(
 			screen.getByRole("button", { name: /edit settings for new song/i }),
@@ -339,13 +317,7 @@ describe("LibraryView", () => {
 		};
 		songs = [makeSong("song-1")];
 
-		render(
-			<LibraryHeaderActionSlotContext.Provider
-				value={{ enabled: true, slot: headerSlot }}
-			>
-				<LibraryView />
-			</LibraryHeaderActionSlotContext.Provider>,
-		);
+		renderWithLibraryHeaderSlot(headerSlot);
 
 		expect(screen.queryByText("New Artist")).toBeNull();
 

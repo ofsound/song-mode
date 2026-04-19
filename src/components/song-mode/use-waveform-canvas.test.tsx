@@ -13,7 +13,11 @@ const waveform: WaveformData = {
 	sampleRate: 44100,
 };
 
-function WaveformCanvasHarness() {
+function WaveformCanvasHarness({
+	currentTimeMs = 0,
+}: {
+	currentTimeMs?: number;
+}) {
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const surfaceRef = useRef<HTMLDivElement | null>(null);
 
@@ -21,7 +25,7 @@ function WaveformCanvasHarness() {
 		canvasRef,
 		surfaceRef,
 		waveform,
-		currentTimeMs: 0,
+		currentTimeMs,
 		isSelected: false,
 	});
 
@@ -54,6 +58,7 @@ describe("useWaveformCanvas", () => {
 		const contextStub = {
 			beginPath: vi.fn(),
 			clearRect: vi.fn(),
+			drawImage: vi.fn(),
 			fillRect: vi.fn(),
 			lineTo: vi.fn(),
 			moveTo: vi.fn(),
@@ -106,11 +111,13 @@ describe("useWaveformCanvas", () => {
 
 	it("redraws when the theme class on <html> changes", async () => {
 		const clearRectSpy = vi.fn();
+		const drawImageSpy = vi.fn();
 		HTMLCanvasElement.prototype.getContext = vi.fn(
 			() =>
 				({
 					beginPath: vi.fn(),
 					clearRect: clearRectSpy,
+					drawImage: drawImageSpy,
 					fillRect: vi.fn(),
 					lineTo: vi.fn(),
 					moveTo: vi.fn(),
@@ -138,5 +145,37 @@ describe("useWaveformCanvas", () => {
 		});
 
 		document.documentElement.classList.remove("dark");
+	});
+
+	it("keeps observers stable while the playhead moves", async () => {
+		const resizeObserverConstructor = vi.fn(
+			(callback: () => void) =>
+				new (class {
+					constructor(private readonly innerCallback: () => void) {}
+
+					observe() {
+						this.innerCallback();
+					}
+
+					disconnect() {}
+				})(callback),
+		);
+		vi.stubGlobal("ResizeObserver", resizeObserverConstructor);
+
+		const { container, rerender } = render(
+			<WaveformCanvasHarness currentTimeMs={0} />,
+		);
+
+		await waitFor(() => {
+			expect(container.querySelector("[data-testid='canvas']")).toHaveProperty(
+				"height",
+				92,
+			);
+		});
+
+		rerender(<WaveformCanvasHarness currentTimeMs={3200} />);
+		rerender(<WaveformCanvasHarness currentTimeMs={6400} />);
+
+		expect(resizeObserverConstructor).toHaveBeenCalledTimes(1);
 	});
 });

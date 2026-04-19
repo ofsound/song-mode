@@ -36,35 +36,27 @@ function formatIsoDateForDisplay(isoDate: string): string {
 	});
 }
 
-/** Resolved `YYYY-MM-DD` from stored session date or `createdAt` (UTC date part). */
-function resolveAudioFileSessionDateIso(
-	audioFile: AudioFileRecord,
-): string | null {
-	const explicit = audioFile.sessionDate?.trim();
-	if (explicit && /^\d{4}-\d{2}-\d{2}$/.test(explicit)) {
+/** Resolved `YYYY-MM-DD` from the stored session date. */
+function resolveAudioFileSessionDateIso(audioFile: AudioFileRecord): string {
+	const explicit = audioFile.sessionDate.trim();
+	if (/^\d{4}-\d{2}-\d{2}$/.test(explicit)) {
 		return explicit;
 	}
 
-	const created = audioFile.createdAt;
-	const datePart = created.length >= 10 ? created.slice(0, 10) : "";
-	if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
-		return datePart;
-	}
-
-	return null;
+	return isoDateInLocalCalendar();
 }
 
 /** Value for `<input type="date" />` (never empty). */
 export function resolveAudioFileSessionDateInputValue(
 	audioFile: AudioFileRecord,
 ): string {
-	return resolveAudioFileSessionDateIso(audioFile) ?? isoDateInLocalCalendar();
+	return resolveAudioFileSessionDateIso(audioFile);
 }
 
-/** User-facing label for the file’s session date (explicit or from `createdAt`). */
+/** User-facing label for the file’s stored session date. */
 export function resolveAudioFileSessionDateLabel(
 	audioFile: AudioFileRecord,
 ): string {
 	const iso = resolveAudioFileSessionDateIso(audioFile);
-	return iso ? formatIsoDateForDisplay(iso) : "";
+	return formatIsoDateForDisplay(iso);
 }

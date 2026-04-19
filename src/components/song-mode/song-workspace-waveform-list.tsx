@@ -84,7 +84,7 @@ export function SongWorkspaceWaveformList({
 
 	if (audioFiles.length === 0) {
 		return (
-			<div className="border border-dashed border-[var(--color-border-subtle)] px-6 py-10 text-sm leading-7 text-[var(--color-text-muted)]">
+			<div className="border border-dashed border-[var(--color-border-plain)] px-6 py-10 text-sm leading-7 text-[var(--color-text-muted)]">
 				Add audio to start the stacked waveform review. Each file gets its own
 				notes, time markers, range annotations, and immediate seek-and-play
 				links.

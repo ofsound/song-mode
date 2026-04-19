@@ -1,68 +1,38 @@
-import { Plus } from "lucide-react";
 import {
-	type MouseEvent as ReactMouseEvent,
 	type PointerEvent as ReactPointerEvent,
 	useCallback,
 	useEffect,
 	useMemo,
 	useRef,
-	useState,
 } from "react";
 import { resolveAudioFileSessionDateLabel } from "#/lib/song-mode/dates";
-import { EMPTY_RICH_TEXT } from "#/lib/song-mode/rich-text";
 import type {
 	Annotation,
 	AudioFileRecord,
 	CreateAnnotationInput,
 } from "#/lib/song-mode/types";
-import {
-	formatDuration,
-	normalizeWaveformData,
-} from "#/lib/song-mode/waveform";
+import { normalizeWaveformData } from "#/lib/song-mode/waveform";
+import { useObjectUrl } from "./use-object-url";
 import { useWaveformAudioGraph } from "./use-waveform-audio-graph";
 import { useWaveformCanvas } from "./use-waveform-canvas";
-import { WaveformCardAnnotationLayer } from "./waveform-card-annotation-layer";
+import { useWaveformCardAnnotations } from "./use-waveform-card-annotations";
+import { useWaveformCardDragHandle } from "./use-waveform-card-drag-handle";
+import { useWaveformCardPreview } from "./use-waveform-card-preview";
+import { useWaveformGutterQuickAdd } from "./use-waveform-gutter-quick-add";
+import { useWaveformRangeDrag } from "./use-waveform-range-drag";
+import { useWaveformSeekDrag } from "./use-waveform-seek-drag";
+import { WaveformCardAudio } from "./waveform-card-audio";
 import { WaveformCardFooter } from "./waveform-card-footer";
 import { WaveformCardHeader } from "./waveform-card-header";
 import {
-	clampWaveformTime,
-	getHoveredTooltipPosition,
 	getPlayheadClientX as getPlayheadClientXFromBounds,
 	getTimePerPixel as getTimePerPixelFromBounds,
 	getWaveformTimeMs as getWaveformTimeMsFromBounds,
 } from "./waveform-card-math";
+import { shouldIgnoreWaveformCardSelection } from "./waveform-card-selection";
+import { WaveformCardSurface } from "./waveform-card-surface";
 
-const DEFAULT_RANGE_ANNOTATION_DURATION_MS = 10_000;
 const PLAYHEAD_SNAP_DISTANCE_PX = 20;
-
-interface HoveredAnnotationState {
-	annotationId: string;
-	x: number;
-	y: number;
-}
-
-interface SeekDragState {
-	pointerId: number;
-	timeMs: number;
-}
-
-interface WaveformSeekClickState {
-	clientX: number;
-	timeMs: number;
-}
-
-interface GutterHoverState {
-	position: "top" | "bottom";
-	x: number;
-	timeMs: number;
-}
-
-interface BottomGutterDragState {
-	pointerId: number;
-	anchorTimeMs: number;
-	currentTimeMs: number;
-	moved: boolean;
-}
 
 interface WaveformCardProps {
 	audioFile: AudioFileRecord;
@@ -119,96 +89,47 @@ export function WaveformCard({
 	onDragEnd,
 	onDrop,
 }: WaveformCardProps) {
-	const [objectUrl, setObjectUrl] = useState<string | null>(null);
-	const [annotationPreviewById, setAnnotationPreviewById] = useState<
-		Record<string, Partial<Annotation>>
-	>({});
-	const [hoveredAnnotation, setHoveredAnnotation] =
-		useState<HoveredAnnotationState | null>(null);
-	const [gutterHover, setGutterHover] = useState<GutterHoverState | null>(null);
-	const [bottomGutterDrag, setBottomGutterDrag] =
-		useState<BottomGutterDragState | null>(null);
-	const [pendingRangeStartMs, setPendingRangeStartMs] = useState<number | null>(
-		null,
-	);
-	const bottomGutterDragStateRef = useRef<BottomGutterDragState | null>(null);
+	const objectUrl = useObjectUrl(blob);
 	const articleRef = useRef<HTMLElement | null>(null);
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
-	const waveformShellRef = useRef<HTMLDivElement | null>(null);
 	const canvasSurfaceRef = useRef<HTMLDivElement | null>(null);
 	const annotationOverlayRef = useRef<HTMLDivElement | null>(null);
 	const audioRef = useRef<HTMLAudioElement | null>(null);
-	const isDragArmedRef = useRef(false);
-	const seekDragStateRef = useRef<SeekDragState | null>(null);
-	const lastSeekClickRef = useRef<WaveformSeekClickState | null>(null);
-	const renderedAnnotations = useMemo(
-		() =>
-			annotations.map((annotation) => ({
-				...annotation,
-				...(annotationPreviewById[annotation.id] ?? {}),
-			})),
-		[annotationPreviewById, annotations],
-	);
-
-	const sortedAnnotations = useMemo(
-		() =>
-			[...renderedAnnotations].sort(
-				(left, right) => left.startMs - right.startMs,
-			),
-		[renderedAnnotations],
-	);
 	const waveform = useMemo(
 		() => normalizeWaveformData(audioFile.waveform, audioFile.durationMs),
 		[audioFile.durationMs, audioFile.waveform],
 	);
-	const hoveredAnnotationRecord = useMemo(
-		() =>
-			hoveredAnnotation
-				? (renderedAnnotations.find(
-						(annotation) => annotation.id === hoveredAnnotation.annotationId,
-					) ?? null)
-				: null,
-		[hoveredAnnotation, renderedAnnotations],
-	);
-	const hoveredTooltipPosition = useMemo(() => {
-		if (!hoveredAnnotation || !annotationOverlayRef.current) {
-			return null;
-		}
-
-		return getHoveredTooltipPosition(hoveredAnnotation.x, hoveredAnnotation.y, {
-			width: annotationOverlayRef.current.clientWidth,
-			height: annotationOverlayRef.current.clientHeight,
-		});
-	}, [hoveredAnnotation]);
-
-	useEffect(() => {
-		const annotationIds = new Set(
-			annotations.map((annotation) => annotation.id),
-		);
-		setAnnotationPreviewById((current) => {
-			const nextEntries = Object.entries(current).filter(([annotationId]) =>
-				annotationIds.has(annotationId),
-			);
-			if (nextEntries.length === Object.keys(current).length) {
-				return current;
-			}
-
-			return Object.fromEntries(nextEntries);
-		});
-	}, [annotations]);
-
-	useEffect(() => {
-		if (!blob) {
-			setObjectUrl(null);
-			return;
-		}
-
-		const nextObjectUrl = URL.createObjectURL(blob);
-		setObjectUrl(nextObjectUrl);
-		return () => {
-			URL.revokeObjectURL(nextObjectUrl);
-		};
-	}, [blob]);
+	const {
+		clearHoveredAnnotation,
+		commitAnnotationChange,
+		hoveredAnnotationRecord,
+		hoveredTooltipPosition,
+		previewAnnotationChange,
+		resetAnnotationPreview,
+		setHoveredAnnotation,
+		sortedAnnotations,
+		updateHoveredAnnotationPosition,
+	} = useWaveformCardPreview({
+		annotationOverlayRef,
+		annotations,
+		onUpdateAnnotation,
+	});
+	const {
+		createPointAnnotationAtTime,
+		createRangeAnnotationAtTime,
+		createRangeAnnotationFromBounds,
+		handleAddMarkerAtPlayhead,
+		handleCancelPendingRange,
+		handleEndRangeAtPlayhead,
+		handleStartRangeAtPlayhead,
+		pendingRangeStartMs,
+	} = useWaveformCardAnnotations({
+		audioFile,
+		currentTimeMs,
+		onCreateAnnotation,
+		onSelectAnnotation,
+		onSelectFile,
+	});
 
 	useEffect(() => {
 		if (!audioRef.current) {
@@ -237,43 +158,6 @@ export function WaveformCard({
 		surfaceRef: canvasSurfaceRef,
 		waveform,
 	});
-
-	const previewAnnotationChange = useCallback(
-		(annotationId: string, patch: Partial<Annotation>) => {
-			setAnnotationPreviewById((current) => ({
-				...current,
-				[annotationId]: {
-					...(current[annotationId] ?? {}),
-					...patch,
-				},
-			}));
-		},
-		[],
-	);
-
-	const resetAnnotationPreview = useCallback((annotationId: string) => {
-		setAnnotationPreviewById((current) => {
-			if (!(annotationId in current)) {
-				return current;
-			}
-
-			const next = { ...current };
-			delete next[annotationId];
-			return next;
-		});
-	}, []);
-
-	const commitAnnotationChange = useCallback(
-		async (annotationId: string, patch: Partial<Annotation>) => {
-			previewAnnotationChange(annotationId, patch);
-			try {
-				await onUpdateAnnotation(annotationId, patch);
-			} finally {
-				resetAnnotationPreview(annotationId);
-			}
-		},
-		[onUpdateAnnotation, previewAnnotationChange, resetAnnotationPreview],
-	);
 
 	function isClientXYInCanvasSurface(
 		clientX: number,
@@ -341,319 +225,87 @@ export function WaveformCard({
 		);
 	}
 
-	function updateHoveredAnnotationPosition(
-		annotationId: string,
-		clientX: number,
-		clientY: number,
-	) {
-		const overlay = annotationOverlayRef.current;
-		if (!overlay) {
-			return;
-		}
-
-		const rect = overlay.getBoundingClientRect();
-		setHoveredAnnotation({
-			annotationId,
-			x: clientX - rect.left,
-			y: clientY - rect.top,
-		});
-	}
-
-	async function createPointAnnotationAtTime(timeMs: number) {
-		onSelectFile(audioFile.id);
-
-		const annotation = await onCreateAnnotation({
-			type: "point",
-			startMs: timeMs,
-			title: `Marker ${formatDuration(timeMs)}`,
-			body: EMPTY_RICH_TEXT,
-			color: "var(--color-marker-point)",
-		});
-		onSelectAnnotation(annotation.id);
-	}
-
-	async function createRangeAnnotationAtTime(timeMs: number) {
-		await createRangeAnnotationFromBounds(
-			timeMs,
-			Math.min(
-				audioFile.durationMs,
-				timeMs + DEFAULT_RANGE_ANNOTATION_DURATION_MS,
-			),
-		);
-	}
-
-	async function createRangeAnnotationFromBounds(
-		startMs: number,
-		endMs: number,
-	) {
-		onSelectFile(audioFile.id);
-
-		const annotation = await onCreateAnnotation({
-			type: "range",
-			startMs,
-			endMs,
-			title: `Range ${formatDuration(startMs)}`,
-			body: EMPTY_RICH_TEXT,
-			color: "var(--color-marker-range)",
-		});
-		onSelectAnnotation(annotation.id);
-	}
-
-	function clampPlayheadTimeMs(): number {
-		return clampWaveformTime(currentTimeMs, audioFile.durationMs);
-	}
-
-	async function handleAddMarkerAtPlayhead() {
-		await createPointAnnotationAtTime(clampPlayheadTimeMs());
-	}
-
-	function handleStartRangeAtPlayhead() {
-		onSelectFile(audioFile.id);
-		setPendingRangeStartMs(clampPlayheadTimeMs());
-	}
-
-	async function handleEndRangeAtPlayhead() {
-		if (pendingRangeStartMs === null) {
-			return;
-		}
-
-		const startCandidate = pendingRangeStartMs;
-		const endCandidate = clampPlayheadTimeMs();
-		let startMs = Math.min(startCandidate, endCandidate);
-		let endMs = Math.max(startCandidate, endCandidate);
-
-		if (endMs - startMs < 1) {
-			endMs = Math.min(
-				audioFile.durationMs,
-				startMs + DEFAULT_RANGE_ANNOTATION_DURATION_MS,
-			);
-			if (endMs <= startMs) {
-				startMs = Math.max(0, endMs - DEFAULT_RANGE_ANNOTATION_DURATION_MS);
-			}
-		}
-
-		setPendingRangeStartMs(null);
-		await createRangeAnnotationFromBounds(startMs, endMs);
-	}
-
-	function handleCancelPendingRange() {
-		setPendingRangeStartMs(null);
-	}
-
-	function clearSeekDragState(
-		target: HTMLDivElement,
-		pointerId: number,
-	): SeekDragState | null {
-		const dragState = seekDragStateRef.current;
-		if (!dragState || dragState.pointerId !== pointerId) {
-			return null;
-		}
-
-		seekDragStateRef.current = null;
-		if (target.hasPointerCapture?.(pointerId)) {
-			target.releasePointerCapture(pointerId);
-		}
-		return dragState;
-	}
-
-	const shouldIgnoreRowSelection = (target: EventTarget | null): boolean => {
-		if (!(target instanceof HTMLElement)) {
-			return true;
-		}
-
-		return Boolean(
-			target.closest(
-				[
-					"button",
-					"a",
-					"input",
-					"select",
-					"textarea",
-					"summary",
-					"[role='button']",
-					"[role='link']",
-					"[contenteditable='true']",
-				].join(","),
-			),
-		);
-	};
-
-	const setDragArmed = (isArmed: boolean) => {
-		isDragArmedRef.current = isArmed;
-		if (articleRef.current) {
-			articleRef.current.draggable = isArmed;
-		}
-	};
-
+	const {
+		handleArmDrag,
+		handleDragEnd,
+		handleDragStart,
+		handleDrop,
+		handleReleaseDrag,
+	} = useWaveformCardDragHandle({
+		articleRef,
+		audioFileId: audioFile.id,
+		onDragEnd,
+		onDragStart,
+		onDrop,
+		onSelectFile,
+	});
+	const {
+		clearGutterHover,
+		gutterHover,
+		handleTopGutterClick,
+		updateGutterHoverFromEvent,
+	} = useWaveformGutterQuickAdd({
+		audioFileId: audioFile.id,
+		createPointAnnotationAtTime,
+		getWaveformTimeMs,
+		onSelectFile,
+		snapClientXToPlayhead,
+	});
+	const updateBottomGutterHover = useCallback(
+		(event: ReactPointerEvent<HTMLDivElement>) => {
+			updateGutterHoverFromEvent("bottom", event);
+		},
+		[updateGutterHoverFromEvent],
+	);
+	const {
+		bottomGutterDrag,
+		handleBottomGutterPointerCancel,
+		handleBottomGutterPointerDown,
+		handleBottomGutterPointerMove,
+		handleBottomGutterPointerUp,
+	} = useWaveformRangeDrag({
+		audioFileId: audioFile.id,
+		createRangeAnnotationAtTime,
+		createRangeAnnotationFromBounds,
+		getWaveformTimeMs,
+		onSelectFile,
+		snapClientXToPlayhead,
+		updateBottomGutterHover,
+	});
+	const {
+		handleSurfaceDoubleClick,
+		handleSurfaceKeyDown,
+		handleSurfacePointerCancel,
+		handleSurfacePointerDown,
+		handleSurfacePointerMove,
+		handleSurfacePointerUp,
+	} = useWaveformSeekDrag({
+		audioFileId: audioFile.id,
+		audioRef,
+		durationMs: audioFile.durationMs,
+		getWaveformTimeMs,
+		isClientXYInCanvasSurface,
+		onReportPlayback,
+		onSeek,
+		onSelectFile,
+	});
 	const sessionDateLabel = resolveAudioFileSessionDateLabel(audioFile);
-
-	function handleGutterPointerMove(
-		position: "top" | "bottom",
-		event: ReactPointerEvent<HTMLDivElement>,
-	) {
-		const gutter = event.currentTarget;
-		const rect = gutter.getBoundingClientRect();
-		const snappedClientX = snapClientXToPlayhead(event.clientX);
-		const timeMs = getWaveformTimeMs(snappedClientX);
-		if (timeMs === null) {
-			return;
-		}
-
-		setGutterHover({
-			position,
-			x: snappedClientX - rect.left,
-			timeMs,
-		});
-	}
-
-	function handleGutterPointerLeave() {
-		setGutterHover(null);
-	}
-
-	function handleTopGutterClick(event: ReactMouseEvent<HTMLDivElement>) {
-		event.stopPropagation();
-		const timeMs = getWaveformTimeMs(snapClientXToPlayhead(event.clientX));
-		if (timeMs === null) {
-			return;
-		}
-
-		void createPointAnnotationAtTime(timeMs);
-	}
-
-	function clearBottomGutterDrag(target: HTMLDivElement, pointerId: number) {
-		bottomGutterDragStateRef.current = null;
-		setBottomGutterDrag(null);
-		if (target.hasPointerCapture?.(pointerId)) {
-			target.releasePointerCapture(pointerId);
-		}
-	}
-
-	function handleBottomGutterPointerDown(
-		event: ReactPointerEvent<HTMLDivElement>,
-	) {
-		if (event.button !== 0) {
-			return;
-		}
-
-		const timeMs = getWaveformTimeMs(snapClientXToPlayhead(event.clientX));
-		if (timeMs === null) {
-			return;
-		}
-
-		event.stopPropagation();
-		onSelectFile(audioFile.id);
-
-		const dragState: BottomGutterDragState = {
-			pointerId: event.pointerId,
-			anchorTimeMs: timeMs,
-			currentTimeMs: timeMs,
-			moved: false,
-		};
-		bottomGutterDragStateRef.current = dragState;
-		setBottomGutterDrag(dragState);
-		event.currentTarget.setPointerCapture?.(event.pointerId);
-	}
-
-	function handleBottomGutterPointerMove(
-		event: ReactPointerEvent<HTMLDivElement>,
-	) {
-		handleGutterPointerMove("bottom", event);
-
-		const dragState = bottomGutterDragStateRef.current;
-		if (!dragState || dragState.pointerId !== event.pointerId) {
-			return;
-		}
-
-		const timeMs = getWaveformTimeMs(event.clientX);
-		if (timeMs === null || timeMs === dragState.currentTimeMs) {
-			return;
-		}
-
-		const moved = dragState.moved || timeMs !== dragState.anchorTimeMs;
-		const nextState: BottomGutterDragState = {
-			...dragState,
-			currentTimeMs: timeMs,
-			moved,
-		};
-		bottomGutterDragStateRef.current = nextState;
-		setBottomGutterDrag(nextState);
-	}
-
-	async function handleBottomGutterPointerUp(
-		event: ReactPointerEvent<HTMLDivElement>,
-	) {
-		const dragState = bottomGutterDragStateRef.current;
-		if (!dragState || dragState.pointerId !== event.pointerId) {
-			return;
-		}
-
-		event.stopPropagation();
-		clearBottomGutterDrag(event.currentTarget, event.pointerId);
-
-		if (!dragState.moved) {
-			await createRangeAnnotationAtTime(dragState.anchorTimeMs);
-			return;
-		}
-
-		const startMs = Math.min(dragState.anchorTimeMs, dragState.currentTimeMs);
-		const endMs = Math.max(dragState.anchorTimeMs, dragState.currentTimeMs);
-		await createRangeAnnotationFromBounds(startMs, endMs);
-	}
-
-	function handleBottomGutterPointerCancel(
-		event: ReactPointerEvent<HTMLDivElement>,
-	) {
-		const dragState = bottomGutterDragStateRef.current;
-		if (!dragState || dragState.pointerId !== event.pointerId) {
-			return;
-		}
-
-		clearBottomGutterDrag(event.currentTarget, event.pointerId);
-	}
 
 	return (
 		<article
 			ref={articleRef}
 			draggable={false}
 			onPointerDown={(event) => {
-				if (shouldIgnoreRowSelection(event.target)) {
+				if (shouldIgnoreWaveformCardSelection(event.target)) {
 					return;
 				}
 
 				onSelectFile(audioFile.id);
 			}}
-			onDragStart={(event) => {
-				if (!isDragArmedRef.current) {
-					event.preventDefault();
-					return;
-				}
-
-				event.dataTransfer.effectAllowed = "move";
-				event.dataTransfer.setData("text/plain", audioFile.id);
-
-				const article = articleRef.current;
-				if (article) {
-					const bounds = article.getBoundingClientRect();
-					const dragImageX = Number.isFinite(event.clientX)
-						? Math.max(0, event.clientX - bounds.left)
-						: 24;
-					const dragImageY = Number.isFinite(event.clientY)
-						? Math.max(0, event.clientY - bounds.top)
-						: 24;
-					event.dataTransfer.setDragImage(article, dragImageX, dragImageY);
-				}
-
-				onDragStart();
-			}}
-			onDragEnd={() => {
-				setDragArmed(false);
-				onDragEnd();
-			}}
+			onDragStart={handleDragStart}
+			onDragEnd={handleDragEnd}
 			onDragOver={(event) => event.preventDefault()}
-			onDrop={(event) => {
-				event.preventDefault();
-				onDrop();
-			}}
+			onDrop={handleDrop}
 			className={`waveform-card ${isSelected ? "waveform-card--selected" : ""}`}
 		>
 			<span className="waveform-card__tab" aria-hidden="true" />
@@ -663,16 +315,13 @@ export function WaveformCard({
 				onAddMarkerAtPlayhead={() => {
 					void handleAddMarkerAtPlayhead();
 				}}
-				onArmDrag={() => {
-					setDragArmed(true);
-					onSelectFile(audioFile.id);
-				}}
+				onArmDrag={handleArmDrag}
 				onCancelPendingRange={handleCancelPendingRange}
 				onEndRangeAtPlayhead={() => {
 					void handleEndRangeAtPlayhead();
 				}}
 				onOpenFileDetails={() => onOpenFileDetails(audioFile.id)}
-				onReleaseDrag={() => setDragArmed(false)}
+				onReleaseDrag={handleReleaseDrag}
 				onResetPlayhead={() => {
 					onSelectFile(audioFile.id);
 					void onSeek(0, false);
@@ -687,228 +336,43 @@ export function WaveformCard({
 				sessionDateLabel={sessionDateLabel}
 			/>
 
-			<div>
-				{/* biome-ignore lint/a11y/useSemanticElements: the waveform surface contains nested marker buttons, so a semantic button wrapper is not valid */}
-				<div
-					ref={waveformShellRef}
-					className="waveform-surface relative grid overflow-hidden border border-[var(--color-border-subtle)]"
-					style={{
-						height:
-							"calc(var(--song-workspace-waveform-height) + 2 * var(--waveform-marker-gutter-height))",
-						gridTemplateRows:
-							"var(--waveform-marker-gutter-height) minmax(0, 1fr) var(--waveform-marker-gutter-height)",
-					}}
-					role="button"
-					tabIndex={0}
-					aria-label={`Waveform for ${audioFile.title}`}
-					onPointerLeave={() => {
-						setHoveredAnnotation(null);
-						setGutterHover(null);
-					}}
-					onPointerDown={(event) => {
-						if (
-							event.button !== 0 ||
-							(event.target as HTMLElement).closest("[data-annotation-hit]")
-						) {
-							return;
-						}
-
-						if (!isClientXYInCanvasSurface(event.clientX, event.clientY)) {
-							return;
-						}
-
-						const timeMs = getWaveformTimeMs(event.clientX);
-						if (timeMs === null) {
-							return;
-						}
-
-						onSelectFile(audioFile.id);
-						seekDragStateRef.current = {
-							pointerId: event.pointerId,
-							timeMs,
-						};
-						event.currentTarget.setPointerCapture?.(event.pointerId);
-
-						if (audioRef.current) {
-							audioRef.current.currentTime = timeMs / 1000;
-						}
-						onReportPlayback({ currentTimeMs: timeMs });
-					}}
-					onPointerMove={(event) => {
-						const dragState = seekDragStateRef.current;
-						if (!dragState || dragState.pointerId !== event.pointerId) {
-							return;
-						}
-
-						const timeMs = getWaveformTimeMs(event.clientX);
-						if (timeMs === null || timeMs === dragState.timeMs) {
-							return;
-						}
-
-						dragState.timeMs = timeMs;
-						if (audioRef.current) {
-							audioRef.current.currentTime = timeMs / 1000;
-						}
-						onReportPlayback({ currentTimeMs: timeMs });
-					}}
-					onPointerUp={(event) => {
-						const dragState = clearSeekDragState(
-							event.currentTarget,
-							event.pointerId,
-						);
-						if (!dragState) {
-							return;
-						}
-
-						lastSeekClickRef.current = {
-							clientX: event.clientX,
-							timeMs: dragState.timeMs,
-						};
-						void onSeek(dragState.timeMs, false);
-					}}
-					onPointerCancel={(event) => {
-						clearSeekDragState(event.currentTarget, event.pointerId);
-					}}
-					onDoubleClick={(event) => {
-						if (
-							(event.target as HTMLElement).closest("[data-annotation-hit]")
-						) {
-							return;
-						}
-
-						if (!isClientXYInCanvasSurface(event.clientX, event.clientY)) {
-							return;
-						}
-
-						const lastSeekClick = lastSeekClickRef.current;
-						const timeMs =
-							lastSeekClick &&
-							Math.abs(lastSeekClick.clientX - event.clientX) <= 1
-								? lastSeekClick.timeMs
-								: getWaveformTimeMs(event.clientX);
-						if (timeMs === null) {
-							return;
-						}
-
-						onSelectFile(audioFile.id);
-						void onSeek(timeMs, true);
-					}}
-					onKeyDown={(event) => {
-						if (event.key !== "Enter") {
-							return;
-						}
-
-						event.preventDefault();
-						const bounds = canvasSurfaceRef.current?.getBoundingClientRect();
-						if (!bounds) {
-							return;
-						}
-
-						void onSeek(Math.round(audioFile.durationMs / 2));
-					}}
-				>
-					{/* biome-ignore lint/a11y/useKeyWithClickEvents: pointer-only gutter quick-add; keyboard users cannot pick an arbitrary time on the gutter */}
-					{/* biome-ignore lint/a11y/noStaticElementInteractions: pointer-only quick-add affordance; the gutter does not behave as a single button because the click position picks the time */}
-					<div
-						className="waveform-surface__gutter relative min-h-0"
-						data-testid="waveform-gutter-top"
-						onPointerEnter={(event) => handleGutterPointerMove("top", event)}
-						onPointerMove={(event) => handleGutterPointerMove("top", event)}
-						onPointerLeave={handleGutterPointerLeave}
-						onClick={handleTopGutterClick}
-					>
-						{gutterHover?.position === "top" ? (
-							<span
-								aria-hidden
-								data-testid="gutter-add-marker-icon"
-								className="pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
-								style={{ left: `${gutterHover.x}px` }}
-							>
-								<Plus size={14} />
-							</span>
-						) : null}
-					</div>
-					<div
-						ref={canvasSurfaceRef}
-						className="relative min-h-0 border-y border-[var(--color-border-subtle)]"
-						data-testid="waveform-canvas-surface"
-					>
-						<canvas ref={canvasRef} className="block w-full" />
-					</div>
-					<div
-						className="waveform-surface__gutter relative min-h-0"
-						data-testid="waveform-gutter-bottom"
-						onPointerEnter={(event) => handleGutterPointerMove("bottom", event)}
-						onPointerMove={handleBottomGutterPointerMove}
-						onPointerLeave={handleGutterPointerLeave}
-						onPointerDown={handleBottomGutterPointerDown}
-						onPointerUp={handleBottomGutterPointerUp}
-						onPointerCancel={handleBottomGutterPointerCancel}
-					>
-						{bottomGutterDrag?.moved ? (
-							<span
-								aria-hidden
-								data-testid="gutter-add-range-preview"
-								className="pointer-events-none absolute top-1/2 -translate-y-1/2"
-								style={{
-									left: `${
-										(Math.min(
-											bottomGutterDrag.anchorTimeMs,
-											bottomGutterDrag.currentTimeMs,
-										) /
-											Math.max(audioFile.durationMs, 1)) *
-										100
-									}%`,
-									width: `${
-										(Math.abs(
-											bottomGutterDrag.currentTimeMs -
-												bottomGutterDrag.anchorTimeMs,
-										) /
-											Math.max(audioFile.durationMs, 1)) *
-										100
-									}%`,
-									height: "var(--waveform-marker-visual-height)",
-									backgroundColor: "var(--color-marker-range)",
-									opacity: 0.45,
-								}}
-							/>
-						) : null}
-						{gutterHover?.position === "bottom" && !bottomGutterDrag ? (
-							<span
-								aria-hidden
-								data-testid="gutter-add-range-icon"
-								className="pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
-								style={{ left: `${gutterHover.x}px` }}
-							>
-								<Plus size={14} />
-							</span>
-						) : null}
-					</div>
-					<div
-						ref={annotationOverlayRef}
-						className="pointer-events-none absolute inset-0 z-20"
-						data-testid="waveform-annotation-overlay"
-					>
-						<WaveformCardAnnotationLayer
-							activeAnnotationId={activeAnnotationId}
-							audioFile={audioFile}
-							annotations={sortedAnnotations}
-							hoveredAnnotationRecord={hoveredAnnotationRecord}
-							hoveredTooltipPosition={hoveredTooltipPosition}
-							onCommitAnnotationChange={commitAnnotationChange}
-							onDeleteAnnotation={onDeleteAnnotation}
-							onPreviewAnnotationChange={previewAnnotationChange}
-							onResetAnnotationPreview={resetAnnotationPreview}
-							onSeek={onSeek}
-							onSelectAnnotation={onSelectAnnotation}
-							onSelectFile={onSelectFile}
-							getTimePerPixel={getTimePerPixel}
-							setHoveredAnnotation={setHoveredAnnotation}
-							updateHoveredAnnotationPosition={updateHoveredAnnotationPosition}
-						/>
-					</div>
-				</div>
-			</div>
+			<WaveformCardSurface
+				activeAnnotationId={activeAnnotationId}
+				annotationOverlayRef={annotationOverlayRef}
+				audioFile={audioFile}
+				bottomGutterDrag={bottomGutterDrag}
+				canvasRef={canvasRef}
+				canvasSurfaceRef={canvasSurfaceRef}
+				clearGutterHover={clearGutterHover}
+				clearHoveredAnnotation={clearHoveredAnnotation}
+				commitAnnotationChange={commitAnnotationChange}
+				getTimePerPixel={getTimePerPixel}
+				gutterHover={gutterHover}
+				handleBottomGutterPointerCancel={handleBottomGutterPointerCancel}
+				handleBottomGutterPointerDown={handleBottomGutterPointerDown}
+				handleBottomGutterPointerMove={handleBottomGutterPointerMove}
+				handleBottomGutterPointerUp={handleBottomGutterPointerUp}
+				handleSurfaceDoubleClick={handleSurfaceDoubleClick}
+				handleSurfaceKeyDown={handleSurfaceKeyDown}
+				handleSurfacePointerCancel={handleSurfacePointerCancel}
+				handleSurfacePointerDown={handleSurfacePointerDown}
+				handleSurfacePointerMove={handleSurfacePointerMove}
+				handleSurfacePointerUp={handleSurfacePointerUp}
+				handleTopGutterClick={handleTopGutterClick}
+				hoveredAnnotationRecord={hoveredAnnotationRecord}
+				hoveredTooltipPosition={hoveredTooltipPosition}
+				onDeleteAnnotation={onDeleteAnnotation}
+				onSeek={onSeek}
+				onSelectAnnotation={onSelectAnnotation}
+				onSelectFile={onSelectFile}
+				previewAnnotationChange={previewAnnotationChange}
+				resetAnnotationPreview={resetAnnotationPreview}
+				setHoveredAnnotation={setHoveredAnnotation}
+				sortedAnnotations={sortedAnnotations}
+				updateBottomGutterHover={updateBottomGutterHover}
+				updateGutterHoverFromEvent={updateGutterHoverFromEvent}
+				updateHoveredAnnotationPosition={updateHoveredAnnotationPosition}
+			/>
 
 			<WaveformCardFooter
 				audioFileTitle={audioFile.title}
@@ -918,46 +382,13 @@ export function WaveformCard({
 				volumeDb={audioFile.volumeDb}
 			/>
 
-			{/* biome-ignore lint/a11y/useMediaCaption: hidden transport audio is controlled programmatically instead of being exposed as standalone media */}
-			<audio
-				ref={(element) => {
-					audioRef.current = element;
-					onRegisterAudioElement(element);
-				}}
-				src={objectUrl ?? undefined}
-				preload="metadata"
-				className="hidden"
-				onPlay={(event) =>
-					onReportPlayback({
-						isPlaying: true,
-						currentTimeMs: event.currentTarget.currentTime * 1000,
-					})
-				}
-				onPause={(event) =>
-					onReportPlayback({
-						isPlaying: false,
-						currentTimeMs: event.currentTarget.currentTime * 1000,
-					})
-				}
-				onTimeUpdate={(event) =>
-					onReportPlayback({
-						currentTimeMs: event.currentTarget.currentTime * 1000,
-					})
-				}
-				onLoadedMetadata={() => {
-					if (
-						audioRef.current &&
-						Math.abs(audioRef.current.currentTime - currentTimeMs / 1000) > 0.3
-					) {
-						audioRef.current.currentTime = currentTimeMs / 1000;
-					}
-				}}
-				onEnded={() =>
-					onReportPlayback({
-						isPlaying: false,
-						currentTimeMs: audioFile.durationMs,
-					})
-				}
+			<WaveformCardAudio
+				audioFileDurationMs={audioFile.durationMs}
+				audioRef={audioRef}
+				currentTimeMs={currentTimeMs}
+				objectUrl={objectUrl}
+				onRegisterAudioElement={onRegisterAudioElement}
+				onReportPlayback={onReportPlayback}
 			/>
 		</article>
 	);

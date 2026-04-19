@@ -234,7 +234,7 @@ export function LibraryView() {
 														{song.title}
 													</h2>
 													{showArtist ? (
-														<p className="mt-2 text-sm text-[var(--color-text-subtle)]">
+														<p className="mt-2 text-sm text-[var(--color-text-muted)]">
 															{song.artist || "No artist set"}
 														</p>
 													) : null}

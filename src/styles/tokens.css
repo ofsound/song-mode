@@ -35,10 +35,6 @@
 		var(--color-slate-600),
 		var(--color-slate-300)
 	);
-	--color-text-subtle: light-dark(
-		var(--color-zinc-500),
-		var(--color-slate-400)
-	);
 	--color-text-inverse: light-dark(var(--color-white), var(--color-zinc-950));
 	--color-border-strong: light-dark(
 		color-mix(in srgb, var(--color-zinc-400) 78%, var(--color-zinc-300)),
@@ -47,10 +43,6 @@
 	--color-border-plain: light-dark(
 		color-mix(in srgb, var(--color-zinc-500) 22%, transparent),
 		color-mix(in srgb, var(--color-slate-400) 26%, transparent)
-	);
-	--color-border-subtle: light-dark(
-		color-mix(in srgb, var(--color-zinc-500) 14%, transparent),
-		color-mix(in srgb, var(--color-slate-400) 18%, transparent)
 	);
 	--color-accent: light-dark(
 		var(--accent-light-primary-base),
@@ -107,12 +99,12 @@
 		var(--accent-dark-primary-base)
 	);
 	--color-marker-point: light-dark(
-		color-mix(in srgb, var(--color-zinc-400) 94%, var(--color-sky-700)),
-		color-mix(in srgb, var(--color-zinc-400) 94%, var(--color-sky-400))
+		color-mix(in srgb, var(--color-zinc-500) 72%, var(--color-sky-600)),
+		color-mix(in srgb, var(--color-zinc-200) 68%, var(--color-sky-300))
 	);
 	--color-marker-range: light-dark(
-		color-mix(in srgb, var(--color-zinc-600) 88%, var(--color-amber-700)),
-		color-mix(in srgb, var(--color-zinc-300) 88%, var(--color-amber-300))
+		color-mix(in srgb, var(--color-zinc-600) 70%, var(--color-amber-700)),
+		color-mix(in srgb, var(--color-zinc-200) 66%, var(--color-amber-300))
 	);
 	--color-waveform-surface: light-dark(
 		color-mix(in srgb, var(--color-white) 92%, var(--color-slate-50)),
@@ -148,11 +140,6 @@
 		color-mix(in srgb, var(--color-marker-range) 14%, transparent),
 		color-mix(in srgb, var(--color-marker-range) 18%, transparent)
 	);
-	--color-annotation-2: light-dark(
-		var(--color-amber-400),
-		var(--color-amber-400)
-	);
-	--color-annotation-4: light-dark(var(--color-sky-400), var(--color-sky-400));
 	--shadow-panel:
 		0 20px 50px -24px
 		light-dark(
@@ -289,37 +276,6 @@
 		6px
 	);
 	--song-workspace-waveform-height: 164px;
-	--canvas-waveform-surface: color-mix(
-		in srgb,
-		var(--color-white) 94%,
-		transparent
-	);
-	--canvas-waveform-grid: color-mix(
-		in srgb,
-		var(--color-slate-400) 18%,
-		transparent
-	);
-	--canvas-waveform-base: color-mix(
-		in srgb,
-		var(--color-slate-500) 52%,
-		transparent
-	);
-	--canvas-waveform-selected: color-mix(
-		in srgb,
-		var(--accent-light-primary-base) 86%,
-		transparent
-	);
-	--canvas-waveform-progress: color-mix(
-		in srgb,
-		var(--accent-light-primary-base) 4%,
-		transparent
-	);
-	--canvas-waveform-progress-line: color-mix(
-		in srgb,
-		var(--color-slate-900) 92%,
-		transparent
-	);
-	--canvas-waveform-range: rgba(217, 119, 6, 0.9);
 }
 
 .light {
@@ -328,31 +284,4 @@
 
 .dark {
 	color-scheme: dark;
-	--canvas-waveform-surface: color-mix(
-		in srgb,
-		var(--color-white) 4%,
-		transparent
-	);
-	--canvas-waveform-grid: color-mix(
-		in srgb,
-		var(--color-slate-400) 14%,
-		transparent
-	);
-	--canvas-waveform-base: color-mix(
-		in srgb,
-		var(--color-slate-300) 56%,
-		transparent
-	);
-	--canvas-waveform-selected: color-mix(
-		in srgb,
-		var(--accent-dark-primary-base) 88%,
-		transparent
-	);
-	--canvas-waveform-progress: color-mix(
-		in srgb,
-		var(--accent-dark-primary-base) 5%,
-		transparent
-	);
-	--canvas-waveform-progress-line: var(--color-white);
-	--canvas-waveform-range: rgba(244, 182, 79, 0.88);
 }

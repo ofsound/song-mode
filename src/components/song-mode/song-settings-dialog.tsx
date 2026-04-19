@@ -96,7 +96,7 @@ export function SongSettingsDialog({
 				) : null}
 			</div>
 
-			<div className="flex items-center justify-end border-t border-[var(--color-border-subtle)] px-5 py-4 sm:px-6">
+			<div className="flex items-center justify-end border-t border-[var(--color-border-plain)] px-5 py-4 sm:px-6">
 				<button
 					type="button"
 					onClick={() => void onDeleteSong()}

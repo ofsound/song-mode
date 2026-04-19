@@ -179,6 +179,7 @@ describe("SongModeProvider", () => {
 					id: "file-1",
 					songId: "song-1",
 					title: "Legacy mix",
+					sessionDate: "2026-04-16",
 					notes: EMPTY_RICH_TEXT,
 					durationMs: 180000,
 					waveform: {

@@ -140,6 +140,7 @@ describe("song mode search", () => {
 				id: "file-1",
 				songId: "song-1",
 				title: "Mix v4",
+				sessionDate: "2026-04-15",
 				notes: plainTextToRichText("Snare still feels dark"),
 				volumeDb: 0,
 				durationMs: 180000,

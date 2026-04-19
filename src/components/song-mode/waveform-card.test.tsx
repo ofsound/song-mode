@@ -68,6 +68,7 @@ function createAudioFile(
 		id: "file-1",
 		songId: "song-1",
 		title: "Mix v1",
+		sessionDate: "2026-04-16",
 		notes: EMPTY_RICH_TEXT,
 		volumeDb: 0,
 		durationMs: 180000,

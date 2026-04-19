@@ -18,7 +18,7 @@ import type {
 	WorkspaceState,
 } from "#/lib/song-mode/types";
 import { createDefaultUiSettings } from "#/lib/song-mode/types";
-import { SongRouteHeaderSlotContext } from "./app-chrome";
+import { HeaderSlotsContext } from "./app-chrome";
 import { SongWorkspace } from "./song-workspace";
 
 const navigateMock = vi.fn();
@@ -168,6 +168,7 @@ function createAudioFile(
 		id: "file-1",
 		songId: baseSong.id,
 		title: "Mix v1",
+		sessionDate: "2026-04-16",
 		notes: EMPTY_RICH_TEXT,
 		volumeDb: 0,
 		durationMs: 180000,
@@ -1113,11 +1114,14 @@ describe("SongWorkspace", () => {
 		document.body.appendChild(headerSlot);
 
 		const { container, unmount } = render(
-			<SongRouteHeaderSlotContext.Provider
-				value={{ enabled: true, slot: headerSlot }}
+			<HeaderSlotsContext.Provider
+				value={{
+					library: { enabled: false, slot: null },
+					song: { enabled: true, slot: headerSlot },
+				}}
 			>
 				<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />
-			</SongRouteHeaderSlotContext.Provider>,
+			</HeaderSlotsContext.Provider>,
 		);
 
 		expect(
@@ -1166,11 +1170,14 @@ describe("SongWorkspace", () => {
 		document.body.appendChild(headerSlot);
 
 		render(
-			<SongRouteHeaderSlotContext.Provider
-				value={{ enabled: true, slot: headerSlot }}
+			<HeaderSlotsContext.Provider
+				value={{
+					library: { enabled: false, slot: null },
+					song: { enabled: true, slot: headerSlot },
+				}}
 			>
 				<SongWorkspace songId={baseSong.id} search={{ autoplay: false }} />
-			</SongRouteHeaderSlotContext.Provider>,
+			</HeaderSlotsContext.Provider>,
 		);
 
 		expect(

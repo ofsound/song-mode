@@ -2,7 +2,6 @@ import { normalizeRichText } from "#/lib/song-mode/rich-text";
 import {
 	type AudioFileRecord,
 	createEmptySettings,
-	normalizeAnnotationColor,
 	normalizeSongModeSettings,
 	type SongModeSnapshot,
 } from "#/lib/song-mode/types";
@@ -29,6 +28,7 @@ export async function normalizeLoadedSnapshot(
 		loadedSnapshot.audioFiles.map(async (audioFile) => {
 			const normalizedAudioFile: AudioFileRecord = {
 				...audioFile,
+				sessionDate: normalizeLoadedSessionDate(audioFile),
 				notes: normalizeRichText(audioFile.notes),
 				volumeDb: normalizeVolumeDb(audioFile.volumeDb),
 				waveform: normalizeWaveformData(
@@ -79,11 +79,27 @@ export async function normalizeLoadedSnapshot(
 			annotations: loadedSnapshot.annotations.map((annotation) => ({
 				...annotation,
 				body: normalizeRichText(annotation.body),
-				color: normalizeAnnotationColor(annotation.color),
 			})),
 			settings: normalizeSongModeSettings(
 				loadedSnapshot.settings ?? createEmptySettings(),
 			),
 		},
 	};
+}
+
+function normalizeLoadedSessionDate(
+	audioFile: Pick<AudioFileRecord, "createdAt" | "sessionDate">,
+): string {
+	const explicit = audioFile.sessionDate?.trim() ?? "";
+	if (/^\d{4}-\d{2}-\d{2}$/.test(explicit)) {
+		return explicit;
+	}
+
+	const createdDatePart =
+		audioFile.createdAt.length >= 10 ? audioFile.createdAt.slice(0, 10) : "";
+	if (/^\d{4}-\d{2}-\d{2}$/.test(createdDatePart)) {
+		return createdDatePart;
+	}
+
+	return "1970-01-01";
 }

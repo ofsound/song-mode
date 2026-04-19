@@ -319,6 +319,8 @@ export function useAudioFileMutations({
 							playheadMsByFileId,
 						};
 					}
+					const blobsByAudioId = { ...current.blobsByAudioId };
+					delete blobsByAudioId[audioFileId];
 
 					return {
 						...current,
@@ -339,11 +341,7 @@ export function useAudioFileMutations({
 						annotations: current.annotations.filter(
 							(annotation) => annotation.audioFileId !== audioFileId,
 						),
-						blobsByAudioId: Object.fromEntries(
-							Object.entries(current.blobsByAudioId).filter(
-								([fileId]) => fileId !== audioFileId,
-							),
-						),
+						blobsByAudioId,
 						settings: {
 							...current.settings,
 							workspaceBySongId,

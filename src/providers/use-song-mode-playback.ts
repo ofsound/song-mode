@@ -35,10 +35,63 @@ export function useSongModePlayback({
 	});
 	const playbackRef = useRef(playback);
 	const audioRefs = useRef(new Map<string, HTMLAudioElement>());
+	const pendingCurrentTimeByFileIdRef = useRef<Record<string, number>>({});
+	const playbackFrameRef = useRef<number | null>(null);
 
 	useEffect(() => {
 		playbackRef.current = playback;
 	}, [playback]);
+
+	const cancelScheduledPlaybackUpdate = useCallback(() => {
+		if (playbackFrameRef.current === null) {
+			return;
+		}
+
+		window.cancelAnimationFrame(playbackFrameRef.current);
+		playbackFrameRef.current = null;
+	}, []);
+
+	const flushPendingPlaybackUpdates = useCallback(() => {
+		const pendingEntries = Object.entries(
+			pendingCurrentTimeByFileIdRef.current,
+		);
+		if (pendingEntries.length === 0) {
+			cancelScheduledPlaybackUpdate();
+			return;
+		}
+
+		pendingCurrentTimeByFileIdRef.current = {};
+		cancelScheduledPlaybackUpdate();
+		setPlayback((current) => ({
+			...current,
+			currentTimeByFileId: {
+				...current.currentTimeByFileId,
+				...Object.fromEntries(pendingEntries),
+			},
+		}));
+	}, [cancelScheduledPlaybackUpdate]);
+
+	const schedulePlaybackTimeUpdate = useCallback(
+		(fileId: string, currentTimeMs: number) => {
+			pendingCurrentTimeByFileIdRef.current[fileId] = currentTimeMs;
+			if (playbackFrameRef.current !== null) {
+				return;
+			}
+
+			playbackFrameRef.current = window.requestAnimationFrame(() => {
+				flushPendingPlaybackUpdates();
+			});
+		},
+		[flushPendingPlaybackUpdates],
+	);
+
+	useEffect(
+		() => () => {
+			pendingCurrentTimeByFileIdRef.current = {};
+			cancelScheduledPlaybackUpdate();
+		},
+		[cancelScheduledPlaybackUpdate],
+	);
 
 	const pauseOtherAudio = useCallback((currentFileId?: string) => {
 		for (const [fileId, element] of audioRefs.current.entries()) {
@@ -67,17 +120,21 @@ export function useSongModePlayback({
 				currentTimeMs?: number;
 			},
 		) => {
+			if (typeof patch.isPlaying !== "boolean") {
+				if (typeof patch.currentTimeMs === "number") {
+					schedulePlaybackTimeUpdate(fileId, patch.currentTimeMs);
+				}
+				return;
+			}
+
+			const isPlaying = patch.isPlaying;
+			flushPendingPlaybackUpdates();
 			setPlayback((current) => ({
 				activeFileId:
-					patch.isPlaying || current.activeFileId === fileId
+					isPlaying || current.activeFileId === fileId
 						? fileId
 						: current.activeFileId,
-				isPlaying:
-					typeof patch.isPlaying === "boolean"
-						? patch.isPlaying
-						: current.activeFileId === fileId
-							? current.isPlaying
-							: false,
+				isPlaying,
 				currentTimeByFileId:
 					typeof patch.currentTimeMs === "number"
 						? {
@@ -87,7 +144,7 @@ export function useSongModePlayback({
 						: current.currentTimeByFileId,
 			}));
 		},
-		[],
+		[flushPendingPlaybackUpdates, schedulePlaybackTimeUpdate],
 	);
 
 	const seekFile = useCallback(

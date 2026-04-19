@@ -39,8 +39,12 @@ interface SongModeDB extends DBSchema {
 }
 
 const DB_NAME = "song-mode";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const SETTINGS_KEY = "app-settings";
+const LEGACY_POINT_ANNOTATION_COLOR = "var(--color-annotation-4)";
+const LEGACY_RANGE_ANNOTATION_COLOR = "var(--color-annotation-2)";
+const POINT_MARKER_COLOR = "var(--color-marker-point)";
+const RANGE_MARKER_COLOR = "var(--color-marker-range)";
 
 let dbPromise: Promise<IDBPDatabase<SongModeDB>> | null = null;
 
@@ -96,6 +100,40 @@ function getDb(): Promise<IDBPDatabase<SongModeDB>> {
 						});
 					}),
 				);
+			}
+
+			if (oldVersion < 3) {
+				const audioFilesStore = transaction.objectStore("audioFiles");
+				const annotationsStore = transaction.objectStore("annotations");
+				const [audioFiles, annotations] = await Promise.all([
+					audioFilesStore.getAll(),
+					annotationsStore.getAll(),
+				]);
+
+				await Promise.all([
+					...audioFiles.map(async (audioFile) => {
+						const sessionDate = normalizeStoredSessionDate(audioFile);
+						if (audioFile.sessionDate === sessionDate) {
+							return;
+						}
+
+						await audioFilesStore.put({
+							...audioFile,
+							sessionDate,
+						});
+					}),
+					...annotations.map(async (annotation) => {
+						const color = normalizeLegacyAnnotationColor(annotation.color);
+						if (annotation.color === color) {
+							return;
+						}
+
+						await annotationsStore.put({
+							...annotation,
+							color,
+						});
+					}),
+				]);
 			}
 		},
 	});
@@ -266,4 +304,35 @@ function mergeAudioFileNotes(
 			...(normalizedLegacyMastering.content ?? []),
 		],
 	};
+}
+
+function normalizeStoredSessionDate(
+	audioFile: Pick<AudioFileRecord, "createdAt" | "sessionDate">,
+): string {
+	const explicit = audioFile.sessionDate?.trim() ?? "";
+	if (/^\d{4}-\d{2}-\d{2}$/.test(explicit)) {
+		return explicit;
+	}
+
+	const createdDatePart =
+		audioFile.createdAt.length >= 10 ? audioFile.createdAt.slice(0, 10) : "";
+	if (/^\d{4}-\d{2}-\d{2}$/.test(createdDatePart)) {
+		return createdDatePart;
+	}
+
+	return "1970-01-01";
+}
+
+function normalizeLegacyAnnotationColor(
+	color: string | undefined,
+): string | undefined {
+	if (color === LEGACY_POINT_ANNOTATION_COLOR) {
+		return POINT_MARKER_COLOR;
+	}
+
+	if (color === LEGACY_RANGE_ANNOTATION_COLOR) {
+		return RANGE_MARKER_COLOR;
+	}
+
+	return color;
 }

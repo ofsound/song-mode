@@ -7,51 +7,38 @@ import {
 import { normalizeLoadedSnapshot } from "./song-mode-provider-hydration";
 
 describe("normalizeLoadedSnapshot", () => {
-	it("rewrites legacy annotation colors to the new semantic marker tokens", async () => {
-		const snapshot: SongModeSnapshot = {
+	it("backfills missing session dates from createdAt during hydration", async () => {
+		const snapshot = {
 			songs: [],
-			audioFiles: [],
-			annotations: [
+			audioFiles: [
 				{
-					id: "annotation-point",
+					id: "file-1",
 					songId: "song-1",
-					audioFileId: "file-1",
-					type: "point",
-					startMs: 1000,
-					title: "Point",
-					body: EMPTY_RICH_TEXT,
-					color: "var(--color-annotation-4)",
-					createdAt: "2026-04-18T00:00:00.000Z",
-					updatedAt: "2026-04-18T00:00:00.000Z",
-				},
-				{
-					id: "annotation-range",
-					songId: "song-1",
-					audioFileId: "file-1",
-					type: "range",
-					startMs: 2000,
-					endMs: 3000,
-					title: "Range",
-					body: EMPTY_RICH_TEXT,
-					color: "var(--color-annotation-2)",
+					title: "Take 1",
+					notes: EMPTY_RICH_TEXT,
+					volumeDb: 0,
+					durationMs: 180000,
+					waveform: {
+						peaks: [0.2, 0.6, 0.4],
+						peakCount: 3,
+						durationMs: 180000,
+						sampleRate: 44100,
+					},
 					createdAt: "2026-04-18T00:00:00.000Z",
 					updatedAt: "2026-04-18T00:00:00.000Z",
 				},
 			],
+			annotations: [],
 			blobsByAudioId: {},
 			settings: createEmptySettings(),
-		};
+		} as unknown as SongModeSnapshot;
 
 		const { normalizedSnapshot } = await normalizeLoadedSnapshot(snapshot);
 
-		expect(normalizedSnapshot.annotations).toEqual([
+		expect(normalizedSnapshot.audioFiles).toEqual([
 			expect.objectContaining({
-				id: "annotation-point",
-				color: "var(--color-marker-point)",
-			}),
-			expect.objectContaining({
-				id: "annotation-range",
-				color: "var(--color-marker-range)",
+				id: "file-1",
+				sessionDate: "2026-04-18",
 			}),
 		]);
 	});
