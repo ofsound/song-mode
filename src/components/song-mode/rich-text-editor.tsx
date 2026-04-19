@@ -143,8 +143,24 @@ export function RichTextEditor({
 			return;
 		}
 
-		const nextSerialized = JSON.stringify(editor.getJSON());
-		if (nextSerialized !== serializedValue) {
+		// If the incoming prop matches what we last emitted, this is our own
+		// debounced change round-tripping back as a prop. Do nothing: rewriting
+		// the editor content here would clobber any characters the user has
+		// typed since the debounced emit fired.
+		if (serializedValue === lastEmittedSerializedRef.current) {
+			return;
+		}
+
+		// Genuine external change: cancel any pending debounced emit so it
+		// can't later overwrite the new value with stale typed content, then
+		// sync the editor to the incoming document.
+		if (debounceRef.current) {
+			window.clearTimeout(debounceRef.current);
+			debounceRef.current = null;
+		}
+
+		const currentSerialized = JSON.stringify(editor.getJSON());
+		if (currentSerialized !== serializedValue) {
 			editor.commands.setContent(value ?? EMPTY_RICH_TEXT, {
 				emitUpdate: false,
 				parseOptions: { preserveWhitespace: "full" },
