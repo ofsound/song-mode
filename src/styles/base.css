@@ -188,7 +188,6 @@ pre code {
 }
 
 .field-input:focus-visible {
-	border-color: var(--color-accent-strong);
 	box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
@@ -206,7 +205,6 @@ pre code {
 }
 
 [data-reduce-keyboard-focus] .field-input:focus-visible {
-	border-color: var(--color-border-plain);
 	box-shadow: none;
 }
 
@@ -226,6 +224,10 @@ pre code {
 	border: 1px solid var(--color-border-plain);
 	background: var(--color-surface-elevated);
 	color: var(--color-text-muted);
+	transition:
+		border-color 160ms ease,
+		color 160ms ease,
+		background-color 160ms ease;
 }
 
 .icon-button:hover {

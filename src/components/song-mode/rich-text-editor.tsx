@@ -193,7 +193,7 @@ export function RichTextEditor({
 	return (
 		<div
 			ref={wrapperRef}
-			className={`min-h-0 bg-[var(--color-surface)]${
+			className={`song-editor-shell min-h-0 bg-[var(--color-surface)]${
 				seamless ? "" : " border border-[var(--color-border-strong)]"
 			}`}
 			data-song-mode-editor={focusId}
@@ -321,10 +321,10 @@ function ToolbarButton({
 		<button
 			type="button"
 			onClick={onClick}
-			className={`inline-flex h-8 items-center justify-center border px-3 text-xs font-semibold ${
+			className={`inline-flex h-8 items-center justify-center px-3 text-xs font-semibold ${
 				active
 					? "border-[var(--color-accent-strong)] bg-[var(--color-accent-surface)] text-[var(--color-text)]"
-					: "border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
+					: "action-secondary"
 			}`}
 			aria-label={label}
 			title={label}

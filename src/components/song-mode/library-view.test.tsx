@@ -247,6 +247,28 @@ describe("LibraryView", () => {
 		});
 	});
 
+	it("uses shared classes for the song card shell and inline settings button", () => {
+		const headerSlot = document.createElement("div");
+		document.body.appendChild(headerSlot);
+		songs = [makeSong("song-1")];
+
+		render(
+			<LibraryHeaderActionSlotContext.Provider
+				value={{ enabled: true, slot: headerSlot }}
+			>
+				<LibraryView />
+			</LibraryHeaderActionSlotContext.Provider>,
+		);
+
+		const settingsButton = screen.getByRole("button", {
+			name: /edit settings for new song/i,
+		});
+		const songCard = settingsButton.closest(".panel-shell");
+
+		expect(songCard?.className).toContain("panel-shell-action");
+		expect(settingsButton.className).toContain("icon-button");
+	});
+
 	it("confirms before deleting a song from the library song settings modal", async () => {
 		const headerSlot = document.createElement("div");
 		document.body.appendChild(headerSlot);

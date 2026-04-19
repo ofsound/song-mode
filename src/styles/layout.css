@@ -52,10 +52,11 @@
 
 .panel-shell-action {
 	cursor: pointer;
+	transition: border-color 160ms ease;
 }
 
 .panel-shell-action:hover {
-	border-color: var(--color-accent-strong);
+	border-color: var(--color-border-strong);
 }
 
 .panel-shell-action:focus-visible {

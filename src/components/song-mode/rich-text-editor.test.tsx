@@ -113,7 +113,10 @@ describe("RichTextEditor", () => {
 
 		render(<TestHarness onChangeSpy={onChangeSpy} />);
 
-		await screen.findByRole("button", { name: "Add Timestamp" });
+		const addTimestampButton = await screen.findByRole("button", {
+			name: "Add Timestamp",
+		});
+		expect(addTimestampButton.className).toContain("action-secondary");
 
 		fireEvent.click(screen.getByRole("button", { name: "Move Caret" }));
 		fireEvent.click(screen.getByRole("button", { name: "Add Timestamp" }));

@@ -42,7 +42,11 @@ vi.mock("./global-search", () => ({
 
 vi.mock("./theme-toggle", () => ({
 	ThemeToggle: () => (
-		<button type="button" aria-label="Switch to dark mode">
+		<button
+			type="button"
+			className="theme-toggle-button h-12 w-12 shrink-0"
+			aria-label="Switch to dark mode"
+		>
 			theme
 		</button>
 	),
@@ -71,6 +75,8 @@ describe("SongModeChrome", () => {
 			name: /switch to dark mode/i,
 		});
 
+		expect(settingsButton.className).toContain("theme-toggle-button");
+		expect(themeButton.className).toContain("theme-toggle-button");
 		expect(Array.from(settingsButton.parentElement?.children ?? [])).toEqual(
 			expect.arrayContaining([settingsButton, themeButton]),
 		);
@@ -121,7 +127,7 @@ describe("SongModeChrome", () => {
 		expect(typeof updater).toBe("function");
 		expect(updater(createDefaultUiSettings())).toEqual({
 			...createDefaultUiSettings(),
-			keyboardFocusHighlights: false,
+			keyboardFocusHighlights: true,
 		});
 	});
 });

@@ -212,7 +212,7 @@ function ColorSettingField({
 	return (
 		<label className="grid gap-2">
 			<span className="field-label">{label}</span>
-			<div className="field-input flex h-12 items-center gap-3 px-3 py-0">
+			<div className="flex h-12 items-center gap-3 border border-[var(--color-border-subtle)] bg-[var(--color-surface-elevated)] px-3 py-0 text-[var(--color-text)]">
 				<input
 					type="color"
 					value={value}

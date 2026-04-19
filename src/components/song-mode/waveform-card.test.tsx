@@ -640,6 +640,16 @@ describe("WaveformCard", () => {
 		});
 
 		expect(
+			screen.getByRole("button", {
+				name: /add marker at playhead/i,
+			}).className,
+		).toContain("action-secondary");
+		expect(
+			screen.getByRole("button", {
+				name: /start range at playhead/i,
+			}).className,
+		).toContain("action-secondary");
+		expect(
 			screen.queryByRole("button", {
 				name: /^seek$/i,
 			}),
@@ -678,7 +688,9 @@ describe("WaveformCard", () => {
 			onOpenFileDetails,
 		});
 
-		fireEvent.click(getEditDetailsButton("Mix v1"));
+		const editDetailsButton = getEditDetailsButton("Mix v1");
+		expect(editDetailsButton.className).toContain("icon-button");
+		fireEvent.click(editDetailsButton);
 
 		expect(onOpenFileDetails).toHaveBeenCalledWith("file-1");
 	});
@@ -713,6 +725,7 @@ describe("WaveformCard", () => {
 		const dragHandle = screen.getByRole("button", {
 			name: /reorder mix v1/i,
 		});
+		expect(dragHandle.className).toContain("icon-button");
 		mockWaveformBounds(waveformCard, { left: 10, width: 240 });
 		const dataTransfer = {
 			effectAllowed: "none",

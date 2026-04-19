@@ -237,7 +237,7 @@ export function LibraryView() {
 											<button
 												type="button"
 												onClick={() => setEditingSongId(song.id)}
-												className="-mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center text-[var(--color-text-muted)] opacity-70 transition-opacity hover:opacity-100 focus-visible:opacity-100"
+												className="icon-button icon-button--sm -mt-0.5 shrink-0"
 												title="Edit song settings"
 												aria-label={`Edit settings for ${song.title}`}
 											>

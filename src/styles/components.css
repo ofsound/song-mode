@@ -1,21 +1,15 @@
-.brand-mark {
-	border-color: var(--color-border-strong);
-	background: var(--background-image-brand), var(--color-header-icon-surface);
-	box-shadow: var(--shadow-panel);
-}
-
 .action-secondary {
 	border: 1px solid var(--color-border-plain);
 	background: var(--color-surface-elevated);
 	color: var(--color-text);
+	transition:
+		border-color 160ms ease,
+		color 160ms ease,
+		background-color 160ms ease;
 }
 
 .action-secondary:hover {
-	background: color-mix(
-		in srgb,
-		var(--color-surface-elevated) 84%,
-		var(--color-accent-surface)
-	);
+	border-color: var(--color-border-strong);
 }
 
 .action-primary {
@@ -29,12 +23,16 @@
 	justify-content: center;
 	border-radius: 0;
 	border: 1px solid var(--color-border-plain);
-	background: var(--color-surface);
+	background: var(--color-surface-elevated);
 	color: var(--color-text-muted);
+	transition:
+		border-color 160ms ease,
+		color 160ms ease,
+		background-color 160ms ease;
 }
 
 .theme-toggle-button:hover {
-	background: var(--color-surface-elevated);
+	border-color: var(--color-border-strong);
 	color: var(--color-text);
 }
 
@@ -178,10 +176,6 @@
 	border-color: transparent;
 }
 
-.marker-card .field-input:focus-visible {
-	border-color: var(--color-accent-strong);
-}
-
 .marker-times-row .field-input {
 	padding: 0.1875rem 0;
 	font-size: 0.75rem;
@@ -256,6 +250,21 @@
 
 .song-editor {
 	color: var(--color-text-muted);
+}
+
+.song-editor-shell:has(.song-editor:focus-visible) {
+	box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+[data-song-mode-editor="journal"].song-editor-shell:has(
+		.song-editor:focus-visible
+	) {
+	box-shadow: inset 0 0 0 3px var(--color-focus-ring);
+}
+
+[data-reduce-keyboard-focus]
+	.song-editor-shell:has(.song-editor:focus-visible) {
+	box-shadow: none;
 }
 
 .song-editor.prose {

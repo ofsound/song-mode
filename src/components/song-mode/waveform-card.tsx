@@ -624,7 +624,7 @@ export function WaveformCard({
 						onPointerUp={() => setDragArmed(false)}
 						onPointerCancel={() => setDragArmed(false)}
 						onBlur={() => setDragArmed(false)}
-						className="inline-flex h-10 w-10 items-center justify-center border border-[var(--color-border-plain)] bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)]"
+						className="icon-button h-10 w-10 shrink-0"
 						title="Drag to reorder"
 					>
 						<GripVertical size={16} />
@@ -641,7 +641,7 @@ export function WaveformCard({
 							<button
 								type="button"
 								onClick={() => onOpenFileDetails(audioFile.id)}
-								className="-ml-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center text-[var(--color-text-muted)] transition-opacity hover:opacity-100 focus-visible:opacity-100 opacity-70"
+								className="icon-button icon-button--sm -ml-0.5 shrink-0"
 								title="Edit file details"
 								aria-label={`Edit details for ${audioFile.title}`}
 							>

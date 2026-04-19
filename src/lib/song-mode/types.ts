@@ -189,7 +189,7 @@ export function createDefaultUiSettings(): SongModeUiSettings {
 		waveformHeight: "large",
 		showArtist: true,
 		showProject: true,
-		keyboardFocusHighlights: true,
+		keyboardFocusHighlights: false,
 	};
 }
 

@@ -17,6 +17,7 @@ describe("ui settings helpers", () => {
 			accentLightPrimary: "#112233",
 			accentDarkStrong: "#abcdef",
 			waveformHeight: "small" as const,
+			keyboardFocusHighlights: true,
 		};
 
 		applyUiSettingsToRoot(uiSettings, document.documentElement);
@@ -57,7 +58,10 @@ describe("ui settings helpers", () => {
 			{ ...createDefaultUiSettings(), keyboardFocusHighlights: false },
 			document.documentElement,
 		);
-		applyUiSettingsToRoot(createDefaultUiSettings(), document.documentElement);
+		applyUiSettingsToRoot(
+			{ ...createDefaultUiSettings(), keyboardFocusHighlights: true },
+			document.documentElement,
+		);
 
 		expect(
 			document.documentElement.hasAttribute("data-reduce-keyboard-focus"),

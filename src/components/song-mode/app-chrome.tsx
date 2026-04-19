@@ -94,11 +94,9 @@ export function SongModeChrome({ children }: { children: React.ReactNode }) {
 										<Link
 											to="/"
 											aria-label="Go to library"
-											className="inline-flex items-center no-underline"
+											className="theme-toggle-button h-12 w-12 shrink-0 no-underline"
 										>
-											<span className="brand-mark inline-flex h-12 w-12 items-center justify-center border text-[var(--color-accent)]">
-												<Library size={22} />
-											</span>
+											<Library size={22} />
 										</Link>
 									) : null}
 
