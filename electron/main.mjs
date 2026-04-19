@@ -3,7 +3,7 @@ import { access } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { app, BrowserWindow, dialog, shell } from "electron";
+import { app, BrowserWindow, dialog, session, shell } from "electron";
 
 const ELECTRON_DIR = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(ELECTRON_DIR, "..");
@@ -170,7 +170,22 @@ app.on("before-quit", () => {
 	stopProductionServer();
 });
 
+function denyDevicePermissions() {
+	// Song Mode never captures audio, video, or other hardware. Denying these
+	// requests at the Chromium layer keeps the renderer from triggering macOS
+	// TCC prompts (microphone, camera, etc.) when Chromium probes devices
+	// during AudioContext / <audio> initialization.
+	session.defaultSession.setPermissionRequestHandler(
+		(_webContents, _permission, callback) => {
+			callback(false);
+		},
+	);
+	session.defaultSession.setPermissionCheckHandler(() => false);
+}
+
 async function launchSongMode() {
+	denyDevicePermissions();
+
 	if (shouldUseProductionServer()) {
 		await startProductionServer();
 	}

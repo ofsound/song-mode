@@ -80,7 +80,14 @@
       "target": [
         "dir",
         "zip"
-      ]
+      ],
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": null,
+        "NSCameraUsageDescription": null,
+        "NSAudioCaptureUsageDescription": null,
+        "NSBluetoothPeripheralUsageDescription": null,
+        "NSBluetoothAlwaysUsageDescription": null
+      }
     }
   }
 }
